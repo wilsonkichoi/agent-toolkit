@@ -1,0 +1,9 @@
+{
+  "name": "agent-toolkit",
+  "description": "Personal agent toolkit: research workflows, dev utilities.",
+  "owner": { "name": "Wilson Choi" },
+  "plugins": [
+    { "name": "research", "source": "./plugins/research", "description": "Research workflow skills" },
+    { "name": "dev", "source": "./plugins/dev", "description": "Development workflow skills" }
+  ]
+}

@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Node (in case MCP servers added later)
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Environment
+.env
+.env.local

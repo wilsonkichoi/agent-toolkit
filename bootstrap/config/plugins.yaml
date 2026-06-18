@@ -1,0 +1,46 @@
+# from agent-toolkit (this repo)
+- name: research
+  marketplace: agent-toolkit
+  description: Research workflow skills
+- name: dev
+  marketplace: agent-toolkit
+  description: Development workflow skills
+
+# from claude-plugins-official
+- name: superpowers
+  marketplace: claude-plugins-official
+  description: Enhanced capabilities
+- name: skill-creator
+  marketplace: claude-plugins-official
+  description: Skill authoring and testing
+- name: ralph-loop
+  marketplace: claude-plugins-official
+  description: Loop execution
+- name: plugin-dev
+  marketplace: claude-plugins-official
+  description: Plugin development toolkit
+- name: playwright
+  marketplace: claude-plugins-official
+  description: Browser automation
+- name: frontend-design
+  marketplace: claude-plugins-official
+  description: Frontend design tools
+- name: deploy-on-aws
+  marketplace: claude-plugins-official
+  description: AWS deployment
+
+# from agent-toolkit-for-aws
+- name: aws-core
+  marketplace: agent-toolkit-for-aws
+  description: AWS core tools
+- name: aws-agents
+  marketplace: agent-toolkit-for-aws
+  description: AWS specialized agents
+
+# from anthropic-agent-skills
+- name: claude-api
+  marketplace: anthropic-agent-skills
+  description: Claude API reference
+- name: document-skills
+  marketplace: anthropic-agent-skills
+  description: Document processing

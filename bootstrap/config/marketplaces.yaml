@@ -1,0 +1,4 @@
+- repo: aws/agent-toolkit-for-aws
+  description: AWS development tools
+- repo: anthropics/skills
+  description: Anthropic official skills
