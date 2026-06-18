@@ -5,6 +5,24 @@ REPO="wilsonkichoi/agent-toolkit"
 BRANCH="main"
 RAW_BASE="https://raw.githubusercontent.com/${REPO}/${BRANCH}/bootstrap"
 
+# Detect if running from local clone or via curl
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "${SCRIPT_DIR}/config/marketplaces.yaml" ]; then
+  LOCAL_BASE="${SCRIPT_DIR}"
+else
+  LOCAL_BASE=""
+fi
+
+# Read file: local clone first, fall back to curl (for when repo goes public)
+read_config() {
+  local path="$1"
+  if [ -n "$LOCAL_BASE" ] && [ -f "${LOCAL_BASE}/${path}" ]; then
+    cat "${LOCAL_BASE}/${path}"
+  else
+    curl -fsSL "${RAW_BASE}/${path}" 2>/dev/null || true
+  fi
+}
+
 GREEN='\033[32m'
 YELLOW='\033[33m'
 BLUE='\033[34m'
@@ -89,7 +107,7 @@ fi
 # --- Step 2: Register additional marketplaces ---
 header "2. Additional marketplaces"
 
-MARKETPLACES_YAML=$(curl -fsSL "${RAW_BASE}/config/marketplaces.yaml" 2>/dev/null || true)
+MARKETPLACES_YAML=$(read_config "config/marketplaces.yaml")
 if [ -z "$MARKETPLACES_YAML" ]; then
   warn "Could not fetch marketplaces.yaml, skipping"
 else
@@ -104,7 +122,7 @@ fi
 # --- Step 3: Install plugins ---
 header "3. Install plugins"
 
-PLUGINS_YAML=$(curl -fsSL "${RAW_BASE}/config/plugins.yaml" 2>/dev/null || true)
+PLUGINS_YAML=$(read_config "config/plugins.yaml")
 if [ -z "$PLUGINS_YAML" ]; then
   warn "Could not fetch plugins.yaml, skipping"
 else
@@ -136,7 +154,7 @@ fi
 # --- Step 5: Configure settings ---
 header "5. Settings"
 
-SETTINGS_YAML=$(curl -fsSL "${RAW_BASE}/config/settings.yaml" 2>/dev/null || true)
+SETTINGS_YAML=$(read_config "config/settings.yaml")
 if [ -z "$SETTINGS_YAML" ]; then
   warn "Could not fetch settings.yaml, skipping"
 else
@@ -157,7 +175,7 @@ fi
 header "6. Status line"
 echo "  Custom statusline shows: directory (branch), model, context usage bar, cost"
 if prompt_yn "Install statusline?"; then
-  STATUSLINE=$(curl -fsSL "${RAW_BASE}/scripts/statusline.sh" 2>/dev/null || true)
+  STATUSLINE=$(read_config "scripts/statusline.sh")
   if [ -n "$STATUSLINE" ]; then
     echo "$STATUSLINE" > ~/.claude/statusline.sh
     chmod +x ~/.claude/statusline.sh

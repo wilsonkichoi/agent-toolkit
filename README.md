@@ -5,7 +5,11 @@ Personal Claude Code plugin marketplace with research workflows and development 
 ## Quick Setup
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/wilsonkichoi/agent-toolkit/main/bootstrap/install.sh | bash
+# Private repo - clone first
+gh repo clone wilsonkichoi/agent-toolkit /tmp/agent-toolkit && bash /tmp/agent-toolkit/bootstrap/install.sh
+
+# Public repo (future)
+# curl -fsSL https://raw.githubusercontent.com/wilsonkichoi/agent-toolkit/main/bootstrap/install.sh | bash
 ```
 
 Interactive script that prompts for each marketplace, plugin, and setting.
