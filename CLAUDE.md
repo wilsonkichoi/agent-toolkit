@@ -32,10 +32,14 @@ Each skill is a directory under `plugins/<plugin>/skills/<skill-name>/` containi
 
 Skill directory names can be CJK (e.g. `回顧/`). Use descriptive names.
 
-## Docs to update when adding a skill
+## Pre-commit checklist
 
-1. `plugins/<plugin>/skills/<name>/SKILL.md` - the skill itself
-2. `plugins/<plugin>/.claude-plugin/plugin.json` - description, keywords, version bump
-3. `plugins/<plugin>/README.md` - add skill section
-4. `README.md` (repo root) - update plugin description if needed
-5. `.claude-plugin/marketplace.json` - update plugin description/keywords if needed
+Before any commit that adds, removes, or modifies files under `skills/`:
+
+1. Version bumped in `plugins/<plugin>/.claude-plugin/plugin.json`
+2. Version bumped in `.claude-plugin/marketplace.json` (matching entry)
+3. `plugins/<plugin>/README.md` updated
+4. `.claude-plugin/marketplace.json` description/keywords updated if needed
+5. `README.md` (repo root) updated if plugin description changed
+
+Do not commit skill changes without completing this checklist. Read the checklist, don't rely on memory.
