@@ -10,7 +10,7 @@
       "name": "utils",
       "source": "./plugins/utils",
       "category": "productivity",
-      "description": "General-purpose utility skills for research, investigation, and knowledge synthesis.",
+      "description": "General-purpose utility skills for research, investigation, knowledge synthesis, session retrospectives, and security auditing.",
       "keywords": [
         "research",
         "report",
@@ -25,9 +25,15 @@
         "market-research",
         "technical-research",
         "learning",
-        "study"
+        "study",
+        "retrospective",
+        "retro",
+        "review",
+        "security",
+        "audit",
+        "scanning"
       ],
-      "version": "0.0.1"
+      "version": "0.1.0"
     },
     {
       "name": "dev",
