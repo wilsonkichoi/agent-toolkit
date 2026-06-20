@@ -1,6 +1,6 @@
 {
   "name": "utils",
-  "description": "General-purpose utility skills for research, investigation, knowledge synthesis, and session retrospectives. Includes structured research reports, LLM Wiki (persistent, compounding knowledge bases as interlinked markdown files), and brutally honest work session retros.",
+  "description": "General-purpose utility skills for research, investigation, knowledge synthesis, session retrospectives, and security auditing. Includes structured research reports, LLM Wiki, work session retros, and on-demand security scanning.",
   "version": "0.0.1",
   "author": { "name": "Wilson Choi" },
   "repository": "https://github.com/wilsonkichoi/agent-toolkit",
@@ -24,6 +24,11 @@
     "retro",
     "review",
     "feedback",
-    "self-improvement"
+    "self-improvement",
+    "security",
+    "audit",
+    "secrets",
+    "vulnerabilities",
+    "scanning"
   ]
 }

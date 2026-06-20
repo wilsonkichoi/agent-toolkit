@@ -1,6 +1,6 @@
 # utils
 
-General-purpose utility skills for research, investigation, knowledge synthesis, and session retrospectives.
+General-purpose utility skills for research, investigation, knowledge synthesis, session retrospectives, and security auditing.
 
 ## Skills
 
@@ -46,6 +46,20 @@ Brutally honest retrospective on your working session. Analyzes conversation his
 - Every claim backed by specific evidence; inferences explicitly marked
 
 **Invoke with:** `/retro` or `/review-my-work` (English) or `/回顧` (繁體中文)
+
+### /security-scan
+
+On-demand security audit of the current repository. Scans five categories:
+
+- **Secrets/credentials** - API keys, tokens, passwords, .env files, private keys
+- **Code vulnerabilities** - injection, XSS, deserialization, path traversal, weak crypto
+- **Infrastructure misconfigs** - open CORS, permissive IAM, debug mode, exposed ports
+- **Git history** - leaked secrets in past commits
+- **Dependencies** - unpinned versions, known CVEs, typosquat risk
+
+Supports depth modifiers: `quick`, `deep`, `secrets`, `vulns`.
+
+**Invoke with:** `/security-scan` or `/sec-scan`
 
 ## Install
 
