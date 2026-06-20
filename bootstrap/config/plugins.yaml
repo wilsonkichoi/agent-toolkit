@@ -1,21 +1,15 @@
 # from agent-toolkit (this repo)
-- name: research
+- name: utils
   marketplace: agent-toolkit
-  description: Research workflow skills
+  description: Research, investigation, and LLM Wiki knowledge base skills
 - name: dev
   marketplace: agent-toolkit
   description: Development workflow skills
 
 # from claude-plugins-official
-- name: superpowers
-  marketplace: claude-plugins-official
-  description: Enhanced capabilities
 - name: skill-creator
   marketplace: claude-plugins-official
   description: Skill authoring and testing
-- name: ralph-loop
-  marketplace: claude-plugins-official
-  description: Loop execution
 - name: plugin-dev
   marketplace: claude-plugins-official
   description: Plugin development toolkit
@@ -25,9 +19,6 @@
 - name: frontend-design
   marketplace: claude-plugins-official
   description: Frontend design tools
-- name: deploy-on-aws
-  marketplace: claude-plugins-official
-  description: AWS deployment
 
 # from agent-toolkit-for-aws
 - name: aws-core

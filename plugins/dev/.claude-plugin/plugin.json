@@ -1,7 +1,7 @@
 {
   "name": "dev",
   "description": "Development workflow utilities and coding skills.",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "author": { "name": "Wilson Choi" },
   "repository": "https://github.com/wilsonkichoi/agent-toolkit"
 }

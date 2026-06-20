@@ -1,3 +1,5 @@
+- repo: wilsonkichoi/agent-toolkit
+  description: Personal agent toolkit (research, dev plugins)
 - repo: aws/agent-toolkit-for-aws
   description: AWS development tools
 - repo: anthropics/skills

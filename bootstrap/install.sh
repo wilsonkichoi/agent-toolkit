@@ -95,17 +95,8 @@ if [ ! -f ~/.claude/settings.json ]; then
   echo '{}' > ~/.claude/settings.json
 fi
 
-# --- Step 1: Register this repo as marketplace (prerequisite) ---
-header "1. Register marketplace: ${REPO}"
-if prompt_yn "Add ${REPO} as marketplace?"; then
-  claude plugin marketplace add "$REPO"
-  success "Registered ${REPO}"
-else
-  warn "Skipped. Plugins from this repo won't be installable."
-fi
-
-# --- Step 2: Register additional marketplaces ---
-header "2. Additional marketplaces"
+# --- Step 1: Register marketplaces ---
+header "1. Register marketplaces"
 
 MARKETPLACES_YAML=$(read_config "config/marketplaces.yaml")
 if [ -z "$MARKETPLACES_YAML" ]; then
@@ -119,21 +110,56 @@ else
   done < <(echo "$MARKETPLACES_YAML" | grep "^- repo:" | sed 's/- repo: //')
 fi
 
-# --- Step 3: Install plugins ---
-header "3. Install plugins"
+# --- Step 2: Install plugins ---
+header "2. Install plugins"
 
 PLUGINS_YAML=$(read_config "config/plugins.yaml")
 if [ -z "$PLUGINS_YAML" ]; then
   warn "Could not fetch plugins.yaml, skipping"
 else
+  # Detect already-installed plugins (user scope only)
+  info "Checking installed plugins..."
+  INSTALLED_PLUGIN_IDS=""
+  if INSTALLED_PLUGINS_JSON=$(claude plugin list --json 2>/dev/null); then
+    INSTALLED_PLUGIN_IDS=$(echo "$INSTALLED_PLUGINS_JSON" | jq -r '.[] | select(.scope == "user") | .id' 2>/dev/null | sort -u)
+  fi
+
+  is_plugin_installed() {
+    [ -n "$INSTALLED_PLUGIN_IDS" ] && echo "$INSTALLED_PLUGIN_IDS" | grep -qx "$1"
+  }
+
+  # Refresh marketplace caches if there are existing installs to update
+  if [ -n "$INSTALLED_PLUGIN_IDS" ]; then
+    info "Refreshing marketplace caches..."
+    while IFS= read -r mp; do
+      claude plugin marketplace update "$mp" 2>/dev/null || true
+    done < <(echo "$PLUGINS_YAML" | grep "marketplace:" | awk '{print $NF}' | sort -u)
+  fi
+
   INSTALLED=()
   while IFS='|' read -r name marketplace desc; do
-    if prompt_yn "${name}@${marketplace} - ${desc}"; then
-      if claude plugin install "${name}@${marketplace}" 2>/dev/null; then
-        success "Installed ${name}@${marketplace}"
-        INSTALLED+=("${name}@${marketplace}")
+    plugin_id="${name}@${marketplace}"
+
+    if is_plugin_installed "$plugin_id"; then
+      info "${plugin_id} already installed"
+      if prompt_yn "  Update?" "n"; then
+        if claude plugin update -s user "$plugin_id" 2>/dev/null; then
+          success "Updated ${plugin_id}"
+        else
+          warn "Failed to update ${plugin_id}"
+        fi
       else
-        warn "Failed to install ${name}@${marketplace}"
+        info "Skipped"
+      fi
+      INSTALLED+=("$plugin_id")
+    else
+      if prompt_yn "${plugin_id} - ${desc}"; then
+        if claude plugin install "$plugin_id" 2>/dev/null; then
+          success "Installed ${plugin_id}"
+          INSTALLED+=("$plugin_id")
+        else
+          warn "Failed to install ${plugin_id}"
+        fi
       fi
     fi
   done < <(echo "$PLUGINS_YAML" | awk '
@@ -144,15 +170,15 @@ else
 
   # Disable all installed plugins globally
   if [ ${#INSTALLED[@]} -gt 0 ]; then
-    header "4. Disabling plugins globally (enable per-project as needed)"
+    header "3. Disabling plugins globally (enable per-project as needed)"
     for plugin in "${INSTALLED[@]}"; do
       claude plugin disable --scope user "$plugin" 2>/dev/null && success "Disabled ${plugin}" || true
     done
   fi
 fi
 
-# --- Step 5: Configure settings ---
-header "5. Settings"
+# --- Step 4: Configure settings ---
+header "4. Settings"
 
 SETTINGS_YAML=$(read_config "config/settings.yaml")
 if [ -z "$SETTINGS_YAML" ]; then
@@ -171,8 +197,8 @@ else
   ')
 fi
 
-# --- Step 6: Statusline ---
-header "6. Status line"
+# --- Step 5: Statusline ---
+header "5. Status line"
 echo "  Custom statusline shows: directory (branch), model, context usage bar, cost"
 if prompt_yn "Install statusline?"; then
   STATUSLINE=$(read_config "scripts/statusline.sh")

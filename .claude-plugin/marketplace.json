@@ -1,9 +1,46 @@
 {
   "name": "agent-toolkit",
-  "description": "Personal agent toolkit: research workflows, dev utilities.",
+  "metadata": {
+    "description": "Personal agent toolkit: research workflows, utility skills, and development aids for Claude Code.",
+    "version": "0.0.1"
+  },
   "owner": { "name": "Wilson Choi" },
   "plugins": [
-    { "name": "research", "source": "./plugins/research", "description": "Research workflow skills" },
-    { "name": "dev", "source": "./plugins/dev", "description": "Development workflow skills" }
+    {
+      "name": "utils",
+      "source": "./plugins/utils",
+      "category": "productivity",
+      "description": "General-purpose utility skills for research, investigation, and knowledge synthesis.",
+      "keywords": [
+        "research",
+        "report",
+        "investigation",
+        "deep-dive",
+        "knowledge-base",
+        "rag",
+        "wiki",
+        "synthesis",
+        "analysis",
+        "documentation",
+        "market-research",
+        "technical-research",
+        "learning",
+        "study"
+      ],
+      "version": "0.0.1"
+    },
+    {
+      "name": "dev",
+      "source": "./plugins/dev",
+      "category": "development",
+      "description": "Development workflow utilities and coding skills.",
+      "keywords": [
+        "development",
+        "workflow",
+        "coding",
+        "utilities"
+      ],
+      "version": "0.0.1"
+    }
   ]
 }

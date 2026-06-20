@@ -18,7 +18,7 @@ Interactive script that prompts for each marketplace, plugin, and setting.
 
 ```bash
 claude plugin marketplace add wilsonkichoi/agent-toolkit
-claude plugin install research@agent-toolkit
+claude plugin install utils@agent-toolkit
 claude plugin install dev@agent-toolkit
 ```
 
@@ -26,14 +26,14 @@ claude plugin install dev@agent-toolkit
 
 | Plugin | Description |
 |--------|-------------|
-| research | Research workflow skills |
+| utils | Research, investigation, knowledge synthesis, and session retrospectives |
 | dev | Development workflow utilities |
 
 ## Structure
 
 ```
 bootstrap/          # Standalone setup script + config (not a plugin)
-plugins/research/   # Research plugin
+plugins/utils/      # Utility skills (research, etc.)
 plugins/dev/        # Dev plugin
 ```
 
