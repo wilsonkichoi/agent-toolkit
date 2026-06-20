@@ -7,6 +7,8 @@ All version fields use semver (`major.minor.patch`). Always use the minimum incr
 - New skills, features, non-breaking additions: minor (`0.0.2` → `0.1.0`)
 - Breaking changes (renamed skills, removed features, restructured plugin): major
 
+While in pre-release (`0.0.x`), use patch for everything including new features. Save minor/major bumps for after the plugin has real consumers.
+
 Version fields live in:
 - `.claude-plugin/marketplace.json` (marketplace version + per-plugin version entries)
 - `plugins/<name>/.claude-plugin/plugin.json`
