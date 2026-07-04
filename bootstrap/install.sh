@@ -7,7 +7,7 @@ RAW_BASE="https://raw.githubusercontent.com/${REPO}/${BRANCH}/bootstrap"
 
 # Detect if running from local clone or via curl
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "${SCRIPT_DIR}/config/marketplaces.yaml" ]; then
+if [ -f "${SCRIPT_DIR}/config/repos.yaml" ]; then
   LOCAL_BASE="${SCRIPT_DIR}"
 else
   LOCAL_BASE=""
@@ -95,19 +95,19 @@ if [ ! -f ~/.claude/settings.json ]; then
   echo '{}' > ~/.claude/settings.json
 fi
 
-# --- Step 1: Register marketplaces ---
-header "1. Register marketplaces"
+# --- Step 1: Register repos ---
+header "1. Register repos"
 
-MARKETPLACES_YAML=$(read_config "config/marketplaces.yaml")
-if [ -z "$MARKETPLACES_YAML" ]; then
-  warn "Could not fetch marketplaces.yaml, skipping"
+REPOS_YAML=$(read_config "config/repos.yaml")
+if [ -z "$REPOS_YAML" ]; then
+  warn "Could not fetch repos.yaml, skipping"
 else
   while IFS= read -r repo; do
-    desc=$(echo "$MARKETPLACES_YAML" | grep -A1 "repo: ${repo}" | grep "description:" | sed 's/.*description: //')
+    desc=$(echo "$REPOS_YAML" | grep -A1 "repo: ${repo}" | grep "description:" | sed 's/.*description: //')
     if prompt_yn "${repo} - ${desc}"; then
       claude plugin marketplace add "$repo" && success "Registered ${repo}" || warn "Failed: ${repo}"
     fi
-  done < <(echo "$MARKETPLACES_YAML" | grep "^- repo:" | sed 's/- repo: //')
+  done < <(echo "$REPOS_YAML" | grep "^- repo:" | sed 's/- repo: //')
 fi
 
 # --- Step 2: Install plugins ---

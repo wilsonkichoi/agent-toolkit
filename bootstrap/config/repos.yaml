@@ -1,0 +1,14 @@
+- repo: wilsonkichoi/agent-toolkit
+  description: Personal agent toolkit (utils, dev plugins)
+
+- repo: aws/agent-toolkit-for-aws
+  description: AWS development tools
+
+- repo: awslabs/agent-plugins
+  description: Deploy applications to AWS with architecture recommendations, cost estimates, and IaC deployment. Generate validated AWS architecture diagrams as draw.io XML.
+
+- repo: anthropics/skills
+  description: Anthropic official skills
+
+- repo: jgraph/drawio-mcp
+  description: Official draw.io plugins for AI coding assistants

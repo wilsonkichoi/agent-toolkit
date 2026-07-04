@@ -12,7 +12,23 @@ gh repo clone wilsonkichoi/agent-toolkit /tmp/agent-toolkit && bash /tmp/agent-t
 # curl -fsSL https://raw.githubusercontent.com/wilsonkichoi/agent-toolkit/main/bootstrap/install.sh | bash
 ```
 
-Interactive script that prompts for each marketplace, plugin, and setting.
+The bootstrap script walks through three steps, prompting for each item individually (skip any you don't want):
+
+1. **Register repos** - adds plugin sources (marketplaces) so Claude Code can discover plugins from them
+2. **Install plugins** - installs individual plugins from registered repos (AWS tools, Playwright, draw.io, etc.)
+3. **Apply settings** - configures Claude Code settings (permissions, MCP servers, preferences)
+
+Everything is opt-in per item. Re-run anytime to add things you skipped.
+
+All installed plugins are **disabled globally by default**. Enable them where needed:
+
+```bash
+# Enable for a specific project (in project's .claude/settings.local.json)
+claude plugin enable <name>@<marketplace>
+
+# Or enable globally
+claude plugin enable --scope user <name>@<marketplace>
+```
 
 ## Manual Install
 
@@ -39,4 +55,4 @@ plugins/dev/        # Dev plugin
 
 ## Customizing Bootstrap
 
-Edit yaml files in `bootstrap/config/` to add/remove marketplaces, plugins, or settings, then re-run the install script.
+Edit yaml files in `bootstrap/config/` to add/remove repos, plugins, or settings, then re-run the install script.
