@@ -23,19 +23,22 @@ Everything is opt-in per item. Re-run anytime to add things you skipped.
 All installed plugins are **disabled globally by default**. Enable them where needed:
 
 ```bash
-# Enable for a specific project (in project's .claude/settings.local.json)
-claude plugin enable <name>@<marketplace>
+# Enable for the current project only (writes to project's .claude/settings.local.json)
+claude plugin enable --scope local <name>@<marketplace>
 
-# Or enable globally
+# Or enable globally for all projects
 claude plugin enable --scope user <name>@<marketplace>
 ```
+
+> **Do not use the `/plugins` command inside Claude Code to enable a plugin for one project.** It enables globally (user scope), not locally. For per-project enablement, use `claude plugin enable --scope local` from the project directory.
 
 ## Manual Install
 
 ```bash
 claude plugin marketplace add wilsonkichoi/agent-toolkit
 claude plugin install utils@agent-toolkit
-claude plugin install dev@agent-toolkit
+# dev is a work-in-progress placeholder (no functional skills yet)
+# claude plugin install dev@agent-toolkit
 ```
 
 ## Plugins
@@ -43,7 +46,7 @@ claude plugin install dev@agent-toolkit
 | Plugin | Description |
 |--------|-------------|
 | utils | Research, investigation, knowledge synthesis, and session retrospectives |
-| dev | Development workflow utilities |
+| dev | Development workflow utilities (work in progress, placeholder only) |
 
 ## Structure
 

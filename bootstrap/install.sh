@@ -41,7 +41,7 @@ prompt_yn() {
   else
     printf "  %s [y/N]: " "$msg"
   fi
-  read -r answer
+  read -r answer </dev/tty
   answer="${answer:-$default}"
   [[ "$answer" =~ ^[Yy] ]]
 }
@@ -51,21 +51,21 @@ prompt_setting() {
   local current
   current=$(jq -r ".${key} // empty" ~/.claude/settings.json 2>/dev/null || true)
 
-  echo -e "  ${BOLD}${key}${RESET}: ${desc}"
+  echo -e "  ${BOLD}${key}${RESET}: ${desc}" >&2
   if [ -n "$current" ]; then
-    echo "    Current: $current"
+    echo "    Current: $current" >&2
   fi
-  echo "    Recommended: $value"
-  printf "    [a]ccept / [s]kip / [o]verride with custom value: "
-  read -r choice
+  echo "    Recommended: $value" >&2
+  printf "    [a]ccept / [s]kip / [o]verride with custom value: " >&2
+  read -r choice </dev/tty
   case "$choice" in
     a|A|"")
       echo "$value"
       return 0
       ;;
     o|O)
-      printf "    Enter value: "
-      read -r custom
+      printf "    Enter value: " >&2
+      read -r custom </dev/tty
       echo "$custom"
       return 0
       ;;
@@ -103,7 +103,11 @@ if [ -z "$REPOS_YAML" ]; then
   warn "Could not fetch repos.yaml, skipping"
 else
   while IFS= read -r repo; do
-    desc=$(echo "$REPOS_YAML" | grep -A1 "repo: ${repo}" | grep "description:" | sed 's/.*description: //')
+    desc=$(echo "$REPOS_YAML" | awk -v r="$repo" '
+      $0 == "- repo: " r { found=1; next }
+      found && /^[[:space:]]+description:/ { sub(/.*description: /, ""); print; exit }
+      found && /^- repo:/ { exit }
+    ')
     if prompt_yn "${repo} - ${desc}"; then
       claude plugin marketplace add "$repo" && success "Registered ${repo}" || warn "Failed: ${repo}"
     fi
@@ -133,7 +137,7 @@ else
     info "Refreshing marketplace caches..."
     while IFS= read -r mp; do
       claude plugin marketplace update "$mp" 2>/dev/null || true
-    done < <(echo "$PLUGINS_YAML" | grep "marketplace:" | awk '{print $NF}' | sort -u)
+    done < <(echo "$PLUGINS_YAML" | grep -E "^[[:space:]]+marketplace:" | awk '{print $NF}' | sort -u)
   fi
 
   INSTALLED=()
@@ -145,13 +149,13 @@ else
       if prompt_yn "  Update?" "n"; then
         if claude plugin update -s user "$plugin_id" 2>/dev/null; then
           success "Updated ${plugin_id}"
+          INSTALLED+=("$plugin_id")
         else
           warn "Failed to update ${plugin_id}"
         fi
       else
         info "Skipped"
       fi
-      INSTALLED+=("$plugin_id")
     else
       if prompt_yn "${plugin_id} - ${desc}"; then
         if claude plugin install "$plugin_id" 2>/dev/null; then
@@ -164,8 +168,8 @@ else
     fi
   done < <(echo "$PLUGINS_YAML" | awk '
     /^- name:/ { name=$NF }
-    /marketplace:/ { mp=$NF }
-    /description:/ { desc=$0; sub(/.*description: /, "", desc); print name "|" mp "|" desc }
+    /^[[:space:]]+marketplace:/ { mp=$NF }
+    /^[[:space:]]+description:/ { desc=$0; sub(/.*description: /, "", desc); print name "|" mp "|" desc }
   ')
 
   # Disable all installed plugins globally
@@ -192,8 +196,8 @@ else
     } || true
   done < <(echo "$SETTINGS_YAML" | awk '
     /^- key:/ { key=$NF }
-    /value:/ { val=$NF }
-    /description:/ { desc=$0; sub(/.*description: /, "", desc); print key "|" val "|" desc }
+    /^[[:space:]]+value:/ { val=$NF }
+    /^[[:space:]]+description:/ { desc=$0; sub(/.*description: /, "", desc); print key "|" val "|" desc }
   ')
 fi
 
