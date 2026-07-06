@@ -370,6 +370,16 @@ consider eating our own dogfood and moving remaining phases into it.)
 - [x] `plan` DoD rules: no manual criterion duplicating a script-checkable one (2 avoidable
       `dev:auto` stops on T-003/T-004); scaffold DoDs must prove the toolchain end-to-end
       (T-002 inherited a pytest-non-importable scaffold)
+- [x] GitHub backend consistent reads in `tracker.md` (2026-07-06, GitHub-backend dogfood
+      retro): every filtered `gh issue list` routes through the eventually-consistent search
+      API (verified with `GH_DEBUG=api`; a just-created issue was missing from
+      `--milestone` output), so `list`/`next-task` now prescribe the REST issues endpoint
+- [x] `discover` interview guidance (same retro): AskUserQuestion only for bounded choices,
+      narrative via plain conversation, no placeholder free-text options (the harness appends
+      "Other" itself); Customer coverage explicitly admits internal customers
+      (dogfood/test-harness/internal tooling). Retro also flagged `setup` asking
+      purpose/stack via AskUserQuestion - misattributed: setup's interview is already
+      bounded-only; that was model improvisation, re-test at Fable before touching the skill
 
 ### Phase E - dogfood everything
 

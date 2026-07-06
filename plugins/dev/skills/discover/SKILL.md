@@ -28,11 +28,18 @@ rather than refusing.
 
 ## 2. Interview
 
-Close the gaps with AskUserQuestion, in rounds of at most 4 questions, most load-bearing
-first. Required coverage before drafting:
+Close the gaps in rounds, most load-bearing first. Use AskUserQuestion only where the answer
+is a bounded choice (pick between candidate customers, rank goals, confirm an inference);
+gather narrative answers (problem stories, value articulation) by asking in plain
+conversation. Never author a placeholder option like "I'll describe it myself" - the harness
+already appends a free-text "Other" option to every question, and a placeholder option
+returns only its own label. Required coverage before drafting:
 
 - **Problem:** what pain, for whom, how is it handled today?
-- **Customer:** who exactly; who is it NOT for?
+- **Customer:** who exactly; who is it NOT for? The customer may be internal - a maintainer,
+  a platform team, another tool (e.g. a test harness whose customer is the tool it
+  exercises). Frame value for that internal customer; do not force an external-market
+  framing onto internal tooling.
 - **Value:** what changes for the customer; why would they switch or pay?
 - **North star:** the single metric (or observable outcome) that says the product is
   working.

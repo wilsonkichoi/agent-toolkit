@@ -85,9 +85,19 @@ Uses the `gh` CLI. No MCP required.
 `status:*` label, add new one, in that order, single `gh issue edit` call:
 `gh issue edit <n> --remove-label status:todo --add-label status:in-progress`.
 
-Query for next-task candidates:
-`gh issue list --milestone <m> --label status:todo --state open --json number,title,labels,body`
-then apply the selection algorithm (parse `Blocked by #N` deps, check each is closed).
+**Consistent reads.** Every filtered `gh issue list` (`--milestone`, `--label`, `--search`)
+routes through GitHub's search API, which is eventually consistent: an issue created or
+edited seconds earlier can be missing from the result. Never treat a missing issue in a list
+as a creation failure - re-read via the REST issues endpoint, which reads the primary store.
+Use REST for `list` and `next-task`:
+
+```
+gh api "repos/{owner}/{repo}/issues?state=open&milestone=<number>&labels=status:todo"
+```
+
+`milestone` takes the number, not the title; resolve it once via
+`gh api repos/{owner}/{repo}/milestones`. Then apply the selection algorithm (parse
+`Blocked by #N` deps, check each is closed).
 
 ## Backend: Local files (`tracker: local`)
 
