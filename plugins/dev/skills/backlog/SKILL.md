@@ -55,7 +55,8 @@ consent; approved-but-uncommitted artifacts strand downstream skills.
 ## Wont Do (`wont-do <id>`)
 
 Require a rationale (ask if not given). Comment the rationale on the task, then transition to
-`Wont Do` (backend mapping: Linear `Canceled`, GitHub closed as "not planned"). The reason
+`Wont Do` (backend mapping: Linear `Canceled`, GitHub closed as "not planned" plus removing
+the remaining `status:*` label - closed issues carry none, see tracker.md). The reason
 must survive; a bare closure is not acceptable. If the task encodes a spec requirement being
 abandoned, flag that `docs/SPEC.md` needs a matching edit and offer the delta summary for
 `/dev:architect`.

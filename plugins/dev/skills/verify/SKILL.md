@@ -73,7 +73,9 @@ All criteria met: present the report and ask the human to approve the merge. On 
    GitHub remote: merge locally instead - `git checkout main` then `git merge --squash` +
    commit (or `git merge --no-ff` per policy), then delete the task branch.
 2. Transition the task to `Done` (GitHub backend: confirm the linked issue auto-closed as
-   completed; close it explicitly if not).
+   completed, close it explicitly if not, and remove the now-stale `status:*` label -
+   `gh issue edit <n> --remove-label status:in-review` - since `Closes #N` auto-close does
+   not touch labels and a closed issue must carry none).
 3. Comment the merge commit / PR URL on the task.
 4. Clean up: `git worktree remove` the task worktree, prune the local branch, update local
    `main`.

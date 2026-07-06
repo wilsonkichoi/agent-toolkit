@@ -53,6 +53,9 @@ Flag, do not fix:
 
 - Task `In Review` but its PR is merged or closed → `/dev:verify` was skipped or died
   mid-run; the task state is lying.
+- GitHub backend: closed issue still carrying a `status:*` label → stale terminal
+  transition (auto-close does not touch labels); suggest
+  `gh issue edit <n> --remove-label status:<x>`.
 - Task `In Progress` with no matching branch/worktree, or claimed hours ago with no PR →
   likely an abandoned claim; suggest releasing it to `Todo`.
 - Open `task/*` PR with no task in `In Progress`/`In Review` → work outside the tracker.

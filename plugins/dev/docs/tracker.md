@@ -85,6 +85,13 @@ Uses the `gh` CLI. No MCP required.
 `status:*` label, add new one, in that order, single `gh issue edit` call:
 `gh issue edit <n> --remove-label status:todo --add-label status:in-progress`.
 
+**Terminal transitions strip the label.** For `Done` and `Wont Do` the closed state IS the
+status, so the invariant is: a closed issue carries no `status:*` label. A merged PR's
+`Closes #N` auto-closes the issue but does not touch labels - whoever performs the terminal
+transition (`dev:verify` on merge, `dev:backlog` on `Wont Do`) must also
+`gh issue edit <n> --remove-label status:in-review` (or whichever `status:*` label remains),
+otherwise the issue lies about its state to label-based queries and `dev:status`.
+
 **Consistent reads.** Every filtered `gh issue list` (`--milestone`, `--label`, `--search`)
 routes through GitHub's search API, which is eventually consistent: an issue created or
 edited seconds earlier can be missing from the result. Never treat a missing issue in a list

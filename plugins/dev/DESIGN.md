@@ -377,6 +377,11 @@ consider eating our own dogfood and moving remaining phases into it.)
       retro): every filtered `gh issue list` routes through the eventually-consistent search
       API (verified with `GH_DEBUG=api`; a just-created issue was missing from
       `--milestone` output), so `list`/`next-task` now prescribe the REST issues endpoint
+- [x] Terminal-transition label invariant on the GitHub backend (2026-07-06, dogfood #1:
+      issue auto-closed by the merged PR but kept `status:in-review`): tracker.md now states
+      a closed issue carries no `status:*` label and that `Closes #N` auto-close does not
+      touch labels; `verify` strips the label at Done, `backlog` at Wont Do, `status` flags
+      violations in its consistency checks
 - [x] `docs/manual.md` user manual (2026-07-06, "is the README the user manual?" - it was
       not, and the operating knowledge it lacked - config reference, lifecycle ownership,
       human gates, unattended operation - lived only in this DESIGN.md, which the final
