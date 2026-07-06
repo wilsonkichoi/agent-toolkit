@@ -377,6 +377,11 @@ consider eating our own dogfood and moving remaining phases into it.)
       retro): every filtered `gh issue list` routes through the eventually-consistent search
       API (verified with `GH_DEBUG=api`; a just-created issue was missing from
       `--milestone` output), so `list`/`next-task` now prescribe the REST issues endpoint
+- [x] `docs/manual.md` user manual (2026-07-06, "is the README the user manual?" - it was
+      not, and the operating knowledge it lacked - config reference, lifecycle ownership,
+      human gates, unattended operation - lived only in this DESIGN.md, which the final
+      release deletes). README Status corrected and now links the manual; archiving
+      DESIGN.md is safe once the remaining Phase E boxes close
 - [x] Self-approval fallback (2026-07-06, dogfood PR #5): GitHub rejects `APPROVE` and
       `REQUEST_CHANGES` review types on the author's own PR, and the `reviewer` agent
       inherits the session's `gh` auth, so solo repos can never get formal `APPROVED` state.

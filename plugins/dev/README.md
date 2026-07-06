@@ -6,15 +6,18 @@ PR-native (worktree → PR → CI → review → verified merge), and every task
 packet a fresh session can execute without prior context.
 
 Replaces [agentic_development_workflow](https://github.com/wilsonkichoi/agentic_development_workflow).
-Design rationale and roadmap: [DESIGN.md](DESIGN.md). Workflow diagram:
-[docs/dev-workflow.drawio](docs/dev-workflow.drawio).
+This README is the index; the operating guide (prerequisites, `.claude/dev.md` config
+reference, lifecycle and ownership rules, human gates, unattended operation) is
+[docs/manual.md](docs/manual.md). Design rationale and build history: [DESIGN.md](DESIGN.md).
+Workflow diagram: [docs/dev-workflow.drawio](docs/dev-workflow.drawio).
 
 ## Status
 
-All skills implemented (Phases A-D: tracker adapter, execution loop, review/verify/backlog
-quality loop, discover/architect upstream phases, retro/status memory loop); **not yet
-dogfooded** - end-to-end testing is Phase E in the DESIGN.md checklist. Expect rough edges
-until it lands.
+All skills implemented. Dogfooding (Phase E in DESIGN.md) is underway: the full lifecycle
+passed end-to-end on the local backend and `dev:auto` on a dependency chain (2026-07-06);
+the GitHub Issues backend run is in progress and has already fed fixes back. Linear backend,
+backlog flows, unattended-safeguard, and brownfield runs are still pending - expect rough
+edges there.
 
 Adopting into an existing project (partial adoption, Jira/custom trackers, Mem0/OB1/MemSearch
 memory): see [docs/adoption.md](docs/adoption.md).
