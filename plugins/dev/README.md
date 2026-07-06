@@ -11,10 +11,13 @@ Design rationale and roadmap: [DESIGN.md](DESIGN.md). Workflow diagram:
 
 ## Status
 
-Phases A-C implemented (tracker adapter, execution loop, review/verify/backlog quality loop,
-discover/architect upstream phases); not yet dogfooded. Phase D (retro, status, adoption
-guide) is designed but not built - see the task checklist in DESIGN.md. End-to-end
-dogfooding is batched in Phase E.
+All skills implemented (Phases A-D: tracker adapter, execution loop, review/verify/backlog
+quality loop, discover/architect upstream phases, retro/status memory loop); **not yet
+dogfooded** - end-to-end testing is Phase E in the DESIGN.md checklist. Expect rough edges
+until it lands.
+
+Adopting into an existing project (partial adoption, Jira/custom trackers, Mem0/OB1/MemSearch
+memory): see [docs/adoption.md](docs/adoption.md).
 
 ## Skills
 
@@ -28,6 +31,8 @@ dogfooding is batched in Phase E.
 | `/dev:execute` | Claim one task → git worktree → implement → tests (via the `test-writer` agent, contract-only context) → PR → CI to green → work-summary comment → `In Review`. Never merges. Safeguards: `wip_limit`, `max_fix_attempts`, packet validation for hand-written tickets. |
 | `/dev:review-pr` | Independent review of a task PR against its packet and spec: severity-ranked findings, verdict posted via `gh pr review`. Fix mode applies findings on the same branch and replies per finding. Delegates to the `reviewer` agent when the session implemented the PR. |
 | `/dev:verify` | The merge gate: evidence per DoD criterion (run tests, cite CI, perform manual steps), verification report on the PR, then human-approved merge, task → `Done`, worktree cleanup. Only thing allowed to merge. |
+| `/dev:retro` | Mines PR review threads, CI history, tracker comments, and session transcripts for completed tasks, then closes the memory loop: evidence-cited learnings promoted into `.claude/rules/` / CLAUDE.md (or a `memory_target` MCP system), applied on approval. |
+| `/dev:status` | Read-only dashboard: milestone progress, open PRs + CI state, WIP vs limit, blocked tasks, next claimable tasks, plus consistency checks (state lies, abandoned claims, missed cleanups). |
 
 ## Agents
 
@@ -59,6 +64,6 @@ backend mappings: [docs/tracker.md](docs/tracker.md).
 /dev:review-pr    # independent review; fix mode addresses findings
 /dev:verify       # DoD evidence → human-approved merge → Done
 /dev:backlog      # anytime: new requests, promotions, wont-do, triage
+/dev:status       # anytime: where are we, what needs human action
+/dev:retro        # per task or milestone: learnings → .claude/rules/
 ```
-
-Retro (memory-loop promotion into `.claude/rules/`) and status skills arrive in Phase D.

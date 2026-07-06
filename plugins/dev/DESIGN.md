@@ -327,13 +327,13 @@ consider eating our own dogfood and moving remaining phases into it.)
 
 ### Phase D - memory loop + glue
 
-- [ ] `skills/retro/SKILL.md`: mine PR threads, CI history, tracker comments, session
+- [x] `skills/retro/SKILL.md`: mine PR threads, CI history, tracker comments, session
       transcripts; retro comment on tracker; promotion step to `.claude/rules/` / CLAUDE.md;
       `memory_target` config for third-party memory (Mem0, OB1, MemSearch)
-- [ ] `skills/status/SKILL.md`: milestone progress, open PRs + CI state, next available tasks
-- [ ] `docs/adoption.md`: incremental adoption paths, brownfield archaeology, ADW migration,
+- [x] `skills/status/SKILL.md`: milestone progress, open PRs + CI state, next available tasks
+- [x] `docs/adoption.md`: incremental adoption paths, brownfield archaeology, ADW migration,
       Jira worked example, third-party memory tradeoffs
-- [ ] Release: pre-commit checklist
+- [x] Release: pre-commit checklist
 
 ### Phase E - dogfood everything
 
