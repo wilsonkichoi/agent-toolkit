@@ -377,6 +377,13 @@ consider eating our own dogfood and moving remaining phases into it.)
       retro): every filtered `gh issue list` routes through the eventually-consistent search
       API (verified with `GH_DEBUG=api`; a just-created issue was missing from
       `--milestone` output), so `list`/`next-task` now prescribe the REST issues endpoint
+- [x] `verify` branch-cleanup ordering (2026-07-06, dogfood #1 retro: remote branch leaked):
+      `gh pr merge --delete-branch` cannot delete a branch checked out in the task worktree,
+      and on that failure the remote delete is skipped too - and the worktree always exists
+      at merge time under this workflow. The flag is removed; all branch deletion (local +
+      remote, both backends' paths) moved to the cleanup step after `git worktree remove`,
+      with an explicit `git ls-remote` confirmation. First retro-driven fix where the retro
+      also caught and repaired the live leak
 - [x] Terminal-transition label invariant on the GitHub backend (2026-07-06, dogfood #1:
       issue auto-closed by the merged PR but kept `status:in-review`): tracker.md now states
       a closed issue carries no `status:*` label and that `Closes #N` auto-close does not

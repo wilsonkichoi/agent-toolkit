@@ -69,16 +69,23 @@ untestable criterion → the packet is the problem, send it through `/dev:backlo
 
 All criteria met: present the report and ask the human to approve the merge. On approval:
 
-1. Merge per `merge_policy` (`gh pr merge <n> --squash --delete-branch`, or `--merge`). No
-   GitHub remote: merge locally instead - `git checkout main` then `git merge --squash` +
-   commit (or `git merge --no-ff` per policy), then delete the task branch.
+1. Merge per `merge_policy`: `gh pr merge <n> --squash` (or `--merge`). Do NOT pass
+   `--delete-branch`: the task branch is always still checked out in its worktree at this
+   point (`dev:execute` created it; cleanup is step 4), so the local delete fails and the
+   remote delete is skipped with it - the merge succeeds but the remote branch silently
+   leaks. All branch deletion happens in step 4, after the worktree is gone. No GitHub
+   remote: merge locally instead - `git checkout main` then `git merge --squash` + commit
+   (or `git merge --no-ff` per policy); branch deletion likewise waits for step 4.
 2. Transition the task to `Done` (GitHub backend: confirm the linked issue auto-closed as
    completed, close it explicitly if not, and remove the now-stale `status:*` label -
    `gh issue edit <n> --remove-label status:in-review` - since `Closes #N` auto-close does
    not touch labels and a closed issue must carry none).
 3. Comment the merge commit / PR URL on the task.
-4. Clean up: `git worktree remove` the task worktree, prune the local branch, update local
-   `main`.
+4. Clean up, in order: `git worktree remove` the task worktree (this frees the branch),
+   then delete the branch - `git branch -d task/<id>-<slug>` plus, with a remote,
+   `git push origin --delete task/<id>-<slug>` - then update local `main`. Confirm the
+   remote branch is actually gone (`git ls-remote --heads origin task/<id>-<slug>` prints
+   nothing): this leak is silent and easy to miss.
 
 Declined or deferred: leave everything as-is and report what the human decided.
 
