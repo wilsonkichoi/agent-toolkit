@@ -49,8 +49,18 @@ transitions, reporting. Subagents do: implementation, review, fixes.
    result stops the pipeline.
 3. **Review** - fresh `reviewer` agent, exactly as `dev:review-pr` delegation.
 4. **Fix loop** - on request-changes: subagent applies `dev:review-pr` fix mode, then a fresh
-   review pass. At most `max_fix_attempts` review-fix cycles; still not approved → comment
-   the unresolved findings, transition to `Blocked`, stop.
+   review pass. **Comment every cycle** on the task so the review iteration is visible on the
+   issue, not only in PR review threads:
+
+   ```
+   ## Review fix cycle <n>/<max_fix_attempts> (dev:auto - <date>)
+   - Findings addressed: <1-line each>
+   - Re-review verdict: <approve | request-changes: remaining findings>
+   ```
+
+   At most `max_fix_attempts` review-fix cycles; still not approved → transition to `Blocked`
+   with a final comment listing the unresolved findings (the per-cycle comments are the trail),
+   stop.
 5. **Verify + merge** - run `dev:verify` evidence gathering. All criteria met and
    mechanically evidenced → merge per `merge_policy`, transition `Done`, clean up worktree.
    Any criterion unmet or manual → post the verification report, leave `In Review`, stop and

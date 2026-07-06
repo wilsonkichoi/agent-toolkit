@@ -50,9 +50,11 @@ The packet is the contract: read its inlined spec excerpts and follow the linked
 - Spec gap discovered (needed behavior the spec does not define): comment it on the task,
   flag it in the work summary, implement the narrowest reasonable interpretation only if the
   task is otherwise blocked - otherwise leave the gap for `/dev:backlog` triage.
-- Stuck: after 3 genuinely different approaches fail, stop burning tokens - comment the
-  attempts, failure modes, and best root-cause hypothesis on the task, transition to
-  `Blocked`, and stop (unattended: move to the next task).
+- Stuck: `comment` each genuinely different approach as you abandon it (`## Approach <n>/3
+  attempt (dev:execute - <date>)` with what you tried and why it failed), so the dead ends are
+  visible on the task, not only in this session. After 3 fail, stop burning tokens - transition
+  to `Blocked` with a final comment giving the best root-cause hypothesis (the per-approach
+  comments are the trail; do not repeat them), and stop (unattended: move to the next task).
 
 **Tests.** For non-trivial tasks, delegate test authoring to the `dev:test-writer` agent,
 giving it ONLY: the task packet, the spec excerpts, and the public interface (signatures,
@@ -77,9 +79,23 @@ the task instead; `git diff main...task/<id>-<slug>` becomes the review surface 
 ## 5. CI to green
 
 Watch checks (`gh pr checks --watch`). On failure, diagnose from the CI logs, fix, push to
-the same branch, re-watch. Count attempts: after `max_fix_attempts` (config, default 3)
-failed cycles, stop - comment the diagnostic trail on the task, transition to `Blocked`, and
-report. No CI configured (`ci_workflow` empty): the local `test_command` run is the gate.
+the same branch, re-watch. Count attempts.
+
+**Comment every cycle** so the iteration is visible on the task itself, not only in PR
+check-runs a reader has to reconstruct. Before re-watching, `comment` on the task:
+
+```
+## CI fix attempt <n>/<max_fix_attempts> (dev:execute - <date>)
+- Failing checks: <check names> (run: <ci run url>)
+- Diagnosis: <root cause from the logs>
+- Fix: <what changed>  Pushed: <commit sha>
+```
+
+After `max_fix_attempts` (config, default 3) failed cycles, stop: transition to `Blocked` and
+post a final comment with the best root-cause hypothesis and what a human needs to unblock
+(the per-attempt comments above are the diagnostic trail; do not repeat them). No CI
+configured (`ci_workflow` empty): the local `test_command` run is the gate, and each failed
+fix cycle is commented the same way (`Failing tests:` in place of `Failing checks:`).
 
 ## 6. Hand off
 
