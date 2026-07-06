@@ -374,6 +374,12 @@ consider eating our own dogfood and moving remaining phases into it.)
       retro): every filtered `gh issue list` routes through the eventually-consistent search
       API (verified with `GH_DEBUG=api`; a just-created issue was missing from
       `--milestone` output), so `list`/`next-task` now prescribe the REST issues endpoint
+- [x] Self-approval fallback (2026-07-06, dogfood PR #5): GitHub rejects `APPROVE` and
+      `REQUEST_CHANGES` review types on the author's own PR, and the `reviewer` agent
+      inherits the session's `gh` auth, so solo repos can never get formal `APPROVED` state.
+      `review-pr` now falls back to a `--comment` review with the same body; `verify` accepts
+      `Verdict: approve` in a `dev:review-pr`-formatted body as an approving review
+      (`dev:auto` already gated on the verdict, not the state)
 - [x] `discover` interview guidance (same retro): AskUserQuestion only for bounded choices,
       narrative via plain conversation, no placeholder free-text options (the harness appends
       "Other" itself); Customer coverage explicitly admits internal customers

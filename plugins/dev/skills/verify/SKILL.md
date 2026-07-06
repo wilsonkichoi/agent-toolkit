@@ -24,8 +24,11 @@ Read first: `.claude/dev.md` (config) and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md
 
 Resolve the task and PR (from the argument, the task's `pr` link, or the PR's linked task).
 Check: task status is `In Review`, CI is green, and an approving review exists
-(`gh pr view <n> --json reviews`). A missing review is a warning, not a hard stop; report it
-and let the human decide whether to proceed without one.
+(`gh pr view <n> --json reviews`). An approving review is either `state: APPROVED` or a
+`dev:review-pr`-formatted review body whose verdict line reads `Verdict: approve` - the
+latter is the only form possible when reviewer and PR author are the same account (GitHub
+forbids self-approval, so solo repos never get `APPROVED` state). A missing review is a
+warning, not a hard stop; report it and let the human decide whether to proceed without one.
 
 **No GitHub remote:** the task records a branch instead of a PR, the approving review is the
 `/dev:review-pr` comment on the task, and the local `test_command` run stands in for CI.

@@ -43,7 +43,11 @@ may review inline or delegate; delegation is the safe default.
    - **Security:** when the diff touches auth, input parsing, secrets, or permissions, check
      the obvious failure classes for that surface.
 3. **Post the review** via `gh pr review <n>` with `--request-changes` if any BLOCKER exists,
-   else `--approve`. Body format:
+   else `--approve`. GitHub rejects both flags on the author's own PR (`Can not approve your
+   own pull request`) - unavoidable when one account is both implementer and reviewer, e.g.
+   any solo repo. In that case post the identical body with `--comment` instead: the
+   `Verdict:` line in the body is the verdict of record either way; the formal GitHub review
+   state is best-effort. Body format:
 
    ```
    ## dev:review-pr - <task-id>
