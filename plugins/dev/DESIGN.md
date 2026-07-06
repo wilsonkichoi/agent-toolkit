@@ -377,6 +377,11 @@ consider eating our own dogfood and moving remaining phases into it.)
       retro): every filtered `gh issue list` routes through the eventually-consistent search
       API (verified with `GH_DEBUG=api`; a just-created issue was missing from
       `--milestone` output), so `list`/`next-task` now prescribe the REST issues endpoint
+- [x] `retro` commit-on-gate (2026-07-06, follow-up question on promotion mechanics: the
+      dogfood-item-1 commit-on-gate fix covered setup/discover/architect/plan/backlog but
+      missed retro, so applied rules sat uncommitted on `main` - invisible to task worktrees,
+      which check out committed HEAD, and destined to be swept into an unrelated commit):
+      approved promotions now get a dedicated commit before the next task starts
 - [x] `retro` record-is-unconditional rule (2026-07-06, dogfood #1 retro: the drafted retro
       existed only in the chat, held pending promotion approval - a session ending there
       loses the record, reproducing the dead RETRO-*.md problem): step 4 now posts the

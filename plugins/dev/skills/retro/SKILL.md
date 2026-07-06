@@ -61,6 +61,12 @@ generalizable beyond the one task, and actionable as an instruction ("run X befo
 vibes ("be careful with the database"). Propose the exact diff per promotion; apply on user
 approval.
 
+**Commit applied promotions immediately** (with the user's consent, as with every gate): one
+dedicated commit on `main` for the rule/CLAUDE.md changes, before any next task starts. Task
+worktrees check out `main`'s committed HEAD, so an uncommitted rule is invisible to the next
+executor - the loop you just closed silently stays open - and the stray file eventually gets
+swept into an unrelated commit by whatever writes to `main` next.
+
 ## 4. Record
 
 Post a retro comment on the task (or each milestone task): what worked, what did not, root
