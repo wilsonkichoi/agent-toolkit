@@ -1,0 +1,75 @@
+---
+name: verify
+description: >
+  This skill should be used when the user asks to "verify the task", "check the definition of
+  done", "merge the PR", "close out task <id>", or invokes /dev:verify. Gathers evidence for
+  every Definition of Done criterion, posts a verification report, and only then, on explicit
+  human approval, merges the PR and transitions the task to Done.
+argument-hint: "[task-id | pr-number]"
+---
+
+# dev:verify
+
+The merge gate. `Done` means every DoD criterion has evidence and the human approved the
+merge. This skill is the only thing in the lifecycle allowed to merge or to set `Done`.
+There is no unattended mode: without explicit human approval in this session, do not merge.
+
+Read first: `.claude/dev.md` (config) and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`.
+
+## 1. Preconditions
+
+Resolve the task and PR (from the argument, the task's `pr` link, or the PR's linked task).
+Check: task status is `In Review`, CI is green, and an approving review exists
+(`gh pr view <n> --json reviews`). A missing review is a warning, not a hard stop; report it
+and let the human decide whether to proceed without one.
+
+## 2. Evidence per DoD criterion
+
+For each Definition of Done criterion in the packet, gather evidence by type:
+
+- **Test-backed:** run the named test (or the project `test_command` filtered to it) on the
+  PR branch; record the command and result.
+- **CI-backed:** cite the check name and the run URL from `gh pr checks`.
+- **Manual:** perform the stated verification step where tools allow (run the binary, curl
+  the endpoint, inspect the artifact); when only a human can observe it, present the step and
+  ask the user for the observation.
+
+A criterion with no evidence path is **unmet** - never "assumed met". Evidence must come from
+the artifact (tests, CI, observed behavior), not from the implementer's claims in the work
+summary.
+
+## 3. Report
+
+Post the verification report as a PR comment and a task comment:
+
+```
+## dev:verify - <task-id>
+Result: <n>/<total> criteria met
+
+| # | Criterion | Evidence | Met |
+|---|-----------|----------|-----|
+| 1 | <criterion> | <command + result / CI check + URL / observation> | yes/NO |
+```
+
+**Any criterion unmet:** stop. Do not merge; the task stays `In Review`. Route the gap:
+implementation gap → `/dev:review-pr <n> fix` or a fresh `/dev:execute <id>` pass; wrong or
+untestable criterion → the packet is the problem, send it through `/dev:backlog` triage.
+
+## 4. Human gate and merge
+
+All criteria met: present the report and ask the human to approve the merge. On approval:
+
+1. Merge per `merge_policy` (`gh pr merge <n> --squash --delete-branch`, or `--merge`).
+2. Transition the task to `Done` (GitHub backend: confirm the linked issue auto-closed as
+   completed; close it explicitly if not).
+3. Comment the merge commit / PR URL on the task.
+4. Clean up: `git worktree remove` the task worktree, prune the local branch, update local
+   `main`.
+
+Declined or deferred: leave everything as-is and report what the human decided.
+
+## Spikes
+
+A spike verifies differently: evidence is the ADR in `docs/adr/` plus the recommendation
+comment on the task. No merge - the spike branch is throwaway. Confirm both artifacts exist,
+transition to `Done`, delete the branch and worktree.

@@ -11,23 +11,27 @@ Design rationale and roadmap: [DESIGN.md](DESIGN.md). Workflow diagram:
 
 ## Status
 
-Phase A (tracker adapter + execution loop) implemented; not yet dogfooded. Phases B-D
-(review/verify/backlog, discover/architect, retro/status) are designed but not built - see
-the task checklist in DESIGN.md.
+Phases A-B implemented (tracker adapter, execution loop, review/verify/backlog quality loop);
+not yet dogfooded. Phases C-D (discover/architect, retro/status) are designed but not built -
+see the task checklist in DESIGN.md. End-to-end dogfooding is batched in Phase E.
 
 ## Skills
 
 | Skill | Job |
 |---|---|
-| `/dev:setup` | Initialize a project (greenfield or brownfield): scaffold `docs/`, pick tracker backend, write `.claude/dev.md`. Brownfield mode offers architecture archaeology into a current-state SPEC.md. |
+| `/dev:setup` | Initialize a project (greenfield or brownfield): scaffold `docs/`, pick tracker backend, write `.claude/dev.md`. Brownfield mode offers architecture archaeology into a current-state SPEC.md. Optional installer for the auto-review GitHub Action. |
 | `/dev:plan` | Decompose one roadmap milestone into self-contained task packets (objective, why, DoD, dependencies, inlined spec excerpts) and push them to the tracker after a human-approved dry run. |
+| `/dev:backlog` | Mid-flight change management: intake requests as full packets with impact triage (backlog-only vs spec vs product goal), promote `Backlog → Todo`, split tasks, close as `Wont Do` with rationale, periodic triage sweep. |
 | `/dev:execute` | Claim one task → git worktree → implement → tests (via the `test-writer` agent, contract-only context) → PR → CI to green → work-summary comment → `In Review`. Never merges. Safeguards: `wip_limit`, `max_fix_attempts`, packet validation for hand-written tickets. |
+| `/dev:review-pr` | Independent review of a task PR against its packet and spec: severity-ranked findings, verdict posted via `gh pr review`. Fix mode applies findings on the same branch and replies per finding. Delegates to the `reviewer` agent when the session implemented the PR. |
+| `/dev:verify` | The merge gate: evidence per DoD criterion (run tests, cite CI, perform manual steps), verification report on the PR, then human-approved merge, task → `Done`, worktree cleanup. Only thing allowed to merge. |
 
 ## Agents
 
 | Agent | Job |
 |---|---|
 | `test-writer` | Writes tests from the task packet + public interface only, never the implementation diff. Used by `/dev:execute` for test separation. |
+| `reviewer` | Independent PR review with its own context: fetches packet, diff, CI, spec; posts verdict. Used by `/dev:review-pr` when the calling session implemented the PR. |
 
 ## Tracker backends
 
@@ -47,8 +51,10 @@ backend mappings: [docs/tracker.md](docs/tracker.md).
 /dev:setup        # once per project
 /dev:plan         # milestone → task packets in the tracker (human-gated dry run)
 /dev:execute      # one task per session: claim → PR → CI green → In Review
-                  # repeat /dev:execute, or /loop /dev:execute for a supervised batch
+/dev:review-pr    # independent review; fix mode addresses findings
+/dev:verify       # DoD evidence → human-approved merge → Done
+/dev:backlog      # anytime: new requests, promotions, wont-do, triage
 ```
 
-Review, verified merge (`Done`), backlog management, product discovery, architecture, and
-retro skills arrive in Phases B-D.
+Product discovery (`/dev:discover`), architecture (`/dev:architect`), retro, and status
+skills arrive in Phases C-D.

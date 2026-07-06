@@ -94,7 +94,21 @@ Offer (do not force) to reverse-engineer the current state into `docs/SPEC.md`:
 If the project has an ADW `workflow/` tree or other planning docs, offer to map still-relevant
 content into `docs/` and open items into the tracker as `Backlog` tasks.
 
-## 6. Report
+## 6. Optional: automatic PR review (GitHub Action)
+
+Offer when the repo is GitHub-hosted and a CI workflow exists. If accepted:
+
+1. Copy `assets/claude-review.yml` (relative to this skill) to
+   `.github/workflows/claude-review.yml`, replacing `{{CI_WORKFLOW_NAME}}` with the `name:`
+   field inside the configured CI workflow (workflow_run matches by workflow name, not file
+   name).
+2. Tell the user to add the API key secret: `gh secret set ANTHROPIC_API_KEY`. Warn: each
+   auto-review spends API tokens; the manual `/dev:review-pr` path keeps working either way.
+3. Set `review_action: true` in `.claude/dev.md` frontmatter.
+4. Note that the template should be sanity-checked against the current
+   `anthropics/claude-code-action` docs on first run.
+
+## 7. Report
 
 Summarize: mode, tracker backend, files created, one-time backend setup performed. Remind:
 

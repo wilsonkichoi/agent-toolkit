@@ -305,17 +305,17 @@ consider eating our own dogfood and moving remaining phases into it.)
 
 ### Phase B - quality loop + backlog
 
-- [ ] `skills/review-pr/SKILL.md`: PR diff + CI + packet → structured review with verdict;
+- [x] `skills/review-pr/SKILL.md`: PR diff + CI + packet → structured review with verdict;
       fix-loop mode (read review comments, apply, push)
-- [ ] `agents/reviewer.md`: spec-compliance and correctness focus
-- [ ] `skills/verify/SKILL.md`: per-DoD-criterion evidence report on PR, human merge gate,
+- [x] `agents/reviewer.md`: spec-compliance and correctness focus
+- [x] `skills/verify/SKILL.md`: per-DoD-criterion evidence report on PR, human merge gate,
       merge per policy, transition Done, cleanup worktree/branch
-- [ ] `skills/backlog/SKILL.md`: intake (one-off tickets get full packets), triage routing
+- [x] `skills/backlog/SKILL.md`: intake (one-off tickets get full packets), triage routing
       (backlog-only / spec delta / goal delta), Backlog → Todo promotion, Wont Do with
       rationale
-- [ ] Action installer in `dev:setup`: `.github/workflows/claude-review.yml` via
+- [x] Action installer in `dev:setup`: `.github/workflows/claude-review.yml` via
       `anthropics/claude-code-action` on `workflow_run`
-- [ ] Release: pre-commit checklist
+- [x] Release: pre-commit checklist
 
 ### Phase C - upstream phases
 

@@ -1,0 +1,64 @@
+# Auto-review template installed by /dev:setup. Placeholders: {{CI_WORKFLOW_NAME}}.
+# Requires repo secret ANTHROPIC_API_KEY (gh secret set ANTHROPIC_API_KEY).
+# Runs after the CI workflow succeeds on a PR branch and posts a structured review
+# using the same rubric as /dev:review-pr. Verify behavior against the current
+# anthropics/claude-code-action docs on first install; this is a starting point.
+name: Claude Review
+
+on:
+  workflow_run:
+    workflows: ["{{CI_WORKFLOW_NAME}}"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  actions: read
+
+jobs:
+  review:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: "--allowedTools Bash(gh:*),Read,Grep,Glob"
+          prompt: |
+            You are the automated PR reviewer for this repository.
+
+            1. Find the open PR whose head SHA is ${{ github.event.workflow_run.head_sha }}
+               (gh pr list --search "${{ github.event.workflow_run.head_sha }}" --state open).
+               If none exists, stop.
+            2. Identify the linked tracker task from the PR body (Closes #N, or a task id in
+               the branch name / PR title). Fetch the task's packet: objective, Definition of
+               Done, spec references. For GitHub-backed tasks use gh issue view.
+            3. Review the PR diff against the rubric, in order: DoD compliance (name any
+               criterion with no supporting change), spec compliance with the packet's spec
+               excerpts, correctness (a BLOCKER requires a concrete failure scenario), tests
+               test the contract rather than the implementation, scope (every changed line
+               traces to the task), and security for auth/input/secrets surfaces.
+            4. Submit ONE review via gh pr review: --request-changes if any BLOCKER, else
+               --approve. Use this body format:
+
+               ## dev auto-review - <task-id>
+               Verdict: request-changes | approve
+               DoD: <n>/<total> criteria have supporting changes
+
+               ### Findings
+               [B1] BLOCKER <file:line> - <defect>. Failure: <scenario>.
+               [S1] SUGGESTION <file:line> - <improvement>.
+               [N1] NIT <file:line> - <minor>.
+
+            Zero findings is a valid outcome; say so explicitly. Never merge, never push
+            commits, never edit code. Do not submit more than one review.
