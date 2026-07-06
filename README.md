@@ -37,8 +37,7 @@ claude plugin enable --scope user <name>@<marketplace>
 ```bash
 claude plugin marketplace add wilsonkichoi/agent-toolkit
 claude plugin install utils@agent-toolkit
-# dev is a work-in-progress placeholder (no functional skills yet)
-# claude plugin install dev@agent-toolkit
+claude plugin install dev@agent-toolkit
 ```
 
 ## Plugins
@@ -46,7 +45,7 @@ claude plugin install utils@agent-toolkit
 | Plugin | Description |
 |--------|-------------|
 | utils | Research, investigation, knowledge synthesis, and session retrospectives |
-| dev | Development workflow utilities (work in progress, placeholder only) |
+| dev | AI-assisted product development lifecycle: tracker-backed task packets (Linear / GitHub Issues / local) with PR-native execution. Phase A (setup, plan, execute) implemented; see plugins/dev/DESIGN.md |
 
 ## Structure
 

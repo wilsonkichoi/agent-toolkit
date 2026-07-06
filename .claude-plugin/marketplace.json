@@ -39,14 +39,24 @@
       "name": "dev",
       "source": "./plugins/dev",
       "category": "development",
-      "description": "Development workflow utilities and coding skills.",
+      "description": "AI-assisted product development lifecycle: tracker-backed task packets (Linear, GitHub Issues, or local files) with PR-native execution via worktrees, CI, review, and verified merge.",
       "keywords": [
         "development",
         "workflow",
-        "coding",
-        "utilities"
+        "sdlc",
+        "product-development",
+        "task-management",
+        "linear",
+        "github-issues",
+        "tracker",
+        "planning",
+        "execution",
+        "pull-request",
+        "ci",
+        "worktree",
+        "agile"
       ],
-      "version": "0.0.1"
+      "version": "0.0.2"
     }
   ]
 }

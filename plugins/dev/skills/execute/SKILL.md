@@ -1,0 +1,110 @@
+---
+name: execute
+description: >
+  This skill should be used when the user asks to "execute the next task", "pick up a task",
+  "work on task <id>", "start the execution loop", "implement the next ticket", or invokes
+  /dev:execute. Claims one task from the tracker, implements it in an isolated worktree,
+  opens a PR, drives CI to green, and hands off at In Review. Never merges.
+argument-hint: "[task-id]"
+---
+
+# dev:execute
+
+Execute exactly one task: claim → worktree → implement → PR → CI green → In Review → stop.
+Merging is `dev:verify`'s job; never merge, even if asked mid-run - point at `/dev:verify`.
+
+Read first: `.claude/dev.md` (config) and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` (tracker
+verbs, backend mapping, next-task algorithm).
+
+## 1. Claim
+
+- No argument: run `next-task`. It enforces the WIP gate (`wip_limit`) and dependency rules.
+  If nothing is claimable, report why (WIP limit reached / no unblocked Todo tasks) and stop.
+- With a task id: `get-task`, then check the same gates by hand - status is `Todo`, all
+  dependencies `Done`, WIP below `wip_limit`. Refuse (with the reason) if any gate fails; the
+  user can override explicitly.
+- `claim` the task and confirm the claim won (re-read; see tracker.md race guard).
+
+**Packet validation.** A claimable packet has at minimum an Objective and a Definition of
+Done. If either is missing (typical for hand-written tickets), do not guess and do not
+implement:
+
+- Draft the missing fields from `docs/PRD.md` / `docs/SPEC.md` and post them as a comment on
+  the task for confirmation.
+- Interactive: ask the user to confirm the drafted packet, then proceed.
+- Unattended: release the claim (transition back to `Todo`), comment why it was skipped, and
+  claim the next valid task instead.
+
+## 2. Isolate
+
+Create a git worktree on a fresh branch `task/<id>-<slug>` from up-to-date `main` (harness
+worktree isolation when available, else `git worktree add`). All work happens there.
+
+## 3. Implement
+
+The packet is the contract: read its inlined spec excerpts and follow the linked
+`docs/SPEC.md` sections. Scope discipline:
+
+- Implement this task only. No unrelated refactors, no features beyond the DoD, no drive-by
+  cleanup outside the task's files.
+- Spec gap discovered (needed behavior the spec does not define): comment it on the task,
+  flag it in the work summary, implement the narrowest reasonable interpretation only if the
+  task is otherwise blocked - otherwise leave the gap for `/dev:backlog` triage.
+- Stuck: after 3 genuinely different approaches fail, stop burning tokens - comment the
+  attempts, failure modes, and best root-cause hypothesis on the task, transition to
+  `Blocked`, and stop (unattended: move to the next task).
+
+**Tests.** For non-trivial tasks, delegate test authoring to the `dev:test-writer` agent,
+giving it ONLY: the task packet, the spec excerpts, and the public interface (signatures,
+schemas, endpoints). Never show it the implementation diff - it tests the contract, not the
+code. Trivial tasks (config, docs, one-liners) may test inline. Run the full
+`test_command` from `.claude/dev.md`; everything passes before pushing.
+
+## 4. PR
+
+Push the branch and open a PR:
+
+- Title: `<task-id>: <task title>`.
+- Body: Objective, the DoD as a checklist, spec references, and the task link - for the
+  GitHub backend include `Closes #<n>` (safe: only `dev:verify` merges, so auto-close cannot
+  bypass verification). For Linear, the `task/<id>-` branch prefix auto-links the issue.
+- Record the PR URL on the task (comment, or `pr:` field on the local backend).
+
+## 5. CI to green
+
+Watch checks (`gh pr checks --watch`). On failure, diagnose from the CI logs, fix, push to
+the same branch, re-watch. Count attempts: after `max_fix_attempts` (config, default 3)
+failed cycles, stop - comment the diagnostic trail on the task, transition to `Blocked`, and
+report. No CI configured (`ci_workflow` empty): the local `test_command` run is the gate.
+
+## 6. Hand off
+
+1. Post the work-summary comment on the task:
+
+   ```
+   ## Work summary (dev:execute - <date>)
+   - PR: <url>  Branch: task/<id>-<slug>
+   - Implemented: <1-2 sentences>
+   - Key decisions: <non-trivial choices, or "none">
+   - Obstacles: <what failed and how it was resolved, or "none">
+   - Spec gaps found: <list, or "none">
+   ```
+
+   This comment is the primary input for `dev:review-pr` and `dev:retro` - write it for a
+   reader with zero context from this session.
+
+2. Transition the task to `In Review`.
+3. Report: task, PR URL, CI status, spec gaps. Next step: `/dev:review-pr`, then
+   `/dev:verify`. **Stop. Do not merge. Do not start another task in this session** (fresh
+   context per task) - except in loop mode below.
+
+## Loop / batch mode
+
+When invoked repeatedly in one session (`/loop /dev:execute`) or asked to "drain the queue":
+keep this session a thin orchestrator. Per iteration: claim (step 1) here, then delegate
+steps 2-6 to ONE background subagent running in the task's worktree, passing it the full
+packet and this skill's instructions. Wait for it to finish, relay its report, then iterate.
+Never implement in the orchestrator session - context accumulated across tasks is how
+mid-task compaction corrupts work. The WIP gate stops the loop naturally; report and idle
+when it does. For true fresh context per task, prefer a shell loop of headless sessions
+(`claude -p "/dev:execute"`).
