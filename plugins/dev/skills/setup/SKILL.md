@@ -57,7 +57,7 @@ tracker: github
 test_command: "cd backend && uv run pytest"
 ci_workflow: ci.yml
 merge_policy: squash
-review_action: false
+review_action_installed: false # auto PR-review GitHub Action (claude-review.yml) is set up
 work_in_progress_limit: 3      # max tasks simultaneously In Progress + In Review
 max_fix_attempts: 3            # CI-fix or review-fix cycles before a task goes Blocked
 max_tasks_per_run: 5           # batch cap for /dev:auto and /loop /dev:execute
@@ -106,7 +106,7 @@ Offer when the repo is GitHub-hosted and a CI workflow exists. If accepted:
    name).
 2. Tell the user to add the API key secret: `gh secret set ANTHROPIC_API_KEY`. Warn: each
    auto-review spends API tokens; the manual `/dev:review-pr` path keeps working either way.
-3. Set `review_action: true` in `.claude/dev.md` frontmatter.
+3. Set `review_action_installed: true` in `.claude/dev.md` frontmatter.
 4. Note that the template should be sanity-checked against the current
    `anthropics/claude-code-action` docs on first run.
 

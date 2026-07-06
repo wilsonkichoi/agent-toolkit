@@ -89,7 +89,7 @@ linear_project: novascan-v2
 test_command: "cd backend && uv run pytest"
 ci_workflow: ci.yml
 merge_policy: squash
-review_action: true
+review_action_installed: true
 work_in_progress_limit: 3      # max tasks simultaneously In Progress + In Review
 max_fix_attempts: 3            # CI-fix or review-fix cycles before a task goes Blocked
 max_tasks_per_run: 5           # batch cap for /dev:auto and /loop /dev:execute
@@ -357,7 +357,10 @@ consider eating our own dogfood and moving remaining phases into it.)
       record-only retro; stop conditions (2026-07-06, from T-001 feedback: `/loop
       /dev:execute` cannot advance a dependency chain)
 - [x] Config renames/additions: `wip_limit` → `work_in_progress_limit` (clarity),
-      `max_tasks_per_run` (batch cap - "max tasks limit" feedback), `auto_merge`
+      `max_tasks_per_run` (batch cap - "max tasks limit" feedback), `auto_merge`;
+      `review_action` → `review_action_installed` (2026-07-06, "review_action: false is
+      confusing" - reads as a behavior toggle, but it only records whether the auto-review
+      Action workflow was installed)
 - [x] `dev:verify` carve-out for `dev:auto` (standing approval, manual criteria still stop)
 - [x] No-GitHub-remote fallbacks in `execute` (branch instead of PR) and `verify` (local
       merge) - gap found preparing dogfood item 1
