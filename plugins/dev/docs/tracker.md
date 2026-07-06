@@ -41,7 +41,7 @@ Ownership rules - who may set what:
 All backends use the same algorithm:
 
 1. **WIP gate first:** count tasks with status `In Progress` or `In Review`. If the count is
-   `>= wip_limit` (from `.claude/dev.md`, default 3), return nothing and report that the WIP
+   `>= work_in_progress_limit` (from `.claude/dev.md`, default 3), return nothing and report that the WIP
    limit is reached - review/verify must drain the queue before more work starts.
 2. **Candidates:** tasks with status `Todo` in the active milestone whose dependencies are all
    `Done`. A dependency in any other status (including `In Review`) blocks the dependent task,

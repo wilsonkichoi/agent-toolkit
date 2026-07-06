@@ -18,10 +18,10 @@ verbs, backend mapping, next-task algorithm).
 
 ## 1. Claim
 
-- No argument: run `next-task`. It enforces the WIP gate (`wip_limit`) and dependency rules.
+- No argument: run `next-task`. It enforces the WIP gate (`work_in_progress_limit`) and dependency rules.
   If nothing is claimable, report why (WIP limit reached / no unblocked Todo tasks) and stop.
 - With a task id: `get-task`, then check the same gates by hand - status is `Todo`, all
-  dependencies `Done`, WIP below `wip_limit`. Refuse (with the reason) if any gate fails; the
+  dependencies `Done`, WIP below `work_in_progress_limit`. Refuse (with the reason) if any gate fails; the
   user can override explicitly.
 - `claim` the task and confirm the claim won (re-read; see tracker.md race guard).
 
@@ -70,6 +70,10 @@ Push the branch and open a PR:
   bypass verification). For Linear, the `task/<id>-` branch prefix auto-links the issue.
 - Record the PR URL on the task (comment, or `pr:` field on the local backend).
 
+**No GitHub remote:** skip the PR. Commit on the task branch and record the branch name on
+the task instead; `git diff main...task/<id>-<slug>` becomes the review surface for
+`/dev:review-pr`, and `/dev:verify` merges locally.
+
 ## 5. CI to green
 
 Watch checks (`gh pr checks --watch`). On failure, diagnose from the CI logs, fix, push to
@@ -105,6 +109,11 @@ keep this session a thin orchestrator. Per iteration: claim (step 1) here, then 
 steps 2-6 to ONE background subagent running in the task's worktree, passing it the full
 packet and this skill's instructions. Wait for it to finish, relay its report, then iterate.
 Never implement in the orchestrator session - context accumulated across tasks is how
-mid-task compaction corrupts work. The WIP gate stops the loop naturally; report and idle
-when it does. For true fresh context per task, prefer a shell loop of headless sessions
-(`claude -p "/dev:execute"`).
+mid-task compaction corrupts work. Stop when the WIP gate closes or after `max_tasks_per_run`
+tasks (config, default 5); report and idle. For true fresh context per task, prefer a shell
+loop of headless sessions (`claude -p "/dev:execute"`).
+
+Scope note: this mode only fills the review queue - every task stops at `In Review`, so a
+dependency chain will not advance past its first task (deps unblock at `Done`, and `Done`
+needs `/dev:verify`). To drive tasks all the way to `Done` unattended, including merge and
+per-task retro, use `/dev:auto`.

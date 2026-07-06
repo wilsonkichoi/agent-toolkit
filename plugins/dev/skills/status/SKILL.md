@@ -23,7 +23,7 @@ milestone, else the active one.
    (`gh pr checks`) and review verdict. Skip when no GitHub remote.
 3. **Next up:** apply the next-task algorithm; show the top 3 claimable tasks with priority
    and estimate.
-4. **WIP:** In Progress + In Review count vs `wip_limit`.
+4. **WIP:** In Progress + In Review count vs `work_in_progress_limit`.
 5. **Worktrees:** `git worktree list` for task worktrees.
 
 ## Report format
@@ -32,7 +32,7 @@ milestone, else the active one.
 # dev status - milestone <n>
 Progress: <done>/<total> done | <in-review> in review | <in-progress> in progress
           | <todo> todo | <blocked> blocked | <backlog> backlog
-WIP: <n>/<wip_limit>  <"(gate closed - review/verify to unblock)" when full>
+WIP: <n>/<work_in_progress_limit>  <"(gate closed - review/verify to unblock)" when full>
 
 ## Needs human action
 - <task> In Review, PR #<n> CI green, review approved  -> /dev:verify <id>

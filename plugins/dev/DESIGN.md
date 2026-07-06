@@ -90,8 +90,10 @@ test_command: "cd backend && uv run pytest"
 ci_workflow: ci.yml
 merge_policy: squash
 review_action: true
-wip_limit: 3
-max_fix_attempts: 3
+work_in_progress_limit: 3      # max tasks simultaneously In Progress + In Review
+max_fix_attempts: 3            # CI-fix or review-fix cycles before a task goes Blocked
+max_tasks_per_run: 5           # batch cap for /dev:auto and /loop /dev:execute
+auto_merge: false              # standing merge approval for /dev:auto
 ---
 Free-text conventions, e.g. "all API changes need a migration note in the PR body".
 ```
@@ -154,6 +156,7 @@ consumes either raw files or an existing wiki. Do not duplicate wiki functionali
 | `dev:plan` | 5 | Milestone → task packets. Creates spikes for genuine unknowns. Dry-run: present the full packet list for human approval, then push to the tracker via the adapter. |
 | `dev:backlog` | ongoing | Mid-flight change management. Intake new requests and priority changes at any point: triage each request, then route it. Backlog-only change → create/re-prioritize/split tasks in the tracker. Spec-impacting → run a `dev:architect` delta (SPEC/ROADMAP update + ADR) before touching tasks. Goal-impacting → `dev:discover` delta (PRD update) first. Also the preferred way to add one-off tickets (it writes a full, immediately executable packet, unlike a hand-written ticket), to promote `Backlog → Todo`, and to close tasks as `Wont Do` with rationale. This is how the product recalibrates without re-running the whole pipeline. |
 | `dev:execute` | 6 | The core loop, one task per session. Claim next unblocked task (or a given ID) → worktree + branch → implement per packet → tests → push → PR linking the task → watch CI (`gh run watch`), fix failures → post work-summary comment (what/decisions/obstacles/spec gaps) on the issue → transition to In Review → **stop; never merges**. |
+| `dev:auto` | 6-8 | Unattended per-task pipeline: execute → independent review → bounded fix loop → verify → merge (only under `auto_merge` conditions) → record-only retro → next task. Single-flight; stops on Blocked, unmet/manual DoD criteria, merge conflicts, or `max_tasks_per_run`. |
 | `dev:review-pr` | 6 | Fresh-session reviewer. Fetches PR diff + CI results + linked task packet; checks DoD compliance, spec compliance, code quality; posts a structured PR review via `gh` with verdict (approve / request changes). Also invocable as the fix loop: read review comments, apply fixes, push. |
 | `dev:verify` | 7 | Merge gate. For each DoD criterion, gather evidence (run the test, cite the CI check, or walk the manual step) and post a verification report to the PR. On human approval: merge per policy, transition task to Done, clean up worktree/branch. |
 | `dev:retro` | 8 | Per task or milestone. Sources: PR review threads, CI history, tracker comments (the work-summary comment is the primary input), and local session transcripts under `~/.claude/projects/` when available. Output: retro comment on the tracker + **promotion step**: propose concrete additions to `.claude/rules/` or CLAUDE.md, apply on approval. |
@@ -183,13 +186,23 @@ human trigger.
 
 ## Unattended operation
 
-No `auto` skill in v1, deliberately: ADW's `auto` existed to shuttle state between steps, and
-the tracker now does that. Each `/dev:execute` run is stateless (claim → execute → PR → stop), so
-unattended batches are `/loop /dev:execute` or several parallel sessions on different unblocked
-tasks; the tracker's claim step prevents collisions. Waves are gone: dependency edges +
-priority ordering in the tracker replace wave grouping, and parallelism falls out of "any
-unblocked task can be claimed". If a dedicated orchestrator proves necessary after dogfooding,
-add it as `dev:auto` in v2; the statuses and adapter verbs are already sufficient for it.
+Two unattended modes, split by what they drive tasks to:
+
+- **`/loop /dev:execute`** fills the review queue: each iteration lands one task at
+  `In Review`, human reviews/verifies at their own pace. On a dependency chain it advances
+  exactly one task (deps unblock only at `Done`), which is correct but was surprising -
+  Phase E dogfooding (day one) showed the expected behavior was a full per-task pipeline.
+- **`/dev:auto`** (added from that feedback; v1 shipped without it, the DESIGN's "add it if
+  dogfooding proves necessary" clause triggered immediately) drives each task to `Done`:
+  execute → independent review → bounded fix loop → verify → merge → record-only retro, then
+  the next task, so chains progress. Merging unattended requires `auto_merge: true` as
+  standing human authorization, and even then only when the review approved AND every DoD
+  criterion is met AND mechanically evidenced (test/CI); a manual criterion always stops for
+  a human. Rule promotions are never applied unattended - retro runs in proposal mode.
+
+Waves stay gone: dependency edges + priority ordering replace wave grouping; parallelism is
+parallel `/dev:execute` sessions on independent tasks (the claim step prevents collisions);
+`/dev:auto` itself is single-flight.
 
 Unattended batches over a large `Todo` list have three failure modes, and `dev:execute` must
 carry safeguards for all of them:
@@ -206,10 +219,10 @@ carry safeguards for all of them:
 3. **Unbounded WIP.** Human gates cannot be skipped (`dev:execute` never merges; `Done` only
    via `dev:verify`), so the failure mode is a pile of unreviewed PRs that conflict because
    later tasks branched from a `main` missing earlier unmerged work. `dev:execute` refuses to
-   claim when `wip_limit` (config, default 3) tasks are already `In Review`; the loop idles
+   claim when `work_in_progress_limit` (config, default 3) tasks are already `In Review`; the loop idles
    until review/verify drains the queue. Review capacity is the throttle.
 
-Config fields `max_fix_attempts` and `wip_limit` live in `.claude/dev.md` frontmatter.
+Config fields `max_fix_attempts` and `work_in_progress_limit` live in `.claude/dev.md` frontmatter.
 `dev:setup` must also remind that unattended runs need pre-approved permissions, or the loop
 stalls on the first prompt.
 
@@ -219,7 +232,9 @@ stalls on the first prompt.
 - **Waves and feature branches per wave** - replaced by dependency edges; task branches PR
   straight to main behind CI.
 - **13 role agents** - replaced by 3 agents + packet context.
-- **`auto` pipeline** - replaced by stateless `dev:execute` + `/loop` (see above).
+- **`auto` pipeline** - initially replaced by stateless `dev:execute` + `/loop`; Phase E
+  dogfooding showed drive-to-Done automation is genuinely needed, so a leaner `dev:auto`
+  returned (tracker-driven, per-task chain, gated auto-merge) - see Unattended operation.
 - **Multi-CLI support (Copilot/Gemini)** - Claude Code only, per decision; frees the design to
   use hooks, subagents, worktrees, and MCP.
 - **Cost-arbitrage guidance** - out of scope for the plugin.
@@ -296,7 +311,7 @@ consider eating our own dogfood and moving remaining phases into it.)
 - [x] `skills/execute/SKILL.md`: claim from Todo only, packet validation (draft missing
       DoD/objective, skip in unattended mode), worktree + branch, implement, PR linking task,
       CI watch with `max_fix_attempts` → Blocked, work-summary comment, transition In Review,
-      `wip_limit` refusal, loop mode via background subagent, never merges
+      `work_in_progress_limit` refusal, loop mode via background subagent, never merges
 - [x] `agents/test-writer.md`: contract-only context (packet + spec excerpt + public
       interface, no implementation diff)
 - [x] Remove `skills/placeholder/`
@@ -335,10 +350,46 @@ consider eating our own dogfood and moving remaining phases into it.)
       Jira worked example, third-party memory tradeoffs
 - [x] Release: pre-commit checklist
 
+### Added during Phase E (dogfood feedback)
+
+- [x] `skills/auto/SKILL.md`: per-task execute → review → fix → verify → merge → retro
+      pipeline; `auto_merge` standing authorization with mechanical-evidence-only merges;
+      record-only retro; stop conditions (2026-07-06, from T-001 feedback: `/loop
+      /dev:execute` cannot advance a dependency chain)
+- [x] Config renames/additions: `wip_limit` → `work_in_progress_limit` (clarity),
+      `max_tasks_per_run` (batch cap - "max tasks limit" feedback), `auto_merge`
+- [x] `dev:verify` carve-out for `dev:auto` (standing approval, manual criteria still stop)
+- [x] No-GitHub-remote fallbacks in `execute` (branch instead of PR) and `verify` (local
+      merge) - gap found preparing dogfood item 1
+
 ### Phase E - dogfood everything
 
 One dogfood project driven through the full lifecycle, then backend and brownfield variants.
 Fix defects as found; re-run the affected flow before ticking the box.
+
+Resources and conventions for the Phase E sessions:
+
+- **Model:** run dogfood sessions at Sonnet 5 (`claude --model sonnet`); agents inherit it.
+  Cheaper, and doubles as a robustness test - these skills must not require the top model to
+  be followed. On a failure, attribute first: skill unclear (fix the skill) vs model
+  capability (re-run that step at Fable 5 before changing the skill).
+- **GitHub backend:** throwaway repo `https://github.com/wilsonkichoi/dogfood-dev`. Needs
+  `gh auth` only; `dev:setup` creates labels + CI. Auto-review Action: skipped by decision
+  (no ANTHROPIC_API_KEY); manual `/dev:review-pr` only. The Action template ships untested
+  until some project opts in.
+- **Linear backend:** workspace `dogfood-dev`, team `DOG`
+  (`https://linear.app/dogfood-dev/team/DOG`). No API key - official MCP server with OAuth:
+  `claude mcp add --transport http linear https://mcp.linear.app/mcp` (browser login on
+  first call). The "In Review" workflow state already exists on team DOG.
+- **Where:** never inside agent-toolkit. Item 1: fresh folder (e.g. `~/src/dogfood-local`),
+  `git init`, no remote. Items 2+: `gh repo clone wilsonkichoi/dogfood-dev ~/src/dogfood-dev`.
+  Launch every dogfood session with the working-tree plugin so unpushed skill fixes apply
+  immediately: `claude --model sonnet --plugin-dir /Users/wchoi/src/agent-toolkit/plugins/dev`.
+- **Pass protocol:** the session that ran a flow never certifies it. Pass = the artifacts
+  show the checklist item's behaviors (tracker states, branch/PR history, doc approval
+  dates, rule files), audited by the human or a separate fresh session, plus a clean
+  `/dev:status` consistency check. Defects: fix the skill in agent-toolkit, re-run the
+  affected flow, only then tick the box.
 
 - [ ] Full lifecycle on a toy project, local backend: `setup` (greenfield) → `discover`
       (research dumped in `research/raw/`; PRD answers goal/why/value/north star) →
@@ -346,15 +397,19 @@ Fix defects as found; re-run the affected flow before ticking the box.
       `execute` → `review-pr` → `verify` → `status`
 - [ ] GitHub Issues backend on a real repo: real issues, real PR, real CI, including a
       deliberately failing CI run (exercises `max_fix_attempts` → Blocked) and a deliberately
-      unmet DoD criterion (verify must refuse to merge); Action installer + auto-review on
-      `workflow_run`
+      unmet DoD criterion (verify must refuse to merge). Auto-review Action skipped by
+      decision; manual `/dev:review-pr` covers review
 - [ ] Linear backend end-to-end: live workspace + MCP, full task lifecycle including claim
       race guard and In Review / Done transitions
 - [ ] `backlog` flows: one-off ticket intake (full packet), a manually created ticket caught
       by packet validation, Backlog → Todo promotion, a `Wont Do` closure with rationale, and
       a spec-impacting request routed through an `architect` delta
-- [ ] Unattended safeguards: `/loop /dev:execute` batch run hits the `wip_limit` gate and
+- [ ] Unattended safeguards: `/loop /dev:execute` batch run hits the `work_in_progress_limit` gate and
       idles; stuck task lands in `Blocked` with a diagnostic comment
+- [ ] `dev:auto` on a dependency chain (dogfood-local milestone shape): with
+      `auto_merge: true`, tasks progress through Done past dependencies; a manual DoD
+      criterion stops the pipeline for a human; retro proposals accumulate without touching
+      `.claude/rules/`; `max_tasks_per_run` caps the batch
 - [ ] `retro` on completed tasks proposes ≥1 rules/CLAUDE.md promotion from real PR/CI/comment
       evidence; a following `dev:execute` session demonstrably benefits
 - [ ] Brownfield: `setup` brownfield mode on an existing repo, architecture archaeology into a

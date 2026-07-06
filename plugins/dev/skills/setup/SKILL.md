@@ -58,8 +58,10 @@ test_command: "cd backend && uv run pytest"
 ci_workflow: ci.yml
 merge_policy: squash
 review_action: false
-wip_limit: 3
-max_fix_attempts: 3
+work_in_progress_limit: 3      # max tasks simultaneously In Progress + In Review
+max_fix_attempts: 3            # CI-fix or review-fix cycles before a task goes Blocked
+max_tasks_per_run: 5           # batch cap for /dev:auto and /loop /dev:execute
+auto_merge: false              # standing merge approval for /dev:auto (see that skill)
 ---
 Project conventions the fields cannot capture go here as free text.
 ```

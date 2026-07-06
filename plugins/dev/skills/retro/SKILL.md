@@ -41,7 +41,7 @@ Classify each learning:
   `docker compose up db` first", "API errors follow shape X"): candidate for promotion.
 - **Packet-quality lesson** - the packet was wrong/thin (untestable DoD, missing dependency):
   candidate for the planning conventions in the `.claude/dev.md` body.
-- **Process tuning** - config change (`wip_limit`, `max_fix_attempts`, test command).
+- **Process tuning** - config change (`work_in_progress_limit`, `max_fix_attempts`, test command).
 - **One-off** - bad luck, no generalization: record in the retro comment, promote nothing.
 
 ## 3. Promote (the point of this skill)

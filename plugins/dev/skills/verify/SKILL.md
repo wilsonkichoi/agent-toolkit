@@ -12,7 +12,11 @@ argument-hint: "[task-id | pr-number]"
 
 The merge gate. `Done` means every DoD criterion has evidence and the human approved the
 merge. This skill is the only thing in the lifecycle allowed to merge or to set `Done`.
-There is no unattended mode: without explicit human approval in this session, do not merge.
+Without explicit human approval in this session, do not merge - with one carve-out: when
+invoked by `/dev:auto` with `auto_merge: true` in `.claude/dev.md`, that flag is the human's
+standing approval, valid only when the review is approved AND every criterion is met AND
+every criterion is mechanically evidenced (test or CI). A manual criterion always requires a
+live human, regardless of config.
 
 Read first: `.claude/dev.md` (config) and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`.
 
@@ -22,6 +26,9 @@ Resolve the task and PR (from the argument, the task's `pr` link, or the PR's li
 Check: task status is `In Review`, CI is green, and an approving review exists
 (`gh pr view <n> --json reviews`). A missing review is a warning, not a hard stop; report it
 and let the human decide whether to proceed without one.
+
+**No GitHub remote:** the task records a branch instead of a PR, the approving review is the
+`/dev:review-pr` comment on the task, and the local `test_command` run stands in for CI.
 
 ## 2. Evidence per DoD criterion
 
@@ -59,7 +66,9 @@ untestable criterion → the packet is the problem, send it through `/dev:backlo
 
 All criteria met: present the report and ask the human to approve the merge. On approval:
 
-1. Merge per `merge_policy` (`gh pr merge <n> --squash --delete-branch`, or `--merge`).
+1. Merge per `merge_policy` (`gh pr merge <n> --squash --delete-branch`, or `--merge`). No
+   GitHub remote: merge locally instead - `git checkout main` then `git merge --squash` +
+   commit (or `git merge --no-ff` per policy), then delete the task branch.
 2. Transition the task to `Done` (GitHub backend: confirm the linked issue auto-closed as
    completed; close it explicitly if not).
 3. Comment the merge commit / PR URL on the task.
