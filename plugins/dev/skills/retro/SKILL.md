@@ -68,5 +68,13 @@ causes, learnings promoted (with rule file names), learnings recorded-only. Mile
 also summarize across tasks - estimate accuracy, review-finding density, recurring blockers -
 and recommend process tuning with the evidence.
 
+**The record is unconditional.** Post the retro comment even when the promotions are
+declined, deferred, or still awaiting the user's answer - list pending ones as "proposed,
+not applied". Never leave a drafted retro existing only in the chat while waiting on the
+promotion gate: a session that ends there loses the whole retro, which is exactly the dead
+RETRO-*.md failure this skill replaces. If promotions are approved after the comment is
+posted, append a short follow-up comment naming the applied rule files (comments are
+append-only, never edited).
+
 The loop-closure test before finishing: for each promoted rule, name the concrete past
 failure it would have prevented. A rule that prevents nothing is noise; drop it.

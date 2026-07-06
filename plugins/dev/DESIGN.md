@@ -377,6 +377,11 @@ consider eating our own dogfood and moving remaining phases into it.)
       retro): every filtered `gh issue list` routes through the eventually-consistent search
       API (verified with `GH_DEBUG=api`; a just-created issue was missing from
       `--milestone` output), so `list`/`next-task` now prescribe the REST issues endpoint
+- [x] `retro` record-is-unconditional rule (2026-07-06, dogfood #1 retro: the drafted retro
+      existed only in the chat, held pending promotion approval - a session ending there
+      loses the record, reproducing the dead RETRO-*.md problem): step 4 now posts the
+      tracker comment regardless of the promotion decision, pending promotions marked
+      "proposed, not applied", approved ones acknowledged in a follow-up comment
 - [x] `verify` branch-cleanup ordering (2026-07-06, dogfood #1 retro: remote branch leaked):
       `gh pr merge --delete-branch` cannot delete a branch checked out in the task worktree,
       and on that failure the remote delete is skipped too - and the worktree always exists
