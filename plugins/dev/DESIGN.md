@@ -417,6 +417,14 @@ consider eating our own dogfood and moving remaining phases into it.)
       purpose/stack via AskUserQuestion - misattributed: setup's interview is already
       bounded-only; that was model improvisation, re-test at Fable before touching the skill
 
+- [x] `worktree-agent-*` branch leak (2026-07-06, GitHub-backend dogfood audit): `execute`
+      step 2 allowed "harness worktree isolation when available", which creates its own
+      `worktree-agent-<hash>` branch that no cleanup step knows about - two empty orphan
+      branches left in dogfood-dev, one per subagent spawn. `execute` now mandates
+      `git worktree add -b task/<id>-<slug>` and forbids harness isolation (loop mode and
+      `auto` subagent dispatch updated to match); `status` consistency checks flag local
+      branches matching neither `task/*` nor the default branch
+
 ### Phase E - dogfood everything
 
 One dogfood project driven through the full lifecycle, then backend and brownfield variants.
@@ -452,10 +460,18 @@ Resources and conventions for the Phase E sessions:
       `execute` → `review-pr` → `verify` → `status` (passed 2026-07-06 on dogfood-local:
       T-001..T-004 all Done with full evidence trails; status consistency checks run clean
       during the audit; 4 plugin defects found and fixed, see "Added during Phase E")
-- [ ] GitHub Issues backend on a real repo: real issues, real PR, real CI, including a
+- [x] GitHub Issues backend on a real repo: real issues, real PR, real CI, including a
       deliberately failing CI run (exercises `max_fix_attempts` → Blocked) and a deliberately
       unmet DoD criterion (verify must refuse to merge). Auto-review Action skipped by
-      decision; manual `/dev:review-pr` covers review
+      decision; manual `/dev:review-pr` covers review (passed 2026-07-06 on dogfood-dev:
+      issues #1-#4 through the full lifecycle; #3 drained 3 real CI-fix cycles →
+      `status:blocked` → Wont Do with rationale, PR #7 closed unmerged; #4's manual DoD
+      criterion stopped `verify` for human confirmation despite `auto_merge: true` - the
+      unmet-criterion refusal was exercised as this manual-criterion stop plus #3's blocked
+      mechanical criterion, accepted by judgment call; audited by a separate session: label
+      invariant on closed issues, remote branch cleanup, PR/issue state consistency all
+      clean. Defect found in audit and fixed, see `worktree-agent-*` entry under "Added
+      during Phase E")
 - [ ] Linear backend end-to-end: live workspace + MCP, full task lifecycle including claim
       race guard and In Review / Done transitions
 - [ ] `backlog` flows: one-off ticket intake (full packet), a manually created ticket caught

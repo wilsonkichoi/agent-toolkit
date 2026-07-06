@@ -37,8 +37,11 @@ implement:
 
 ## 2. Isolate
 
-Create a git worktree on a fresh branch `task/<id>-<slug>` from up-to-date `main` (harness
-worktree isolation when available, else `git worktree add`). All work happens there.
+Create a git worktree on a fresh branch `task/<id>-<slug>` from up-to-date `main`:
+`git worktree add -b task/<id>-<slug> <path> main`. All work happens there. Do not use the
+harness's worktree isolation (Agent tool `isolation: worktree` / EnterWorktree) for this:
+it creates its own `worktree-agent-*` branch that no cleanup step knows about, leaking one
+dead branch per task.
 
 ## 3. Implement
 
@@ -122,8 +125,9 @@ fix cycle is commented the same way (`Failing tests:` in place of `Failing check
 
 When invoked repeatedly in one session (`/loop /dev:execute`) or asked to "drain the queue":
 keep this session a thin orchestrator. Per iteration: claim (step 1) here, then delegate
-steps 2-6 to ONE background subagent running in the task's worktree, passing it the full
-packet and this skill's instructions. Wait for it to finish, relay its report, then iterate.
+steps 2-6 to ONE background subagent, passing it the full packet and this skill's
+instructions; it creates and works in the task worktree per step 2. Spawn it without
+harness worktree isolation (see step 2). Wait for it to finish, relay its report, then iterate.
 Never implement in the orchestrator session - context accumulated across tasks is how
 mid-task compaction corrupts work. Stop when the WIP gate closes or after `max_tasks_per_run`
 tasks (config, default 5); report and idle. For true fresh context per task, prefer a shell

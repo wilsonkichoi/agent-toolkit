@@ -60,5 +60,8 @@ Flag, do not fix:
   likely an abandoned claim; suggest releasing it to `Todo`.
 - Open `task/*` PR with no task in `In Progress`/`In Review` → work outside the tracker.
 - Worktree for a `Done` task → cleanup missed; suggest `git worktree remove`.
+- Local branch matching neither `task/*` nor the default branch (e.g. a leftover
+  `worktree-agent-*` from harness isolation) → orphan; suggest `git branch -d` if it has no
+  unique commits.
 - Dependency cycles or a `Todo` task depending on a `Wont Do` task → planning error; route
   to `/dev:backlog`.
