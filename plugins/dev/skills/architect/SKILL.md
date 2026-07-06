@@ -78,8 +78,9 @@ out-of-scope. Order by risk: the milestone that retires the biggest unknown ship
 Add or refresh the project `CLAUDE.md` architecture pointer: 5-10 lines summarizing the
 architecture and linking to SPEC/ROADMAP/ADRs; keep CLAUDE.md lean. Then the human gate:
 present the architecture summary, the contested ADRs, and the milestone order. This gate
-deserves a line-by-line review; say so. Record approval date in SPEC.md. Next step:
-`/dev:plan` for milestone 1.
+deserves a line-by-line review; say so. Record approval date in SPEC.md, then commit the
+approved docs (SPEC, ROADMAP, ADRs, CLAUDE.md update) with the user's consent before ending.
+Next step: `/dev:plan` for milestone 1.
 
 ## Delta mode (`delta <change summary>`)
 

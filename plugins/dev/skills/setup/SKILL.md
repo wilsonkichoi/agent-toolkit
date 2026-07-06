@@ -112,7 +112,10 @@ Offer when the repo is GitHub-hosted and a CI workflow exists. If accepted:
 
 ## 7. Report
 
-Summarize: mode, tracker backend, files created, one-time backend setup performed. Remind:
+Offer to commit the scaffold and config to `main` - in a fresh repo this creates the root
+commit that later task branches need; leaving setup output uncommitted stalls `dev:execute`
+mid-run. Then summarize: mode, tracker backend, files created, one-time backend setup
+performed. Remind:
 
 - Unattended runs (`/loop /dev:execute`, headless sessions) stall on permission prompts -
   pre-approve the needed commands (git, gh, test command) in `.claude/settings.json` first.

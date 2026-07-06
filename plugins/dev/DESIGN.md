@@ -361,6 +361,15 @@ consider eating our own dogfood and moving remaining phases into it.)
 - [x] `dev:verify` carve-out for `dev:auto` (standing approval, manual criteria still stop)
 - [x] No-GitHub-remote fallbacks in `execute` (branch instead of PR) and `verify` (local
       merge) - gap found preparing dogfood item 1
+- [x] Commit-on-gate instructions in `setup`/`discover`/`architect`/`plan`/`backlog`
+      (2026-07-06, dogfood item 1: four approval gates left artifacts uncommitted, stalling
+      `execute` on a zero-commit repo)
+- [x] Local-backend worktree discipline in `tracker.md` (claim commits on `main`; all later
+      task-file edits happen in the task worktree) - dogfood T-001 nearly committed
+      `in-review` state to `main` for unmerged work
+- [x] `plan` DoD rules: no manual criterion duplicating a script-checkable one (2 avoidable
+      `dev:auto` stops on T-003/T-004); scaffold DoDs must prove the toolchain end-to-end
+      (T-002 inherited a pytest-non-importable scaffold)
 
 ### Phase E - dogfood everything
 
@@ -391,10 +400,12 @@ Resources and conventions for the Phase E sessions:
   `/dev:status` consistency check. Defects: fix the skill in agent-toolkit, re-run the
   affected flow, only then tick the box.
 
-- [ ] Full lifecycle on a toy project, local backend: `setup` (greenfield) → `discover`
+- [x] Full lifecycle on a toy project, local backend: `setup` (greenfield) → `discover`
       (research dumped in `research/raw/`; PRD answers goal/why/value/north star) →
       `architect` (SPEC + ROADMAP sufficient for planning without gap-guessing) → `plan` →
-      `execute` → `review-pr` → `verify` → `status`
+      `execute` → `review-pr` → `verify` → `status` (passed 2026-07-06 on dogfood-local:
+      T-001..T-004 all Done with full evidence trails; status consistency checks run clean
+      during the audit; 4 plugin defects found and fixed, see "Added during Phase E")
 - [ ] GitHub Issues backend on a real repo: real issues, real PR, real CI, including a
       deliberately failing CI run (exercises `max_fix_attempts` → Blocked) and a deliberately
       unmet DoD criterion (verify must refuse to merge). Auto-review Action skipped by
@@ -406,10 +417,12 @@ Resources and conventions for the Phase E sessions:
       a spec-impacting request routed through an `architect` delta
 - [ ] Unattended safeguards: `/loop /dev:execute` batch run hits the `work_in_progress_limit` gate and
       idles; stuck task lands in `Blocked` with a diagnostic comment
-- [ ] `dev:auto` on a dependency chain (dogfood-local milestone shape): with
+- [x] `dev:auto` on a dependency chain (dogfood-local milestone shape): with
       `auto_merge: true`, tasks progress through Done past dependencies; a manual DoD
       criterion stops the pipeline for a human; retro proposals accumulate without touching
-      `.claude/rules/`; `max_tasks_per_run` caps the batch
+      `.claude/rules/`; `max_tasks_per_run` caps the batch (passed 2026-07-06: T-002
+      auto-merged, T-003/T-004 manual criteria stopped correctly, run capped at 2 tasks,
+      promotions applied only by the human milestone retro)
 - [ ] `retro` on completed tasks proposes ≥1 rules/CLAUDE.md promotion from real PR/CI/comment
       evidence; a following `dev:execute` session demonstrably benefits
 - [ ] Brownfield: `setup` brownfield mode on an existing repo, architecture archaeology into a

@@ -67,7 +67,9 @@ retro problem again.
 
 Present a summary (problem, customer, value, north star, top non-goals) and the open
 questions. Iterate on feedback in place. The PRD is approved when the user says so; record
-the approval date at the top of the file. Next step: `/dev:architect`.
+the approval date at the top of the file, then commit it (with the user's consent) before
+ending - approved-but-uncommitted artifacts strand downstream skills that branch from
+`main`. Next step: `/dev:architect`.
 
 ## Delta mode (`delta <change summary>`)
 

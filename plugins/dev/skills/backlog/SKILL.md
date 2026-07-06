@@ -37,6 +37,10 @@ For each request:
 3. **Create at `Backlog`** via `create-task`. Create at `Todo` only when the user explicitly
    commits it to the current milestone in this conversation; say which status was used.
 
+After intake (and after any doc delta returns from `discover`/`architect`), commit the
+new/changed files - local-backend task files and doc deltas - to `main` with the user's
+consent; approved-but-uncommitted artifacts strand downstream skills.
+
 ## Promote (`promote <id>`)
 
 `Backlog → Todo` is always an explicit human decision; this is its skill-side path.

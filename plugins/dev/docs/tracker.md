@@ -126,6 +126,13 @@ Spec references (with inlined excerpts), Suggested steps…
   assignee is this session.
 - New id = max existing NNN + 1, zero-padded to 3 digits.
 - Commit `.dev/tasks/` changes to git together with the work they describe.
+- **Worktree discipline** (found on dogfood T-001): the claim edit (`todo → in-progress`) is
+  made and committed on `main`, because it happens before the task worktree exists. Every
+  subsequent edit to that task's file - `in-review` transition, work-summary comment, review
+  findings, verification report - is made in the task branch's worktree and merges to `main`
+  with the work. Never edit `main`'s copy of the task file while its branch is active:
+  `main`'s tracker state must not claim things about work that only exists unmerged on a
+  branch.
 
 ## Adding a backend (`tracker: custom`)
 

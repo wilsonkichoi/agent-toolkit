@@ -31,7 +31,11 @@ draft tasks against the packet schema. Every packet:
 - **Why** - the problem it solves, naming the PRD/SPEC section that motivates it.
 - **Definition of Done** - checkable criteria only. Each criterion must name its evidence: a
   test command, a CI check, or an explicit manual verification step. "Works correctly" is not
-  a criterion.
+  a criterion. Prefer test-backed: if a behavior is fully checkable by a script (stdout, exit
+  code, API response), write one test-backed criterion - never a manual criterion duplicating
+  what an automated test in the same task covers. Manual criteria are for genuinely
+  human-observable things (visual layout, UX judgment), and each one forces `dev:auto` to
+  stop for a human regardless of `auto_merge`.
 - **Dependencies** - task ids that must be `Done` first. Model implicit ordering (B builds on
   A's code) as a real dependency; unmodeled ordering is how parallel sessions produce
   conflicting PRs.
@@ -41,7 +45,10 @@ draft tasks against the packet schema. Every packet:
 - **Suggested steps** - 3-8 advisory bullets.
 
 Scope rules: single concern, independently verifiable, describable in 2-3 sentences. Split
-anything that fails these.
+anything that fails these. Scaffold tasks additionally: their DoD must prove the toolchain
+end-to-end (test runner collects, imports, and passes at least one sanity test against the
+scaffold), not merely that files exist - otherwise the first feature task inherits a broken
+harness (dogfood T-002: package imported fine but was not importable by pytest).
 
 **Spikes:** create a spike (not a task) where the spec leaves a genuine unknown that blocks
 estimation or design. A spike packet carries the question, a timebox, and the required
@@ -64,5 +71,9 @@ gate), with dependencies, priority, estimate, and milestone mapped per the backe
 `tracker.md`. Order priorities so the intended execution order falls out of the next-task
 selection algorithm.
 
-Verify by running `list <milestone>` and comparing against the approved draft. Report: tasks
-created, spikes created, dependency count, and any spec gaps deferred to `/dev:architect`.
+Verify by running `list <milestone>` and comparing against the approved draft. Then commit
+the planning artifacts (task files on the local backend, any doc updates) to `main` with the
+user's consent - approved-but-uncommitted artifacts strand the next skill, since
+`dev:execute` branches from `main` (dogfood T-001: execution stalled on a repo with zero
+commits). Report: tasks created, spikes created, dependency count, and any spec gaps
+deferred to `/dev:architect`.
