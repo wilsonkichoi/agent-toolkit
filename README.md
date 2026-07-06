@@ -45,7 +45,7 @@ claude plugin install dev@agent-toolkit
 | Plugin | Description |
 |--------|-------------|
 | utils | Research, investigation, knowledge synthesis, and session retrospectives |
-| dev | AI-assisted product development lifecycle: tracker-backed task packets (Linear / GitHub Issues / local) with PR-native execution. Phases A-B (setup, plan, backlog, execute, review, verify) implemented; see plugins/dev/DESIGN.md |
+| dev | AI-assisted product development lifecycle: tracker-backed task packets (Linear / GitHub Issues / local) with PR-native execution. Phases A-C (setup, discover, architect, plan, backlog, execute, review, verify) implemented; see plugins/dev/DESIGN.md |
 
 ## Structure
 

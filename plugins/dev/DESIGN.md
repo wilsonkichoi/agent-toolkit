@@ -319,11 +319,11 @@ consider eating our own dogfood and moving remaining phases into it.)
 
 ### Phase C - upstream phases
 
-- [ ] `skills/discover/SKILL.md`: ingest `research/raw/` (or existing wiki), user interview
+- [x] `skills/discover/SKILL.md`: ingest `research/raw/` (or existing wiki), user interview
       loop, produce `docs/PRD.md`; human gate
-- [ ] `skills/architect/SKILL.md`: PRD → SPEC.md + ROADMAP.md + ADRs, Mermaid diagrams,
+- [x] `skills/architect/SKILL.md`: PRD → SPEC.md + ROADMAP.md + ADRs, Mermaid diagrams,
       CLAUDE.md update; human gate
-- [ ] Release: pre-commit checklist
+- [x] Release: pre-commit checklist
 
 ### Phase D - memory loop + glue
 

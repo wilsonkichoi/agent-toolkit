@@ -11,14 +11,17 @@ Design rationale and roadmap: [DESIGN.md](DESIGN.md). Workflow diagram:
 
 ## Status
 
-Phases A-B implemented (tracker adapter, execution loop, review/verify/backlog quality loop);
-not yet dogfooded. Phases C-D (discover/architect, retro/status) are designed but not built -
-see the task checklist in DESIGN.md. End-to-end dogfooding is batched in Phase E.
+Phases A-C implemented (tracker adapter, execution loop, review/verify/backlog quality loop,
+discover/architect upstream phases); not yet dogfooded. Phase D (retro, status, adoption
+guide) is designed but not built - see the task checklist in DESIGN.md. End-to-end
+dogfooding is batched in Phase E.
 
 ## Skills
 
 | Skill | Job |
 |---|---|
+| `/dev:discover` | Ingest `research/raw/`, interview the user to close gaps, produce `docs/PRD.md`: problem, customer, value, north star, non-goals. Business clarity only; delta mode for goal-impacting changes. |
+| `/dev:architect` | Approved PRD → `docs/SPEC.md` (architecture, contracts, NFRs, negative requirements, Mermaid diagrams), `docs/ROADMAP.md` (risk-ordered milestones), ADRs for contested choices. Docs only; delta mode for spec-impacting changes. |
 | `/dev:setup` | Initialize a project (greenfield or brownfield): scaffold `docs/`, pick tracker backend, write `.claude/dev.md`. Brownfield mode offers architecture archaeology into a current-state SPEC.md. Optional installer for the auto-review GitHub Action. |
 | `/dev:plan` | Decompose one roadmap milestone into self-contained task packets (objective, why, DoD, dependencies, inlined spec excerpts) and push them to the tracker after a human-approved dry run. |
 | `/dev:backlog` | Mid-flight change management: intake requests as full packets with impact triage (backlog-only vs spec vs product goal), promote `Backlog → Todo`, split tasks, close as `Wont Do` with rationale, periodic triage sweep. |
@@ -49,6 +52,8 @@ backend mappings: [docs/tracker.md](docs/tracker.md).
 
 ```
 /dev:setup        # once per project
+/dev:discover     # research + interview → PRD (human gate)
+/dev:architect    # PRD → SPEC + ROADMAP + ADRs (human gate)
 /dev:plan         # milestone → task packets in the tracker (human-gated dry run)
 /dev:execute      # one task per session: claim → PR → CI green → In Review
 /dev:review-pr    # independent review; fix mode addresses findings
@@ -56,5 +61,4 @@ backend mappings: [docs/tracker.md](docs/tracker.md).
 /dev:backlog      # anytime: new requests, promotions, wont-do, triage
 ```
 
-Product discovery (`/dev:discover`), architecture (`/dev:architect`), retro, and status
-skills arrive in Phases C-D.
+Retro (memory-loop promotion into `.claude/rules/`) and status skills arrive in Phase D.
