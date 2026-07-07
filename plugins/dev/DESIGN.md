@@ -270,6 +270,98 @@ a comprehensive guide at `plugins/dev/docs/adoption.md` covering:
    that system's own injection/recall for session start. The guide documents the tradeoff:
    file-based is git-shared and zero-latency; MCP-based memory is cross-tool and cross-machine.
 
+## Secondary intake channel (GitHub-native work on a non-GitHub-primary project)
+
+Added after Milestone 2 dogfooding surfaced a real gap: a project whose primary tracker is
+Linear still receives GitHub issues (external bug reports, feature requests) and drive-by PRs
+that are isolated, do not belong to a milestone, and should not enter the Linear backlog. The
+naive answer - mint a Linear ticket for each - recreates the dual-SSOT problem ADW died from
+and pollutes Linear's cycle/velocity metrics with throwaway rows.
+
+**Resolution of the SSOT tension.** Design principle 1 forbids two systems holding the *same*
+task's state that a human or the model syncs by hand. It does not forbid different tasks
+living in different backends. The rule: every item has exactly one owner backend, decided
+once at intake, never mirrored. The plugin already ships a full `github` backend, so "work a
+GitHub issue directly" is not a new execution engine - it is running the existing github
+backend for a single item on a project whose default is linear. The missing pieces are
+routing and config, not machinery.
+
+**Three fates at intake (the routing gate).** Any incoming GitHub issue/PR gets exactly one:
+
+1. **Promote to primary (Linear).** It is real planned work - needs design, touches the spec,
+   belongs to a milestone, or blocks tracked work. `dev:backlog` writes a full Linear packet,
+   links the issue, and closes it as transferred. This is the *only* path where
+   `dev:discover`/`dev:architect`/`dev:plan` apply: if an item needs them, that need is the
+   promote signal. Those three skills never run against a GitHub issue directly.
+2. **Work in place (GitHub owns that item).** Isolated and self-contained: a typo fix, a
+   drive-by bug, an external contributor's PR. The issue/PR body is the packet; the merged PR
+   plus its review and verify report is the complete record. No Linear ticket is ever created.
+3. **Decline.** `Wont Do`: close the issue with rationale.
+
+**Key simplification: in-place items skip the `status:*` label lifecycle.** That lifecycle
+(`status:todo` → `in-progress` → `in-review`, the WIP gate, the claim race guard) is a
+primary-queue construct. An isolated drive-by needs none of it. Its state is just: issue open
+→ PR opened linking it (`Closes #N`) → review posted → verify merges → issue auto-closes.
+Optional lightweight claim is self-assignment; the opened PR is the real collision signal.
+This keeps the in-place path lightweight instead of recreating Linear's ceremony in GitHub
+labels the repo may not even carry.
+
+**Config** (`.claude/dev.md` frontmatter; all optional, absent = today's single-tracker
+behavior with zero regression):
+
+```
+tracker: linear
+secondary_intake: github     # opt-in isolated-work channel
+github_repo: owner/repo
+audit_trail: link            # link only: the PR/issue is the record. mirror reserved, not built
+```
+
+`audit_trail: mirror` (create a Linear ticket for every merge, linked, closed on merge, for
+orgs that mandate all work be traceable in one system) is a documented future flag, not
+implemented - the decision was PR-is-the-record. The field name is reserved so adding it later
+is not a surprise.
+
+**Routing rule.** ID shape selects the backend on explicit invocation: `#42` → GitHub, a
+Linear key (`NOVA-123`) → primary, `T-001` → local. Unqualified `next-task` uses the primary
+backend only, so in-place items are never auto-claimed and cannot jump the planned queue
+(this falls out naturally - they are never set to `Todo` in Linear - but is stated explicitly).
+
+**Skill changes:**
+
+- `dev:setup` / `tracker.md`: write and document the three config fields and the routing rule
+  (new short "Secondary intake channel" section in `tracker.md`).
+- `dev:execute`: accept a `#N` argument. Skip the Linear claim/WIP/dependency gates (primary-
+  queue rules), fetch the issue, run the existing packet-validation (draft missing
+  Objective/DoD from the issue body + `docs/`), optional self-assign, then the unchanged
+  worktree → implement → PR (`Closes #N`) → CI → work-summary-comment-on-the-issue path. No
+  Linear transition. Unqualified and Linear-key invocations unchanged.
+- `dev:review-pr`: formalize a "no primary task" mode (reuses the degradation the auto-review
+  Action already has). Covers both an in-place `#N` PR and a pure drive-by PR with no issue
+  behind it at all. Review against the issue's acceptance criteria (when present) +
+  `docs/SPEC.md`/`PRD.md`, note "no packet - reviewed against issue + spec," skip tracker
+  transitions. Verdict posting unchanged.
+- `dev:verify`: "no primary task" mode. Skip the status/label preconditions; gate on CI green
+  + approving review only. On approval, merge per policy (`Closes #N` auto-closes the issue),
+  post the verification report, no Linear write, then the existing worktree/branch cleanup.
+  The no-GitHub-remote and self-approval carve-outs are untouched.
+- `dev:backlog`: `/dev:backlog #42` fetches the issue and runs the existing three-way triage,
+  routing to promote (full Linear packet + link + transfer-close) / work-in-place (recommend
+  `/dev:execute #42`, no ticket) / decline (`Wont Do`, close with rationale). Promote can adopt
+  an already-open PR for an item that grew mid-flight into planned work, linking the new Linear
+  ticket to the existing PR.
+- `dev:status`: fix a false positive. The current consistency check "open `task/*` PR with no
+  task In Progress/In Review → work outside the tracker" fires on every legitimate in-place PR,
+  which deliberately has no Linear task. An open `task/*` PR whose branch/PR links a `#N` issue
+  in the secondary channel is listed under "In flight (github-native)," not flagged; only PRs
+  matching neither a primary task nor a secondary issue remain violations.
+- `docs/manual.md`: new "An incoming GitHub issue or PR - what do I do?" decision-tree section
+  (three fates, ID-shape routing, when discover/architect/plan apply, the two config fields),
+  since this is now a supported dual-channel entry point.
+
+**Explicitly out of scope** (stated so it is not a silent punt): the `mirror` audit policy
+(unbuilt, field reserved; unblocks when an org needs every merge in Linear) and running
+discover/architect/plan against a GitHub issue (by design these only run on the promote path).
+
 ## Build order
 
 Hard core first. Each phase ends with a version bump and the repo pre-commit checklist
@@ -481,6 +573,29 @@ consider eating our own dogfood and moving remaining phases into it.)
       `linear-list-issues-triage-crosscheck` needed no port (covered by the consistent-reads
       fix)
 
+### Secondary intake channel (GitHub-native work on a non-GitHub-primary project)
+
+Design section above. Net-new feature, not dogfood. One coherent batch; patch bump + full
+pre-commit checklist at the end.
+
+- [x] `tracker.md`: "Secondary intake channel" section - three config fields
+      (`secondary_intake`, `github_repo`, `audit_trail`), ID-shape routing rule, `next-task`
+      is primary-only, in-place items skip the `status:*` label lifecycle
+- [x] `dev:setup`: write the three config fields when the user opts into a secondary channel
+- [x] `dev:execute`: `#N` argument - skip primary-queue gates, packet-validate the issue body,
+      optional self-assign, PR `Closes #N`, work-summary on the issue, no Linear transition
+- [x] `dev:review-pr`: "no primary task" mode for an in-place `#N` PR and a pure drive-by PR
+      with no issue; review against issue criteria + SPEC/PRD, skip tracker transitions
+- [x] `dev:verify`: "no primary task" mode - gate on CI + approving review only, merge, no
+      Linear write, existing cleanup
+- [x] `dev:backlog`: `/dev:backlog #42` - three-fates routing (promote+transfer / work-in-place
+      recommend / decline), promote can adopt an already-open PR
+- [x] `dev:status`: in-place `task/*` PRs linking a `#N` secondary issue listed as "In flight
+      (github-native)", not flagged as work-outside-the-tracker
+- [x] `docs/manual.md`: "An incoming GitHub issue or PR - what do I do?" decision-tree section
+- [x] Release: pre-commit checklist (patch bump: plugin.json + marketplace.json, plugin README
+      skills note, root README unchanged - description did not shift)
+
 ### Phase E - dogfood everything
 
 One dogfood project driven through the full lifecycle, then backend and brownfield variants.
@@ -554,6 +669,13 @@ Resources and conventions for the Phase E sessions:
       Milestone 1's promoted rules also observed firing (config-drift check opens every
       execute). Milestone 2 retro promoted 4 more, 3 of which exposed plugin defects since
       ported into the skills. Audited by a separate session)
+- [ ] Secondary intake channel (Linear-primary project, GitHub secondary): `dev:setup` writes
+      `secondary_intake: github`; a real GitHub issue worked in place via `/dev:execute #N` →
+      `/dev:review-pr #PR` → `/dev:verify #PR` reaches merge with **no** Linear ticket and no
+      `status:*` labels; `/dev:backlog #N` promotes a second issue into Linear (linked +
+      transfer-closed) and declines a third as Wont Do; a pure drive-by PR (no issue) is
+      reviewed + verified directly; `/dev:status` lists the in-place PR as github-native, not a
+      violation. Uses the dogfood-dev repo for GitHub, team DOG for Linear
 - [ ] Brownfield: `setup` brownfield mode on an existing repo, architecture archaeology into a
       current-state SPEC.md, backlog import
 - [ ] Final release: pre-commit checklist; archive or delete this DESIGN.md

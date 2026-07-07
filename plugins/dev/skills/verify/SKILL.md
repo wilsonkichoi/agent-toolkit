@@ -33,6 +33,15 @@ warning, not a hard stop; report it and let the human decide whether to proceed 
 **No GitHub remote:** the task records a branch instead of a PR, the approving review is the
 `/dev:review-pr` comment on the task, and the local `test_command` run stands in for CI.
 
+**No primary task** (a secondary-channel in-place `#N` PR, or a drive-by PR with no issue -
+tracker.md "Secondary intake channel"): there is no primary-tracker task and no `In Review`
+status to check. Gate on CI green + an approving review only. The DoD criteria to verify come
+from the linked issue's acceptance criteria (`gh issue view <n>`) when one exists, else the PR
+description. Section 4 skips the `Done` transition and status-label strip (there is no primary
+task and in-place items carry no `status:*` label); `Closes #N` auto-closes the issue on
+merge. Post no primary-tracker comment; the verification report on the PR (and the issue, if
+any) is the record.
+
 ## 2. Evidence per DoD criterion
 
 For each Definition of Done criterion in the packet, gather evidence by type:

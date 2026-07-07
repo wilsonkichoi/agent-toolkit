@@ -58,6 +58,13 @@ backend mappings: [docs/tracker.md](docs/tracker.md).
 | `local` | `.dev/tasks/T-NNN-slug.md`, one file per task, YAML frontmatter |
 | `custom` | Bring your own (Jira, etc.) via the "Adding a backend" recipe in `docs/tracker.md` |
 
+**Secondary intake channel.** A non-`github`-primary project can accept isolated GitHub issues
+and drive-by PRs as a second channel (`secondary_intake: github`): promote them into the
+primary tracker, or work them in place (`/dev:execute #N` → `/dev:review-pr #PR` →
+`/dev:verify #PR`) with no primary ticket. See "An incoming GitHub issue or PR" in
+[docs/manual.md](docs/manual.md) and "Secondary intake channel" in
+[docs/tracker.md](docs/tracker.md).
+
 ## Typical flow
 
 ```

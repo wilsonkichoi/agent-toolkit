@@ -57,6 +57,9 @@ fields per developer.
 | `max_tasks_per_run` | `5` | `execute` loop mode, `auto` | Batch cap per unattended run |
 | `auto_merge` | `false` | `auto`, `verify` | Standing merge approval for `/dev:auto`; see Unattended operation |
 | `memory_target` | `files` | `retro` | Where promotions land: `.claude/rules/`/CLAUDE.md, or a memory MCP system (see adoption.md §5) |
+| `secondary_intake` | - | `execute`, `review-pr`, `verify`, `backlog`, `status` | Opt into GitHub as an isolated-work channel on a non-github-primary project (`github`); see Secondary intake channel below |
+| `github_repo` | - | secondary-channel skills | `owner/repo` the secondary issues/PRs live in; only with `secondary_intake: github` |
+| `audit_trail` | `link` | secondary-channel skills | `link`: the PR/issue is the record. `mirror` (per-merge primary ticket) is reserved, not built |
 
 ## Task lifecycle and ownership
 
@@ -154,6 +157,40 @@ What is safe to run simultaneously, and why:
 The rule that makes all of this safe: no skill ever checks out a task branch in the main
 working copy. Branch-file operations (tests, reading beyond the diff) happen in that task's
 worktree; the main checkout's HEAD only moves at merge time.
+
+## Secondary intake channel (GitHub-native work)
+
+When your primary tracker is Linear (or local) but the project still gets GitHub issues and
+drive-by PRs that are isolated - not part of a milestone, not in the backlog - forcing each
+into the primary tracker recreates dual state and pollutes its metrics. Set
+`secondary_intake: github` + `github_repo: owner/repo` in `.claude/dev.md` to accept them as a
+second channel. Every incoming GitHub issue or PR gets exactly one fate:
+
+```
+Incoming GitHub issue or PR
+│
+├─ Needs design / touches the spec / belongs to a milestone / blocks tracked work?
+│     → /dev:backlog #N  →  PROMOTE: full primary-tracker packet, issue linked and
+│                            closed as transferred. Only here do discover/architect/plan apply.
+│
+├─ Isolated and self-contained (typo, drive-by bug, external-contributor PR)?
+│     → WORK IN PLACE. GitHub owns the item; no primary ticket.
+│        /dev:execute #N     claim (self-assign) → worktree → PR (Closes #N) → CI → In place
+│        /dev:review-pr #PR   review against the issue's acceptance criteria + spec
+│        /dev:verify #PR      CI + approving review → merge; issue auto-closes. No primary write.
+│     A pure drive-by PR with no issue: skip execute; /dev:review-pr <pr> then /dev:verify <pr>.
+│
+└─ Not worth doing?
+      → /dev:backlog #N  →  DECLINE: Wont Do, issue closed with rationale.
+```
+
+Routing is by argument shape: `#N` hits the GitHub channel, a primary key (`NOVA-123`) the
+primary tracker. An argument-less `/dev:execute` (or `next-task`) only ever pulls from the
+primary queue, so in-place items never jump ahead of planned work. In-place items skip the
+`status:*` label lifecycle entirely - their state is just open → PR → review → merged. The
+merged PR plus its review and verify report is the audit trail (`audit_trail: link`); no
+primary-tracker row is ever created for in-place work. Full contract: tracker.md "Secondary
+intake channel".
 
 ## Working without a GitHub remote
 
