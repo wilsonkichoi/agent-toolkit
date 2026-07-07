@@ -425,6 +425,22 @@ consider eating our own dogfood and moving remaining phases into it.)
       `auto` subagent dispatch updated to match); `status` consistency checks flag local
       branches matching neither `task/*` nor the default branch
 
+- [x] `retro` never closes out a task (2026-07-06, Linear dogfood DOG-5): invoked while the
+      task sat `In Review`, retro offered "merge first, then retro", got approval, and ran
+      the merge + Done transition + cleanup itself - re-implementing `dev:verify`'s contract
+      from memory and violating "`Done` only via `dev:verify`". Skill now directs to
+      `/dev:verify` and retros after it finishes, even with user approval in-session
+- [ ] Port dogfood-dev rule `pr-checklist-freshness.md` into `execute` (2026-07-06, DOG-5
+      review NIT N1: DoD checkboxes written at PR-open go stale; skill never revisits them
+      after CI green). Deliberately deferred: the rule must first produce uncontaminated
+      retro-benefit evidence on DOG-6+ (skill fix now would confound attribution). Port
+      after Milestone 2 closes
+- [ ] Port dogfood-dev rule `linear-reviewer-packet-handoff.md` into `review-pr` (2026-07-06,
+      DOG-5: "pass the PR number, task id, and nothing else" assumes the `reviewer` agent
+      can self-fetch the packet, but its allowlist has no MCP tools, so the assumption is
+      structurally false on MCP backends). Fix: orchestrator fetches the packet and passes
+      its text; agent keeps Read/Grep/Glob/Bash only. Same deferral as above
+
 ### Phase E - dogfood everything
 
 One dogfood project driven through the full lifecycle, then backend and brownfield variants.

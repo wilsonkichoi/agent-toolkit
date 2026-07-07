@@ -18,6 +18,10 @@ instructions, applied on approval, that change how the next session behaves.
 Read first: `.claude/dev.md` and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`. Scope: one task
 (`task <id>`) or all `Done`/`Wont Do`/`Blocked` tasks in a milestone (`milestone <n>`).
 
+If the target task is not yet terminal (e.g. `In Review` awaiting merge), do not close it
+out yourself - merging and `Done` belong to `dev:verify`, even if the user approves the
+merge in this session. Direct them to run `/dev:verify`, then retro after it finishes.
+
 ## 1. Gather evidence
 
 Per task, in this order of value:
