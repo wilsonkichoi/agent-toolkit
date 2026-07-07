@@ -78,7 +78,7 @@ may review inline or delegate; delegation is the safe default.
 same rubric and post the full review as a task comment instead of a PR review.
 
 **No primary task** (a secondary-channel in-place `#N` PR, or a drive-by PR with no issue at
-all - tracker.md "Secondary intake channel"): there is no packet. Gather instead the PR diff +
+all - `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` "Secondary intake channel"): there is no packet. Gather instead the PR diff +
 CI, the linked GitHub issue's body and acceptance criteria when one exists (`gh issue view
 <n>`), and `docs/SPEC.md` / `docs/PRD.md`. Run the same rubric with "DoD compliance" reading
 against the issue's stated acceptance criteria (or, absent an issue, the PR description);

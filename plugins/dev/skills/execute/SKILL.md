@@ -26,7 +26,7 @@ verbs, backend mapping, next-task algorithm).
 - With a `#N` GitHub issue (secondary intake channel, primary tracker not github): this is
   isolated work GitHub owns - skip the primary-queue gates and see **In-place GitHub item**
   below.
-- `claim` the task and confirm the claim won (re-read; see tracker.md race guard).
+- `claim` the task and confirm the claim won (re-read; see `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` race guard).
 
 **Packet validation.** A claimable packet has at minimum an Objective and a Definition of
 Done. If either is missing (typical for hand-written tickets), do not guess and do not
@@ -40,7 +40,7 @@ implement:
 
 **In-place GitHub item (`#N`, secondary intake channel).** When the argument is a GitHub issue
 number and `secondary_intake: github` is set with a non-github primary tracker, GitHub owns
-this item (tracker.md "Secondary intake channel"). Same worktree → PR → CI → review → verify
+this item (`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` "Secondary intake channel"). Same worktree → PR → CI → review → verify
 path, with these deltas only:
 
 - Claim: no WIP / dependency / `Todo` gate and no `status:*` label. `gh issue view <n>` for

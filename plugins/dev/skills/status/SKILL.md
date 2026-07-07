@@ -21,7 +21,7 @@ milestone, else the active one.
 1. **Tracker:** `list <milestone>` - counts by status, plus per-task id/title/status.
 2. **PRs:** open PRs on `task/*` branches (`gh pr list`), each with CI state
    (`gh pr checks`) and review verdict. Skip when no GitHub remote. When
-   `secondary_intake: github` is set (tracker.md), a `task/*` PR that links a `#N` issue but
+   `secondary_intake: github` is set (`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`), a `task/*` PR that links a `#N` issue but
    matches no primary task is legitimate in-place work - list it separately as github-native,
    not as a violation.
 3. **Next up:** apply the next-task algorithm; show the top 3 claimable tasks with priority

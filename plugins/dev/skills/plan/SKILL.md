@@ -68,7 +68,7 @@ Do not create anything until the user approves.
 
 On approval, `create-task` each packet at status `Todo` (plan approval is the commitment
 gate), with dependencies, priority, estimate, and milestone mapped per the backend section of
-`tracker.md`. Order priorities so the intended execution order falls out of the next-task
+`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`. Order priorities so the intended execution order falls out of the next-task
 selection algorithm.
 
 Verify by running `list <milestone>` and comparing against the approved draft. Then commit

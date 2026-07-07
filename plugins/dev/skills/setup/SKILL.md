@@ -31,7 +31,8 @@ Ask with AskUserQuestion, one round, only what cannot be inferred:
    project name (and confirm the Linear MCP server is connected; if not, tell the user to add
    it and stop). If `github`: confirm `gh auth status` succeeds and the repo has a GitHub
    remote. If `custom`: point the user at the "Adding a backend" recipe in `tracker.md` and
-   help write the mapping tables.
+   help write the mapping tables. ("Adding a backend" and all `tracker.md` references below mean
+   the plugin's `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, never a file in the project.)
 2. **Test command** (infer from the project if possible; confirm the inference).
 3. **CI workflow file name** (brownfield: detect under `.github/workflows/`; greenfield:
    offer to create a minimal lint + test workflow).

@@ -48,8 +48,8 @@ consent; approved-but-uncommitted artifacts strand downstream skills.
 
 ## GitHub issue intake (`#N`, secondary channel)
 
-Only when `secondary_intake: github` is set with a non-github primary tracker (tracker.md
-"Secondary intake channel"). `gh issue view <n>` for the request, then run the same triage
+Only when `secondary_intake: github` is set with a non-github primary tracker
+(`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` "Secondary intake channel"). `gh issue view <n>` for the request, then run the same triage
 above and route to exactly one of three fates:
 
 - **Promote** - real planned work (needs design, touches the spec, belongs to a milestone, or
@@ -79,7 +79,7 @@ in-place item never runs them.
 
 Require a rationale (ask if not given). Comment the rationale on the task, then transition to
 `Wont Do` (backend mapping: Linear `Canceled`, GitHub closed as "not planned" plus removing
-the remaining `status:*` label - closed issues carry none, see tracker.md). The reason
+the remaining `status:*` label - closed issues carry none, see `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`). The reason
 must survive; a bare closure is not acceptable. If the task encodes a spec requirement being
 abandoned, flag that `docs/SPEC.md` needs a matching edit and offer the delta summary for
 `/dev:architect`.

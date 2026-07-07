@@ -34,7 +34,7 @@ warning, not a hard stop; report it and let the human decide whether to proceed 
 `/dev:review-pr` comment on the task, and the local `test_command` run stands in for CI.
 
 **No primary task** (a secondary-channel in-place `#N` PR, or a drive-by PR with no issue -
-tracker.md "Secondary intake channel"): there is no primary-tracker task and no `In Review`
+`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` "Secondary intake channel"): there is no primary-tracker task and no `In Review`
 status to check. Gate on CI green + an approving review only. The DoD criteria to verify come
 from the linked issue's acceptance criteria (`gh issue view <n>`) when one exists, else the PR
 description. Section 4 skips the `Done` transition and status-label strip (there is no primary
