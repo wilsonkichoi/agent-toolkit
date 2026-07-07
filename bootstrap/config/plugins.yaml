@@ -1,10 +1,10 @@
 # from agent-toolkit (this repo)
 - name: utils
   marketplace: agent-toolkit
-  description: Wilson's utils
-# - name: dev
-#   marketplace: agent-toolkit
-#   description: Development workflow skills
+  description: General-purpose utility
+- name: dev
+  marketplace: agent-toolkit
+  description: AI-assisted development
 
 # from claude-plugins-official
 - name: skill-creator
