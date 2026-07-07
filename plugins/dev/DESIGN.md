@@ -430,6 +430,11 @@ consider eating our own dogfood and moving remaining phases into it.)
       the merge + Done transition + cleanup itself - re-implementing `dev:verify`'s contract
       from memory and violating "`Done` only via `dev:verify`". Skill now directs to
       `/dev:verify` and retros after it finishes, even with user approval in-session
+- [x] Linear backend consistent reads in `tracker.md` (2026-07-06, Linear dogfood DOG-10:
+      unfiltered `list_issues` omitted an Urgent `Todo` issue that a `state`-filtered call
+      returned, so `next-task` claimed a Medium task over it - the Linear twin of the
+      GitHub search-API defect): `next-task`/`list` now prescribe explicit per-state
+      filtered queries and `get_issue` confirmation for reads that must be current
 - [ ] Port dogfood-dev rule `pr-checklist-freshness.md` into `execute` (2026-07-06, DOG-5
       review NIT N1: DoD checkboxes written at PR-open go stale; skill never revisits them
       after CI green). Deliberately deferred: the rule must first produce uncontaminated

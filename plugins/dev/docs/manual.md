@@ -150,6 +150,9 @@ merges locally per policy and deletes the branch.
 - **Filtered `gh issue list` is eventually consistent.** `--milestone`/`--label`/`--search`
   route through GitHub's search API; a just-created issue can be missing from the result.
   Skills use the REST issues endpoint for reads that must be current (see tracker.md).
+- **Unfiltered Linear `list_issues` can omit issues.** An issue absent from an unfiltered
+  listing can still be returned by a `state`-filtered query. Skills query per state and
+  confirm specific issues with `get_issue` (see tracker.md).
 
 ## Project layout
 

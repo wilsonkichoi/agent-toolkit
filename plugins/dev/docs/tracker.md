@@ -56,6 +56,14 @@ tool list at runtime (typically `list_issues`, `get_issue`, `create_issue`, `upd
 `create_comment`, `list_comments`); do not assume names not present in the tool list. Scope
 all calls with `linear_team` / `linear_project` from `.claude/dev.md`.
 
+**Consistent reads** (found in Linear dogfood DOG-10): an *unfiltered* `list_issues` call
+can silently omit issues that a `state`-filtered call returns - one dogfood run claimed a
+Medium task while an Urgent one existed because the unfiltered listing missed it. For
+`next-task` and `list`, always query with an explicit state filter (one call per status you
+need, e.g. `state: "Todo"`, plus `In Progress`/`In Review` for the WIP count); never derive
+the candidate set from an unfiltered listing. When a specific issue matters, confirm with
+`get_issue <id>` rather than its presence in a list result.
+
 | Contract concept | Linear mapping |
 |---|---|
 | Task | Issue in the configured team + project |
