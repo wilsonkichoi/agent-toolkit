@@ -50,7 +50,7 @@ path, with these deltas only:
 - All comments (approach notes, CI-fix cycles, work summary) go on the issue via
   `gh issue comment <n>`, not a primary-tracker task.
 - Step 4 PR body includes `Closes #<n>`; record the PR URL as an issue comment.
-- Step 6 hand-off: refresh the PR body and post the work-summary on the issue, then stop -
+- Step 7 hand-off: refresh the PR body and post the work-summary on the issue, then stop -
   there is **no `In Review` transition** (in-place items carry no status labels). Report the
   PR number and point at `/dev:review-pr #<pr>`.
 
@@ -125,7 +125,28 @@ post a final comment with the best root-cause hypothesis and what a human needs 
 configured (`ci_workflow` empty): the local `test_command` run is the gate, and each failed
 fix cycle is commented the same way (`Failing tests:` in place of `Failing checks:`).
 
-## 6. Hand off
+## 6. Visual verification instructions
+
+When any DoD criterion requires visual/UI judgment (screenshots, side-by-side, design
+parity, UI appearance): add a "Local preview" section to the PR body with instructions for
+the reviewer to run the dev server and interact with the UI. Production is not updated
+until after verify merges, and most projects have no deploy preview on PRs, so a local dev
+server is the only way to see the new version.
+
+Include: the worktree path (or branch + checkout command), the dev command, the port, the
+comparison target and its serve command (if the criterion requires side-by-side), and which
+pages/routes to check. Example:
+
+```
+### Local preview
+- **New version:** `cd <worktree-path> && <dev_command>` → localhost:<port>
+- **Comparison:** `cd <comparison-path> && <dev_command> -- --port <alt-port>` → localhost:<alt-port>
+- **Check:** / (home), /about
+```
+
+If no visual criteria exist in the DoD, skip to step 7.
+
+## 7. Hand off
 
 1. Refresh the PR body: any DoD checklist written at PR-open time was written before CI and
    lifecycle facts existed - set each box to its now-verified state (`gh pr edit`). Stale
@@ -153,7 +174,7 @@ fix cycle is commented the same way (`Failing tests:` in place of `Failing check
 
 When invoked repeatedly in one session (`/loop /dev:execute`) or asked to "drain the queue":
 keep this session a thin orchestrator. Per iteration: claim (step 1) here, then delegate
-steps 2-6 to ONE background subagent, passing it the full packet and this skill's
+steps 2-7 to ONE background subagent, passing it the full packet and this skill's
 instructions; it creates and works in the task worktree per step 2. Spawn it without
 harness worktree isolation (see step 2). Wait for it to finish, relay its report, then iterate.
 Never implement in the orchestrator session - context accumulated across tasks is how

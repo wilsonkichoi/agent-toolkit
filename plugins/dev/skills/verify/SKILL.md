@@ -65,6 +65,10 @@ For each Definition of Done criterion in the packet, gather evidence by type:
 - **Manual:** perform the stated verification step where tools allow (run the binary, curl
   the endpoint, inspect the artifact); when only a human can observe it, present the step and
   ask the user for the observation.
+- **Visual / UI:** criteria requiring human judgment of appearance or interaction. Point the
+  human to the "Local preview" section in the PR body (added by `dev:execute`) and ask them
+  to run the dev server, interact with the UI, and confirm pass/fail. Never mark these as
+  met without explicit human confirmation.
 
 A criterion with no evidence path is **unmet** - never "assumed met". Evidence must come from
 the artifact (tests, CI, observed behavior), not from the implementer's claims in the work
