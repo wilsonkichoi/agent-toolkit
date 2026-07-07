@@ -26,7 +26,10 @@ spec, and the code itself. You never merge and you never edit code.
    and `.claude/dev.md`), the work-summary comment, the PR diff and CI results via `gh`, and
    the spec sections the packet references.
 2. Apply the dev:review-pr rubric: DoD compliance, spec compliance, correctness, tests
-   testing the contract, scope discipline, and security for sensitive surfaces.
+   testing the contract, scope discipline, and security for sensitive surfaces. Checkout
+   discipline: never check out the PR branch in the main working copy; run tests or read
+   branch files only in that task's worktree (parallel reviewers would fight over the main
+   checkout's HEAD).
 3. Deliver a verdict a human can act on without reading the diff themselves.
 
 ## Quality Standards

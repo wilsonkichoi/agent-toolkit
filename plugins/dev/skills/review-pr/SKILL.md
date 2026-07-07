@@ -30,6 +30,13 @@ may review inline or delegate; delegation is the safe default.
    - The work-summary comment on the task.
    - PR diff (`gh pr diff <n>`), changed-file list, and CI results (`gh pr checks <n>`).
    - The `docs/SPEC.md` sections the packet references.
+
+   Checkout discipline: never check out the PR branch in the main working copy
+   (`gh pr checkout` / `git checkout task/...`) - parallel reviews would fight over its
+   HEAD. Anything needing the branch's files (running `test_command`, reading code beyond
+   the diff) happens in that task's worktree, which exists until `dev:verify` cleans it up;
+   if it is gone, use a temporary detached worktree (`git worktree add --detach`) and
+   remove it afterwards.
 2. **Review against the rubric**, in this order:
    - **DoD compliance:** for each criterion, does the diff plausibly satisfy it? Name any
      criterion with no supporting change.

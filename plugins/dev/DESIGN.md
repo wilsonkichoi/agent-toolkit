@@ -441,6 +441,13 @@ consider eating our own dogfood and moving remaining phases into it.)
       `Wont Do` as the alternative; the request had no in-flow way to die). Triage now
       always offers declining (Wont Do with the triage rationale, or a recorded decision
       for ticketless requests) alongside the delta
+- [x] `review-pr`/`reviewer` checkout discipline (2026-07-06, Linear dogfood: session
+      fanned three reviewer agents out in parallel over DOG-6/7/9 - legitimate, reviews are
+      stateless reads, and PRs simultaneously In Review are dependency-free by lifecycle
+      construction - but nothing forbade an agent from `gh pr checkout` in the shared main
+      working copy, where parallel agents would fight over HEAD): branch-file operations
+      now confined to the task's worktree (or a temporary detached worktree if already
+      cleaned up)
 - [ ] Port dogfood-dev rule `pr-checklist-freshness.md` into `execute` (2026-07-06, DOG-5
       review NIT N1: DoD checkboxes written at PR-open go stale; skill never revisits them
       after CI green). Deliberately deferred: the rule must first produce uncontaminated
