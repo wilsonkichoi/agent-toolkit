@@ -42,14 +42,21 @@ jobs:
                If none exists, stop.
             2. Identify the linked tracker task from the PR body (Closes #N, or a task id in
                the branch name / PR title). Fetch the task's packet: objective, Definition of
-               Done, spec references. For GitHub-backed tasks use gh issue view.
+               Done, spec references. For GitHub-backed tasks use gh issue view. If the
+               tracker is not GitHub (Linear, local files elsewhere) the packet is
+               unreachable from this runner: review against docs/SPEC.md and docs/PRD.md in
+               the checkout instead, skip the DoD-compliance line, and state "packet
+               unavailable (non-GitHub tracker)" in the review body.
             3. Review the PR diff against the rubric, in order: DoD compliance (name any
                criterion with no supporting change), spec compliance with the packet's spec
                excerpts, correctness (a BLOCKER requires a concrete failure scenario), tests
                test the contract rather than the implementation, scope (every changed line
                traces to the task), and security for auth/input/secrets surfaces.
             4. Submit ONE review via gh pr review: --request-changes if any BLOCKER, else
-               --approve. Use this body format:
+               --approve. If GitHub rejects the review type (repos without "Allow GitHub
+               Actions to create and approve pull requests", or author self-review), fall
+               back to gh pr review --comment with the SAME body - the Verdict: line is the
+               verdict of record and dev:verify accepts it. Use this body format:
 
                ## dev auto-review - <task-id>
                Verdict: request-changes | approve

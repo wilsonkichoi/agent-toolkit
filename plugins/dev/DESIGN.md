@@ -450,6 +450,15 @@ consider eating our own dogfood and moving remaining phases into it.)
       cleaned up). Same-day follow-up: `verify`'s test-backed evidence step had the
       identical gap (its own merge step even notes the worktree exists) - test runs now
       confined to the task worktree too. `retro` audited clean: no branch checkouts at all
+- [x] Auto-review Action template parity (2026-07-06, audit prompted by "is
+      claude-review.yml still up to date?"): the template predated two shipped fixes -
+      no `--comment` fallback when GitHub rejects the review type (Actions need the
+      "create and approve pull requests" repo setting; same wall as self-approval), and
+      packet fetch assumed a GitHub tracker with no degradation for Linear/local (runner
+      has no tracker access). Prompt now falls back to a comment review with the
+      `Verdict:` line as verdict of record, and reviews against docs/SPEC.md + PRD.md
+      with an explicit "packet unavailable" note on non-GitHub trackers. Still ships
+      untested per the standing decision
 - [ ] Port dogfood-dev rule `pr-checklist-freshness.md` into `execute` (2026-07-06, DOG-5
       review NIT N1: DoD checkboxes written at PR-open go stale; skill never revisits them
       after CI green). Deliberately deferred: the rule must first produce uncontaminated
