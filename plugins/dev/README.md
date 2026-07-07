@@ -14,10 +14,11 @@ Workflow diagram: [docs/dev-workflow.drawio](docs/dev-workflow.drawio).
 ## Status
 
 All skills implemented. Dogfooding (Phase E in DESIGN.md) is underway: the full lifecycle
-passed end-to-end on the local backend and `dev:auto` on a dependency chain (2026-07-06);
-the GitHub Issues backend run is in progress and has already fed fixes back. Linear backend,
-backlog flows, unattended-safeguard, and brownfield runs are still pending - expect rough
-edges there.
+passed end-to-end on the local backend, `dev:auto` on a dependency chain, and the GitHub
+Issues backend on a real repo (all 2026-07-06). The Linear backend run - which also folds in
+the `dev:backlog` flows and unattended `/loop` safeguards - is in progress and has already
+fed a steady stream of fixes back into the skills. Brownfield adoption is untested - expect
+rough edges there.
 
 Adopting into an existing project (partial adoption, Jira/custom trackers, Mem0/OB1/MemSearch
 memory): see [docs/adoption.md](docs/adoption.md).

@@ -12,7 +12,7 @@ intent; the tracker only for state.
 |---|---|
 | `next-task` | Return the highest-priority claimable task (see selection algorithm). |
 | `get-task <id>` | Return the full task packet: fields, body, comments, status, dependencies. |
-| `claim <id>` | Set status `In Progress` and assign to self. Re-read after writing to confirm the claim won (guards against a parallel session claiming simultaneously). |
+| `claim <id>` | Set status `In Progress` and assign to self. Re-read after writing to confirm the claim won (guards against a parallel session claiming simultaneously). Limitation: when parallel sessions authenticate as the *same* tracker user (solo Linear workspace, one `gh` login), the re-read cannot distinguish which session's write won - the effective collision protection is that claiming only targets `Todo`, so a session that re-reads any other status backs off. |
 | `comment <id> <body>` | Append a comment. Never edit or delete existing comments. |
 | `transition <id> <status>` | Move the task to a lifecycle status, respecting the ownership rules below. |
 | `create-task <packet>` | Create a task from a packet (see DESIGN.md task packet schema). |

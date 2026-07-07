@@ -134,6 +134,27 @@ is `In Progress`/`In Review` at a time - but the check lives in the shared claim
 Unattended runs stall on the first permission prompt: pre-approve git, `gh`, and the
 `test_command` in `.claude/settings.json` before starting a loop.
 
+## Parallel operation
+
+What is safe to run simultaneously, and why:
+
+- **Parallel `/dev:execute` sessions on independent tasks** - the supported way to
+  parallelize implementation (one terminal or headless `claude -p "/dev:execute"` per task).
+  The tracker claim step is the mutex; worktrees isolate the filesystem. There is no
+  intra-session fan-out: a `/loop` orchestrator runs ONE implementation subagent at a time,
+  deliberately.
+- **Parallel reviews** - safe; reviews are stateless reads, and PRs simultaneously
+  `In Review` are dependency-free by construction (dependencies unblock at `Done`, so a
+  dependent can never have an open PR alongside its dependency's).
+- **Parallel `/dev:verify`** - evidence gathering is safe in parallel; the merges themselves
+  serialize, and sibling PRs that branched before an earlier merge may need a rebase (a
+  rebase that resolves real conflicts in reviewed hunks warrants a re-review).
+- **`/dev:auto`** - single-flight by design; run one at a time.
+
+The rule that makes all of this safe: no skill ever checks out a task branch in the main
+working copy. Branch-file operations (tests, reading beyond the diff) happen in that task's
+worktree; the main checkout's HEAD only moves at merge time.
+
 ## Working without a GitHub remote
 
 Local-only projects degrade gracefully: `dev:execute` records a branch instead of a PR and
