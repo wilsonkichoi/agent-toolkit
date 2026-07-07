@@ -533,16 +533,27 @@ Resources and conventions for the Phase E sessions:
 - [ ] `backlog` flows: one-off ticket intake (full packet), a manually created ticket caught
       by packet validation, Backlog → Todo promotion, a `Wont Do` closure with rationale, and
       a spec-impacting request routed through an `architect` delta
-- [ ] Unattended safeguards: `/loop /dev:execute` batch run hits the `work_in_progress_limit` gate and
-      idles; stuck task lands in `Blocked` with a diagnostic comment
+- [x] Unattended safeguards: `/loop /dev:execute` batch run hits the `work_in_progress_limit` gate and
+      idles; stuck task lands in `Blocked` with a diagnostic comment (passed 2026-07-06 on
+      dogfood-dev Milestone 2, Linear backend: loop landed DOG-6/7/9 at In Review (3/3),
+      refused claimable DOG-8 at the gate and idled with a report; DOG-8 later drained
+      `max_fix_attempts: 2` - initial run + 2 diagnosed fix cycles, all CI-red - into
+      Blocked-as-label with per-cycle diagnostics, then Wont Do per its packet's stated
+      disposition, PR #13 closed unmerged. Audited by a separate session)
 - [x] `dev:auto` on a dependency chain (dogfood-local milestone shape): with
       `auto_merge: true`, tasks progress through Done past dependencies; a manual DoD
       criterion stops the pipeline for a human; retro proposals accumulate without touching
       `.claude/rules/`; `max_tasks_per_run` caps the batch (passed 2026-07-06: T-002
       auto-merged, T-003/T-004 manual criteria stopped correctly, run capped at 2 tasks,
       promotions applied only by the human milestone retro)
-- [ ] `retro` on completed tasks proposes ≥1 rules/CLAUDE.md promotion from real PR/CI/comment
-      evidence; a following `dev:execute` session demonstrably benefits
+- [x] `retro` on completed tasks proposes ≥1 rules/CLAUDE.md promotion from real PR/CI/comment
+      evidence; a following `dev:execute` session demonstrably benefits (passed 2026-07-06 on
+      dogfood-dev: DOG-5's retro promoted `pr-checklist-freshness` + `linear-reviewer-packet-
+      handoff` from PR #9 review NIT + reviewer-agent evidence; DOG-9's execute session
+      applied and cited the first live, the parallel reviews applied the second unprompted;
+      Milestone 1's promoted rules also observed firing (config-drift check opens every
+      execute). Milestone 2 retro promoted 4 more, 3 of which exposed plugin defects since
+      ported into the skills. Audited by a separate session)
 - [ ] Brownfield: `setup` brownfield mode on an existing repo, architecture archaeology into a
       current-state SPEC.md, backlog import
 - [ ] Final release: pre-commit checklist; archive or delete this DESIGN.md
