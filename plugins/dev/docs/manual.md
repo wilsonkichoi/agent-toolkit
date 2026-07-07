@@ -80,8 +80,11 @@ Rules that surprise people:
 - **`Backlog → Todo` promotion is never automatic.** It is a human decision, made in the
   tracker UI or by asking `/dev:backlog`.
 - **Hand-written tickets are validated at claim time.** If a manually created ticket lacks an
-  objective or DoD, `dev:execute` drafts the missing fields from the docs, posts them for
-  confirmation, and (unattended) skips to the next valid task.
+  objective or DoD, `dev:execute` does not guess - executing an underspecified ticket would
+  mean the agent inventing its own scope. It drafts the missing fields from the docs, posts
+  them on the ticket for confirmation, and (unattended) releases the claim and skips to the
+  next valid task. The ticket stays `Todo`; once a human confirms or edits the drafted
+  packet on the ticket, the next claim proceeds normally.
 
 Backend mappings, the next-task selection algorithm, and the claim race guard are in
 [tracker.md](tracker.md).
@@ -121,6 +124,12 @@ rules; promotions accumulate as proposals for a human retro pass.
 Safeguards (all config-backed): `work_in_progress_limit` stops claims when the review queue
 is full (review capacity is the throttle); `max_fix_attempts` sends a stuck task to `Blocked`
 with a diagnostic comment instead of iterating forever; `max_tasks_per_run` caps the batch.
+
+Note which safeguard belongs to which mode: the WIP limit is `/loop /dev:execute`'s
+throttle, because that mode parks every task at `In Review` until a human drains the queue.
+`/dev:auto` cannot trip it through its own activity - single-flight means at most one task
+is `In Progress`/`In Review` at a time - but the check lives in the shared claim step, so
+`auto` still refuses to start if a previous loop left the queue at the limit.
 
 Unattended runs stall on the first permission prompt: pre-approve git, `gh`, and the
 `test_command` in `.claude/settings.json` before starting a loop.
