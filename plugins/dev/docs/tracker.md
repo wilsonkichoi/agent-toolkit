@@ -56,6 +56,12 @@ tool list at runtime (typically `list_issues`, `get_issue`, `create_issue`, `upd
 `create_comment`, `list_comments`); do not assume names not present in the tool list. Scope
 all calls with `linear_team` / `linear_project` from `.claude/dev.md`.
 
+**Verified writes** (found in Linear dogfood, milestone 2): status updates with a value
+that is not an exact workflow-state name can fail *silently* - e.g. writing a `Blocked`
+state when Blocked is mapped to a label here. Use only the exact state names from the
+mapping below, and extend claim's write-then-re-read to every `transition`: re-read the
+issue after writing and confirm the state actually changed.
+
 **Consistent reads** (found in Linear dogfood DOG-10): an *unfiltered* `list_issues` call
 can silently omit issues that a `state`-filtered call returns - one dogfood run claimed a
 Medium task while an Urgent one existed because the unfiltered listing missed it. For

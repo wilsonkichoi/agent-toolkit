@@ -37,7 +37,10 @@ implement:
 
 ## 2. Isolate
 
-Create a git worktree on a fresh branch `task/<id>-<slug>` from up-to-date `main`:
+Bring `main` up to date first: `git fetch origin`, and if local `main` has commits origin
+lacks (approved gate artifacts, applied retro promotions), push them before branching -
+the worktree branches from local `main`, so unpushed commits silently ride into the task's
+PR diff. Then create a git worktree on a fresh branch `task/<id>-<slug>`:
 `git worktree add -b task/<id>-<slug> <path> main`. All work happens there. Do not use the
 harness's worktree isolation (Agent tool `isolation: worktree` / EnterWorktree) for this:
 it creates its own `worktree-agent-*` branch that no cleanup step knows about, leaking one
@@ -102,7 +105,10 @@ fix cycle is commented the same way (`Failing tests:` in place of `Failing check
 
 ## 6. Hand off
 
-1. Post the work-summary comment on the task:
+1. Refresh the PR body: any DoD checklist written at PR-open time was written before CI and
+   lifecycle facts existed - set each box to its now-verified state (`gh pr edit`). Stale
+   unchecked boxes misreport the PR to reviewers.
+2. Post the work-summary comment on the task:
 
    ```
    ## Work summary (dev:execute - <date>)
@@ -116,8 +122,8 @@ fix cycle is commented the same way (`Failing tests:` in place of `Failing check
    This comment is the primary input for `dev:review-pr` and `dev:retro` - write it for a
    reader with zero context from this session.
 
-2. Transition the task to `In Review`.
-3. Report: task, PR URL, CI status, spec gaps. Next step: `/dev:review-pr`, then
+3. Transition the task to `In Review`.
+4. Report: task, PR URL, CI status, spec gaps. Next step: `/dev:review-pr`, then
    `/dev:verify`. **Stop. Do not merge. Do not start another task in this session** (fresh
    context per task) - except in loop mode below.
 

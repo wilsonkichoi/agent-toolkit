@@ -459,16 +459,27 @@ consider eating our own dogfood and moving remaining phases into it.)
       `Verdict:` line as verdict of record, and reviews against docs/SPEC.md + PRD.md
       with an explicit "packet unavailable" note on non-GitHub trackers. Still ships
       untested per the standing decision
-- [ ] Port dogfood-dev rule `pr-checklist-freshness.md` into `execute` (2026-07-06, DOG-5
+- [x] Port dogfood-dev rule `pr-checklist-freshness.md` into `execute` (2026-07-06, DOG-5
       review NIT N1: DoD checkboxes written at PR-open go stale; skill never revisits them
-      after CI green). Deliberately deferred: the rule must first produce uncontaminated
-      retro-benefit evidence on DOG-6+ (skill fix now would confound attribution). Port
-      after Milestone 2 closes
-- [ ] Port dogfood-dev rule `linear-reviewer-packet-handoff.md` into `review-pr` (2026-07-06,
+      after CI green). Deliberately deferred until the rule produced uncontaminated
+      retro-benefit evidence on DOG-9; ported same day after the Milestone 2 retro closed -
+      hand-off step 1 now refreshes the PR body checklist before `In Review`
+- [x] Port dogfood-dev rule `linear-reviewer-packet-handoff.md` into `review-pr` (2026-07-06,
       DOG-5: "pass the PR number, task id, and nothing else" assumes the `reviewer` agent
       can self-fetch the packet, but its allowlist has no MCP tools, so the assumption is
-      structurally false on MCP backends). Fix: orchestrator fetches the packet and passes
-      its text; agent keeps Read/Grep/Glob/Bash only. Same deferral as above
+      structurally false on MCP backends). Same deferral; ported same day - the orchestrator
+      passes packet + work-summary text verbatim, `reviewer` treats the work-summary as
+      claims and re-fetches itself on the GitHub backend
+- [x] Milestone 2 retro ports (2026-07-06, three of four promoted rules encoded plugin
+      defects): `verify` gained a mergeability gate before merge (green CI ≠ mergeable for
+      sibling PRs that branched before an earlier merge; rebase in the worktree, CI to
+      green, re-review if reviewed hunks changed); `execute` step 2 and `retro`
+      commit-on-gate now push unpushed `main` commits before the next worktree exists
+      (unpushed commits ride into the next PR's diff - bit DOG-5's promotion commit);
+      tracker.md Linear gained "Verified writes" (invalid state names fail silently -
+      Blocked is a label - so every `transition` is write-then-re-read).
+      `linear-list-issues-triage-crosscheck` needed no port (covered by the consistent-reads
+      fix)
 
 ### Phase E - dogfood everything
 

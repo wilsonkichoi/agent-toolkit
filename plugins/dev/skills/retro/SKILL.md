@@ -66,7 +66,9 @@ vibes ("be careful with the database"). Propose the exact diff per promotion; ap
 approval.
 
 **Commit applied promotions immediately** (with the user's consent, as with every gate): one
-dedicated commit on `main` for the rule/CLAUDE.md changes, before any next task starts. Task
+dedicated commit on `main` for the rule/CLAUDE.md changes, before any next task starts -
+and with a remote, push it: task worktrees branch from local `main`, so an unpushed
+promotion commit silently rides into the next task's PR diff. Task
 worktrees check out `main`'s committed HEAD, so an uncommitted rule is invisible to the next
 executor - the loop you just closed silently stays open - and the stray file eventually gets
 swept into an unrelated commit by whatever writes to `main` next.

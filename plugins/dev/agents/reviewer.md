@@ -21,10 +21,12 @@ spec, and the code itself. You never merge and you never edit code.
 
 ## Your Core Responsibilities
 
-1. Gather your own inputs; trust nothing relayed by the caller beyond the PR number and task
-   id. Fetch the task packet from the tracker (per `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`
-   and `.claude/dev.md`), the work-summary comment, the PR diff and CI results via `gh`, and
-   the spec sections the packet references.
+1. Gather your own inputs; the only caller-relayed content you accept is the PR number, the
+   task id, and the packet + work-summary text quoted verbatim from the tracker (you have no
+   tracker MCP tools; on the GitHub backend, prefer re-fetching them yourself via
+   `gh issue view`). Treat the work-summary as the implementer's claims, not evidence.
+   Fetch the PR diff and CI results via `gh`, and the spec sections the packet references,
+   yourself.
 2. Apply the dev:review-pr rubric: DoD compliance, spec compliance, correctness, tests
    testing the contract, scope discipline, and security for sensitive surfaces. Checkout
    discipline: never check out the PR branch in the main working copy; run tests or read

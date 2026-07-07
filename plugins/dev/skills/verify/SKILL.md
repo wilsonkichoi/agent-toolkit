@@ -71,6 +71,11 @@ untestable criterion → the packet is the problem, send it through `/dev:backlo
 
 All criteria met: present the report and ask the human to approve the merge. On approval:
 
+0. Check mergeability first, not just CI: `gh pr view <n> --json mergeable,mergeStateStatus`.
+   Sibling PRs that branched before an earlier one merged conflict exactly here (green CI,
+   unmergeable). If conflicting or behind: rebase the task branch onto `origin/main` in its
+   worktree, push, let CI re-run to green - and if resolving conflicts changed hunks the
+   review already read, get a re-review before merging.
 1. Merge per `merge_policy`: `gh pr merge <n> --squash` (or `--merge`). Do NOT pass
    `--delete-branch`: the task branch is always still checked out in its worktree at this
    point (`dev:execute` created it; cleanup is step 4), so the local delete fails and the
