@@ -447,7 +447,9 @@ consider eating our own dogfood and moving remaining phases into it.)
       construction - but nothing forbade an agent from `gh pr checkout` in the shared main
       working copy, where parallel agents would fight over HEAD): branch-file operations
       now confined to the task's worktree (or a temporary detached worktree if already
-      cleaned up)
+      cleaned up). Same-day follow-up: `verify`'s test-backed evidence step had the
+      identical gap (its own merge step even notes the worktree exists) - test runs now
+      confined to the task worktree too. `retro` audited clean: no branch checkouts at all
 - [ ] Port dogfood-dev rule `pr-checklist-freshness.md` into `execute` (2026-07-06, DOG-5
       review NIT N1: DoD checkboxes written at PR-open go stale; skill never revisits them
       after CI green). Deliberately deferred: the rule must first produce uncontaminated

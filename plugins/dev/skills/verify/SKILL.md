@@ -38,7 +38,9 @@ warning, not a hard stop; report it and let the human decide whether to proceed 
 For each Definition of Done criterion in the packet, gather evidence by type:
 
 - **Test-backed:** run the named test (or the project `test_command` filtered to it) on the
-  PR branch; record the command and result.
+  PR branch; record the command and result. Run it inside the task's worktree - never check
+  the branch out in the main working copy, where a parallel verify or review session would
+  fight over HEAD. (Manual-criterion commands that need the branch's files run there too.)
 - **CI-backed:** cite the check name and the run URL from `gh pr checks`.
 - **Manual:** perform the stated verification step where tools allow (run the binary, curl
   the endpoint, inspect the artifact); when only a human can observe it, present the step and
