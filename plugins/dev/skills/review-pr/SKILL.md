@@ -24,7 +24,8 @@ the `dev:reviewer` agent, passing the PR number, the task id, and the packet + w
 *text fetched verbatim from the tracker* - the agent's toolset (Read/Grep/Glob/Bash) covers
 `gh` but not tracker MCP servers, so on Linear/custom backends it cannot self-fetch them.
 Pass nothing else: no implementation rationale, no opinions about the diff. A fresh session
-may review inline or delegate; delegation is the safe default.
+(one that did not implement the PR and contains no implementation context) reviews inline;
+delegate only when the independence rule forces it.
 
 ## Review mode (default)
 
