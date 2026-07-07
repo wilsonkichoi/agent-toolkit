@@ -29,7 +29,7 @@ Four rules explain every skill's behavior:
 - **`github` backend:** `gh auth status` must succeed and the repo needs a GitHub remote.
   `dev:setup` creates the `status:*` / `priority:*` / `size:*` labels once.
 - **`linear` backend:** the official Linear MCP server:
-  `claude mcp add --transport http linear https://mcp.linear.app/mcp` (browser OAuth on first
+  `claude mcp add --scope local --transport http linear https://mcp.linear.app/mcp` (browser OAuth on first
   call). The team needs an `In Review` workflow state; `dev:setup` asks a human to add it if
   missing.
 - **`local` backend:** nothing beyond git. Tasks live in `.dev/tasks/`, one file per task.
