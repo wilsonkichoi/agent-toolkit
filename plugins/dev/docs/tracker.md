@@ -165,6 +165,48 @@ Spec references (with inlined excerpts), Suggested steps…
   `main`'s tracker state must not claim things about work that only exists unmerged on a
   branch.
 
+## Secondary intake channel (GitHub-native isolated work)
+
+A project whose primary `tracker` is not `github` still receives GitHub issues (bug reports,
+feature requests) and drive-by PRs that are isolated: not part of a milestone, not in the
+primary backlog. Minting a primary ticket for each recreates dual state and pollutes the
+primary tracker's metrics. Instead, GitHub is an optional *secondary intake channel*: an
+isolated item is either promoted into the primary tracker (then the primary owns it) or worked
+in place (then GitHub owns it), never both.
+
+Enable it in `.claude/dev.md` frontmatter (all optional; absent = single-tracker behavior):
+
+```
+tracker: linear              # primary, unchanged
+secondary_intake: github     # opt-in isolated-work channel
+github_repo: owner/repo      # where the issues/PRs live
+audit_trail: link            # link: the PR/issue is the record. mirror: reserved, not built
+```
+
+**Routing by ID shape (explicit invocations only).** `dev:execute`, `dev:review-pr`,
+`dev:verify`, and `dev:backlog` select the backend from the argument's shape: `#42` → the
+GitHub secondary channel; a primary-tracker key (`NOVA-123`, `DOG-5`) → the primary; `T-NNN` →
+local. An argument-less `next-task` uses the **primary backend only** - in-place items are
+never auto-claimed and cannot jump the planned queue (they are never set to `Todo` in the
+primary, so this also falls out mechanically).
+
+**In-place items skip the `status:*` label lifecycle.** That lifecycle (`status:todo` →
+`in-progress` → `in-review`, the WIP gate, the claim race guard) is a *primary-queue*
+construct. An isolated `#N` item's state is just: issue open → PR opened linking it
+(`Closes #N`) → review posted → `dev:verify` merges → issue auto-closes as completed. The
+lightweight claim is self-assignment (`gh issue edit <n> --add-assignee @me`); the opened PR
+is the real collision signal. No `status:*` labels are set, read, or stripped for these items,
+and the secondary repo need not carry the label set at all.
+
+**`audit_trail`.** `link` (the only implemented value): the merged PR plus its review and
+verify report is the complete record; no primary-tracker write ever happens for in-place work.
+`mirror` (mint a primary ticket per merge, linked, closed on merge, for orgs mandating one
+system of record) is a reserved field name, not yet implemented.
+
+A drive-by PR with **no** issue behind it is the same as an in-place item minus the issue:
+`dev:review-pr <pr>` and `dev:verify <pr>` operate against the PR alone (see their no-primary-
+task modes). Promotion of an item that grows into planned work is `dev:backlog`'s job.
+
 ## Adding a backend (`tracker: custom`)
 
 To adopt any other tracker (Jira, Asana, Shortcut, …) without changing the skills:

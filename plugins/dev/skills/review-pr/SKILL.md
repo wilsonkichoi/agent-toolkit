@@ -77,6 +77,16 @@ may review inline or delegate; delegation is the safe default.
 **No GitHub remote** (local-only projects): review `git diff main...task/<id>-<slug>` with the
 same rubric and post the full review as a task comment instead of a PR review.
 
+**No primary task** (a secondary-channel in-place `#N` PR, or a drive-by PR with no issue at
+all - `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` "Secondary intake channel"): there is no packet. Gather instead the PR diff +
+CI, the linked GitHub issue's body and acceptance criteria when one exists (`gh issue view
+<n>`), and `docs/SPEC.md` / `docs/PRD.md`. Run the same rubric with "DoD compliance" reading
+against the issue's stated acceptance criteria (or, absent an issue, the PR description);
+`Verdict:` line unchanged; add a line `Reviewed against: issue #<n> + spec` (or
+`PR description + spec`) so the reader knows no packet existed. Record the verdict as a comment
+on the issue when there is one, else the PR review is the record. Do **not** transition any
+primary-tracker status.
+
 ## Fix mode (`fix` argument)
 
 Runs in the task's worktree, on the same branch. This mode may share context with the

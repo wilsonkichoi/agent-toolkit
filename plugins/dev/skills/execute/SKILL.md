@@ -23,7 +23,10 @@ verbs, backend mapping, next-task algorithm).
 - With a task id: `get-task`, then check the same gates by hand - status is `Todo`, all
   dependencies `Done`, WIP below `work_in_progress_limit`. Refuse (with the reason) if any gate fails; the
   user can override explicitly.
-- `claim` the task and confirm the claim won (re-read; see tracker.md race guard).
+- With a `#N` GitHub issue (secondary intake channel, primary tracker not github): this is
+  isolated work GitHub owns - skip the primary-queue gates and see **In-place GitHub item**
+  below.
+- `claim` the task and confirm the claim won (re-read; see `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` race guard).
 
 **Packet validation.** A claimable packet has at minimum an Objective and a Definition of
 Done. If either is missing (typical for hand-written tickets), do not guess and do not
@@ -34,6 +37,25 @@ implement:
 - Interactive: ask the user to confirm the drafted packet, then proceed.
 - Unattended: release the claim (transition back to `Todo`), comment why it was skipped, and
   claim the next valid task instead.
+
+**In-place GitHub item (`#N`, secondary intake channel).** When the argument is a GitHub issue
+number and `secondary_intake: github` is set with a non-github primary tracker, GitHub owns
+this item (`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` "Secondary intake channel"). Same worktree → PR → CI → review → verify
+path, with these deltas only:
+
+- Claim: no WIP / dependency / `Todo` gate and no `status:*` label. `gh issue view <n>` for
+  the packet, run the packet validation above (draft missing Objective/DoD from the issue body
+  + `docs/`). Lightweight claim = `gh issue edit <n> --add-assignee @me`; the opened PR is the
+  real collision signal.
+- All comments (approach notes, CI-fix cycles, work summary) go on the issue via
+  `gh issue comment <n>`, not a primary-tracker task.
+- Step 4 PR body includes `Closes #<n>`; record the PR URL as an issue comment.
+- Step 6 hand-off: refresh the PR body and post the work-summary on the issue, then stop -
+  there is **no `In Review` transition** (in-place items carry no status labels). Report the
+  PR number and point at `/dev:review-pr #<pr>`.
+
+A drive-by PR with no issue behind it does not go through `dev:execute` at all - review and
+verify it directly (`/dev:review-pr <pr>`, `/dev:verify <pr>`).
 
 ## 2. Isolate
 

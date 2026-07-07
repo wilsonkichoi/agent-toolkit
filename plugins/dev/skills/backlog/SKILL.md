@@ -6,7 +6,7 @@ description: >
   do", "split this task", "triage the backlog", or invokes /dev:backlog. Mid-flight change
   management: intake requests with full task packets, triage their impact (backlog-only vs
   spec vs product goal), promote Backlog to Todo, and close tasks as Wont Do with rationale.
-argument-hint: "[add <request> | promote <id> | wont-do <id> | split <id> | triage]"
+argument-hint: "[add <request> | #N | promote <id> | wont-do <id> | split <id> | triage]"
 ---
 
 # dev:backlog
@@ -46,6 +46,24 @@ After intake (and after any doc delta returns from `discover`/`architect`), comm
 new/changed files - local-backend task files and doc deltas - to `main` with the user's
 consent; approved-but-uncommitted artifacts strand downstream skills.
 
+## GitHub issue intake (`#N`, secondary channel)
+
+Only when `secondary_intake: github` is set with a non-github primary tracker
+(`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` "Secondary intake channel"). `gh issue view <n>` for the request, then run the same triage
+above and route to exactly one of three fates:
+
+- **Promote** - real planned work (needs design, touches the spec, belongs to a milestone, or
+  blocks tracked work; any goal- or spec-impacting verdict lands here after its doc delta).
+  Write a full primary-tracker packet, link the issue in it, and close the issue as transferred
+  with a comment naming the new ticket. From here it is a normal primary-tracker task. If a PR
+  already exists for the item, link the new ticket to that PR rather than opening a second one.
+- **Work in place** - isolated and self-contained. Do not create a primary ticket; recommend
+  `/dev:execute #<n>`. GitHub owns it end to end.
+- **Decline** - `Wont Do`: close the issue with the triage rationale (`gh issue close`).
+
+Promotion is the *only* path that pulls a GitHub issue into `discover`/`architect`/`plan`; an
+in-place item never runs them.
+
 ## Promote (`promote <id>`)
 
 `Backlog → Todo` is always an explicit human decision; this is its skill-side path.
@@ -61,7 +79,7 @@ consent; approved-but-uncommitted artifacts strand downstream skills.
 
 Require a rationale (ask if not given). Comment the rationale on the task, then transition to
 `Wont Do` (backend mapping: Linear `Canceled`, GitHub closed as "not planned" plus removing
-the remaining `status:*` label - closed issues carry none, see tracker.md). The reason
+the remaining `status:*` label - closed issues carry none, see `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`). The reason
 must survive; a bare closure is not acceptable. If the task encodes a spec requirement being
 abandoned, flag that `docs/SPEC.md` needs a matching edit and offer the delta summary for
 `/dev:architect`.

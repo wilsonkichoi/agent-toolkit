@@ -31,11 +31,17 @@ Ask with AskUserQuestion, one round, only what cannot be inferred:
    project name (and confirm the Linear MCP server is connected; if not, tell the user to add
    it and stop). If `github`: confirm `gh auth status` succeeds and the repo has a GitHub
    remote. If `custom`: point the user at the "Adding a backend" recipe in `tracker.md` and
-   help write the mapping tables.
+   help write the mapping tables. ("Adding a backend" and all `tracker.md` references below mean
+   the plugin's `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, never a file in the project.)
 2. **Test command** (infer from the project if possible; confirm the inference).
 3. **CI workflow file name** (brownfield: detect under `.github/workflows/`; greenfield:
    offer to create a minimal lint + test workflow).
 4. **Merge policy:** squash (default) or merge commit.
+5. **Secondary GitHub intake** (offer only when the primary tracker is not `github` and the
+   repo has a GitHub remote): does the project accept isolated GitHub issues/PRs (external bug
+   reports, drive-by PRs) worked in place, without a primary-tracker ticket? If yes, record
+   `secondary_intake: github` + `github_repo: owner/repo`. See the "Secondary intake channel"
+   section in `tracker.md`. Skip the question when the primary tracker already is `github`.
 
 ## 3. Scaffold
 
@@ -66,7 +72,9 @@ auto_merge: false              # standing merge approval for /dev:auto (see that
 Project conventions the fields cannot capture go here as free text.
 ```
 
-Add Linear fields (`linear_team`, `linear_project`) when applicable. Do not create
+Add Linear fields (`linear_team`, `linear_project`) when applicable. When the user opted into
+a secondary GitHub intake channel (interview Q5), add `secondary_intake: github`,
+`github_repo: owner/repo`, and `audit_trail: link`. Do not create
 `.claude/dev.local.md`; mention it exists for personal overrides (gitignored).
 
 Backend one-time setup:

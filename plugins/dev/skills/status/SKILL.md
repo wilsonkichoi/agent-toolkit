@@ -20,7 +20,10 @@ milestone, else the active one.
 
 1. **Tracker:** `list <milestone>` - counts by status, plus per-task id/title/status.
 2. **PRs:** open PRs on `task/*` branches (`gh pr list`), each with CI state
-   (`gh pr checks`) and review verdict. Skip when no GitHub remote.
+   (`gh pr checks`) and review verdict. Skip when no GitHub remote. When
+   `secondary_intake: github` is set (`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`), a `task/*` PR that links a `#N` issue but
+   matches no primary task is legitimate in-place work - list it separately as github-native,
+   not as a violation.
 3. **Next up:** apply the next-task algorithm; show the top 3 claimable tasks with priority
    and estimate.
 4. **WIP:** In Progress + In Review count vs `work_in_progress_limit`.
@@ -58,7 +61,9 @@ Flag, do not fix:
   `gh issue edit <n> --remove-label status:<x>`.
 - Task `In Progress` with no matching branch/worktree, or claimed hours ago with no PR →
   likely an abandoned claim; suggest releasing it to `Todo`.
-- Open `task/*` PR with no task in `In Progress`/`In Review` → work outside the tracker.
+- Open `task/*` PR with no task in `In Progress`/`In Review` → work outside the tracker -
+  unless `secondary_intake: github` is set and the PR links a `#N` issue, which is legitimate
+  in-place work (report it as github-native, above).
 - Worktree for a `Done` task → cleanup missed; suggest `git worktree remove`.
 - Local branch matching neither `task/*` nor the default branch (e.g. a leftover
   `worktree-agent-*` from harness isolation) → orphan; suggest `git branch -d` if it has no
