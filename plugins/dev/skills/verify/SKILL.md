@@ -30,6 +30,17 @@ latter is the only form possible when reviewer and PR author are the same accoun
 forbids self-approval, so solo repos never get `APPROVED` state). A missing review is a
 warning, not a hard stop; report it and let the human decide whether to proceed without one.
 
+The approving review must target the current PR HEAD. Compare the review's `commit_id`
+(`gh api repos/{owner}/{repo}/pulls/<n>/reviews --jq '.[].commit_id'`; for a comment-form
+verdict, the `Commit:` line in its body) against `gh pr view <n> --json headRefOid`. A
+mismatch means commits landed after the review - typically a `/dev:review-pr <n> fix` push -
+so the approve is stale and the newer commits are unreviewed. Treat a stale approve as no
+approving review: warning in manual mode, hard stop under `auto_merge`. Run a fresh
+`/dev:review-pr <n>` first. A content-identical rebase also trips this check; accept the
+re-review, it is cheap and never wrong. (A rebase performed by verify itself is governed by
+section 4 step 0.) No GitHub remote: compare the review comment's `Commit:` line against the
+task branch head.
+
 **No GitHub remote:** the task records a branch instead of a PR, the approving review is the
 `/dev:review-pr` comment on the task, and the local `test_command` run stands in for CI.
 

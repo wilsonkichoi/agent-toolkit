@@ -62,6 +62,7 @@ may review inline or delegate; delegation is the safe default.
    ```
    ## dev:review-pr - <task-id>
    Verdict: request-changes | approve
+   Commit: <sha of the PR HEAD this review read>
    DoD: <n>/<total> criteria have supporting changes
 
    ### Findings
@@ -71,6 +72,10 @@ may review inline or delegate; delegation is the safe default.
    ```
 
    Zero findings: say so explicitly rather than inventing NITs.
+
+   The `Commit:` line is what lets `dev:verify` detect a stale verdict when the review is a
+   comment (solo-repo fallback, task-comment reviews) and carries no native `commit_id`.
+   Always fill it with the head SHA of the diff actually reviewed.
 4. **Record on the tracker:** comment the verdict + finding count on the task. Approved →
    next step is `/dev:verify`. Request-changes → next step is `/dev:review-pr <n> fix`.
 
