@@ -30,6 +30,11 @@ For each request:
      (including PRD non-goals' technical enforcement). Stop: summarize the needed SPEC/ROADMAP
      delta and the ADR it warrants, direct to `/dev:architect`, re-run intake after.
    - **Backlog-only** - fits current PRD and SPEC. Proceed.
+
+   At a goal- or spec-impacting verdict, always offer declining the request as the
+   alternative to running the doc delta: the human may not want the change at all once its
+   real cost is visible. Declining an existing ticket = `Wont Do` with the triage rationale;
+   declining a ticketless request = record the decision in the triage summary.
 2. **Write a full task packet** (DESIGN.md schema: objective, why with PRD/SPEC link, DoD
    with evidence paths, dependencies, estimate, inlined spec excerpts, suggested steps).
    Ask the user only for what the docs cannot answer. Genuine unknown blocking the packet →

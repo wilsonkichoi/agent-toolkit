@@ -435,6 +435,12 @@ consider eating our own dogfood and moving remaining phases into it.)
       returned, so `next-task` claimed a Medium task over it - the Linear twin of the
       GitHub search-API defect): `next-task`/`list` now prescribe explicit per-state
       filtered queries and `get_issue` confirmation for reads that must be current
+- [x] `backlog` triage offers the decline path (2026-07-06, Linear dogfood DOG-10: triage
+      correctly verdicted spec-impacting and routed to `/dev:architect`, but presented the
+      doc delta as the only exit - the user wanted the request dead, and nothing surfaced
+      `Wont Do` as the alternative; the request had no in-flow way to die). Triage now
+      always offers declining (Wont Do with the triage rationale, or a recorded decision
+      for ticketless requests) alongside the delta
 - [ ] Port dogfood-dev rule `pr-checklist-freshness.md` into `execute` (2026-07-06, DOG-5
       review NIT N1: DoD checkboxes written at PR-open go stale; skill never revisits them
       after CI green). Deliberately deferred: the rule must first produce uncontaminated
