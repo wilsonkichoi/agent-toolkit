@@ -62,8 +62,11 @@ verify it directly (`/dev:review-pr <pr>`, `/dev:verify <pr>`).
 Bring `main` up to date first: `git fetch origin`, and if local `main` has commits origin
 lacks (approved gate artifacts, applied retro promotions), push them before branching -
 the worktree branches from local `main`, so unpushed commits silently ride into the task's
-PR diff. Then create a git worktree on a fresh branch `task/<id>-<slug>`:
-`git worktree add -b task/<id>-<slug> <path> main`. All work happens there. Do not use the
+PR diff. Then create a git worktree on a fresh branch `task/<id>-<slug>` at the pinned
+path `../<repo>-worktrees/<id>-<slug>` (sibling container dir, one per repo - do not invent
+a different naming scheme per session):
+`git worktree add -b task/<id>-<slug> ../<repo>-worktrees/<id>-<slug> main`. All work
+happens there. Do not use the
 harness's worktree isolation (Agent tool `isolation: worktree` / EnterWorktree) for this:
 it creates its own `worktree-agent-*` branch that no cleanup step knows about, leaking one
 dead branch per task.

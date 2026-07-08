@@ -129,10 +129,13 @@ All criteria met: present the report and ask the human to approve the merge. On 
    not touch labels and a closed issue must carry none).
 3. Comment the merge commit / PR URL on the task.
 4. Clean up, in order: `git worktree remove` the task worktree (this frees the branch),
-   then delete the branch - `git branch -d task/<id>-<slug>` plus, with a remote,
-   `git push origin --delete task/<id>-<slug>` - then update local `main`. Confirm the
-   remote branch is actually gone (`git ls-remote --heads origin task/<id>-<slug>` prints
-   nothing): this leak is silent and easy to miss.
+   then `rmdir ../<repo>-worktrees 2>/dev/null || true` (removes the container dir when
+   this was the last worktree in it; `rmdir` refuses non-empty dirs, so it is safe while
+   sibling task worktrees exist), then delete the branch - `git branch -d task/<id>-<slug>`
+   plus, with a remote, `git push origin --delete task/<id>-<slug>` - then update local
+   `main`. Confirm the remote branch is actually gone
+   (`git ls-remote --heads origin task/<id>-<slug>` prints nothing): this leak is silent
+   and easy to miss.
 
 Declined or deferred: leave everything as-is and report what the human decided.
 
@@ -140,4 +143,5 @@ Declined or deferred: leave everything as-is and report what the human decided.
 
 A spike verifies differently: evidence is the ADR in `docs/adr/` plus the recommendation
 comment on the task. No merge - the spike branch is throwaway. Confirm both artifacts exist,
-transition to `Done`, delete the branch and worktree.
+transition to `Done`, delete the branch and worktree (same cleanup as step 4 above,
+including the empty-container `rmdir`).

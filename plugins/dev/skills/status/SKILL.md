@@ -65,6 +65,8 @@ Flag, do not fix:
   unless `secondary_intake: github` is set and the PR links a `#N` issue, which is legitimate
   in-place work (report it as github-native, above).
 - Worktree for a `Done` task → cleanup missed; suggest `git worktree remove`.
+- Empty `../<repo>-worktrees/` container dir (or a stray sibling dir from an old ad-hoc
+  worktree path) with no worktrees in it → cleanup missed the container; suggest `rmdir`.
 - Local branch matching neither `task/*` nor the default branch (e.g. a leftover
   `worktree-agent-*` from harness isolation) → orphan; suggest `git branch -d` if it has no
   unique commits.
