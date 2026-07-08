@@ -572,6 +572,19 @@ consider eating our own dogfood and moving remaining phases into it.)
       Blocked is a label - so every `transition` is write-then-re-read).
       `linear-list-issues-triage-crosscheck` needed no port (covered by the consistent-reads
       fix)
+- [x] `verify` independence rule (2026-07-07, gap report: `review-pr` refuses to review its
+      own implementation session's work, but `verify` gathered DoD evidence inline
+      regardless - the implementer verifying its own criteria has the same motivated-
+      reasoning problem the review rule exists for). New `verifier` agent mirrors
+      `reviewer`: own context, gathers preconditions + evidence + posts the report
+      (sections 1-3), never merges, never asks the human - human-gate criteria without a
+      recorded sign-off come back as awaiting confirmation. `verify` delegates to it only
+      when the session implemented the PR (a fresh session verifies inline, no subagent);
+      section 4 (human gate, live sign-off recording, merge, `Done`, cleanup) never
+      delegates. `auto` step 5 dispatches the `verifier` agent, consistent with its
+      heavy-steps-in-subagents discipline; on MCP backends the caller passes packet +
+      task-comment text verbatim and posts the tracker copy of the report (same
+      structural gap as the `reviewer` packet hand-off)
 
 ### Secondary intake channel (GitHub-native work on a non-GitHub-primary project)
 

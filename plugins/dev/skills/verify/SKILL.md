@@ -22,6 +22,27 @@ for it.
 
 Read first: `.claude/dev.md` (config) and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`.
 
+## Independence rule
+
+The verifier must not share context with the implementer - the session that wrote the code
+reads its own work summary as evidence and its motivated reasoning marks criteria met. If
+this session implemented the PR (or contains its implementation context), do not gather
+evidence inline: delegate sections 1-3 (preconditions, evidence, report) to the
+`dev:verifier` agent, passing the PR number, the task id, and the packet + task-comment
+text *fetched verbatim from the tracker* - the agent's toolset (Read/Grep/Glob/Bash) covers
+`gh` but not tracker MCP servers, so on Linear/custom backends it cannot self-fetch them
+(task comments included, since recorded sign-offs live there). Pass nothing else: no
+implementation rationale, no opinions on whether criteria are met. A fresh session (one
+that did not implement the PR and contains no implementation context) runs sections 1-3
+inline; delegate only when the independence rule forces it.
+
+Section 4 never delegates. The human gate, live confirmation of manual/visual criteria and
+its durable recording (section 2), human-gate checkbox writes, the merge, the `Done`
+transition, and cleanup all stay in the calling session - the agent cannot ask the human
+and holds no merge approval. It reports which criteria are unmet or awaiting human
+confirmation; the calling session takes it from there. On backends the agent cannot write
+to, the calling session also posts the task-comment copy of the report the agent returns.
+
 ## 1. Preconditions
 
 Resolve the task and PR (from the argument, the task's `pr` link, or the PR's linked task).

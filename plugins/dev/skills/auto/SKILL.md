@@ -39,7 +39,7 @@ Do not fall back to a silent stop-at-verify mode.
 The session stays a thin orchestrator; every heavy step runs in a fresh subagent so no
 implementation context accumulates (mid-task compaction is how work gets corrupted).
 Orchestrator does: claim, subagent dispatch, artifact checks between steps, merge, status
-transitions, reporting. Subagents do: implementation, review, fixes.
+transitions, reporting. Subagents do: implementation, review, fixes, verification evidence.
 
 ## Per-task pipeline
 
@@ -65,7 +65,10 @@ transitions, reporting. Subagents do: implementation, review, fixes.
    At most `max_fix_attempts` review-fix cycles; still not approved → transition to `Blocked`
    with a final comment listing the unresolved findings (the per-cycle comments are the trail),
    stop.
-5. **Verify + merge** - run `dev:verify` evidence gathering. All criteria met, each
+5. **Verify + merge** - fresh `verifier` agent runs `dev:verify` sections 1-3
+   (preconditions, evidence per criterion, report), per `dev:verify`'s independence rule;
+   the orchestrator posts the tracker copy of the report on backends the agent cannot
+   write to. All criteria met, each
    mechanically evidenced or carrying a recorded human sign-off → merge per `merge_policy`,
    transition `Done`, clean up worktree. Any criterion unmet, or manual without a recorded
    sign-off → post the verification report, leave `In Review`, stop and tell the human
