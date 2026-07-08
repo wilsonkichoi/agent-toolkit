@@ -35,6 +35,13 @@ Per task, in this order of value:
    one-offs.
 4. **Session transcripts** (best effort): search `~/.claude/projects/<project-slug>/` for the
    task id; use to reconstruct why something took N attempts. Skip silently if absent.
+5. **Lifecycle-contract compliance:** check what each lifecycle step actually produced
+   against its skill's contract - verification report present on the PR, human-gate DoD
+   boxes checked, work-summary comment posted, `status:*` labels stripped at terminal
+   states, worktree/branch cleanup done. This includes steps that ran in the current
+   session: a retro that audits the task but not the process running around it misses
+   exactly the failures no other step will catch. A skipped contract step is a finding
+   even when the outcome looks fine.
 
 ## 2. Distill
 
@@ -53,6 +60,13 @@ Classify each learning:
   A memory note or a mention in the retro comment is not a destination for work - an
   untracked follow-up is exactly the state-outside-the-tracker failure this plugin exists
   to prevent.
+- **Skill-contract violation** - a lifecycle step skipped or botched something its skill
+  already mandates (section 1 item 5): never a project-rule candidate. The instruction
+  already exists in the skill; promoting a rule that restates it creates a second source
+  of truth that drifts, and masks the real defect - the skill let the step be skipped.
+  Record the violation in the retro comment and route the defect upstream to the dev
+  plugin (fix or file against the skill), not into `.claude/rules/`. Only project-specific
+  knowledge the skill cannot know belongs in a rule.
 
 ## 3. Promote (the point of this skill)
 

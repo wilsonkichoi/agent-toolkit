@@ -136,6 +136,15 @@ the reviewer to run the dev server and interact with the UI. Production is not u
 until after verify merges, and most projects have no deploy preview on PRs, so a local dev
 server is the only way to see the new version.
 
+The instructions are for the human gate; the first check is yours. Before hand-off, run
+the dev server in the task worktree and inspect every touched page yourself - browser
+tools or screenshots when available, at minimum fetching the routes and reading the
+rendered output - side-by-side against the comparison target when the criterion names one.
+Obvious parity gaps (missing sections, stray icons or arrows, broken layout, features
+dropped as "dead code" that the target still renders) are implementation defects: fix them
+now, before the PR. CI and the build check correctness, not completeness; the human gate
+judges what remains, it is not the first pair of eyes on the page.
+
 Include: the worktree path (or branch + checkout command), the dev command, the port, the
 comparison target and its serve command (if the criterion requires side-by-side), and which
 pages/routes to check. Example:

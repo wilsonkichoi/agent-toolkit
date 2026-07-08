@@ -130,7 +130,14 @@ untestable criterion → the packet is the problem, send it through `/dev:backlo
 
 ## 4. Human gate and merge
 
-All criteria met: present the report and ask the human to approve the merge. On approval:
+All criteria met: present the report and ask the human to approve the merge. Approval
+authorizes the merge; it never waives the record. If approval arrives before the record is
+complete ("merge now" mid-verification, approval given while discussing evidence), finish
+the record first: post the report (section 3) and make live confirmations durable
+(section 2 - evidence cell naming who confirmed and when, plus the human-gate checkbox in
+the PR body). The merged PR must carry the verification report and a fully-recorded DoD
+checklist; a task comment on the tracker is not visible to PR readers. Merge is always the
+last write before cleanup. On approval:
 
 0. Check mergeability first, not just CI: `gh pr view <n> --json mergeable,mergeStateStatus`.
    Sibling PRs that branched before an earlier one merged conflict exactly here (green CI,

@@ -585,6 +585,20 @@ consider eating our own dogfood and moving remaining phases into it.)
       heavy-steps-in-subagents discipline; on MCP backends the caller passes packet +
       task-comment text verbatim and posts the tracker copy of the report (same
       structural gap as the `reviewer` packet hand-off)
+- [x] LB-7 retro trio (2026-07-07, lagunabeach-md dogfood): (1) `verify` merged on "merge
+      now" without posting the report to the PR or checking the confirmed human-gate box -
+      section 4 now states approval authorizes the merge but never waives the record; the
+      report and checkbox writes land before the merge, which is always the last write.
+      (2) `retro` audited the task but not the process running around it, missing the
+      verify violation in its own session, then proposed a rule restating verify's
+      existing contract - evidence source 5 (lifecycle-contract compliance, current
+      session included) and a "skill-contract violation" classification added: never a
+      project rule (duplicate source of truth masks the plugin defect), route upstream.
+      (3) `execute` deferred visual checks entirely to the human gate - 4 parity gaps
+      (stray ↗ arrows, missing sections/contributors/commit link) shipped in the PR that
+      a dev-server look would have caught; section 6 now requires the executor to inspect
+      touched pages against the comparison target before hand-off, with the human gate as
+      judge, not first eyes
 
 ### Secondary intake channel (GitHub-native work on a non-GitHub-primary project)
 
