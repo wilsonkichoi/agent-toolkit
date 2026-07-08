@@ -645,7 +645,7 @@ Resources and conventions for the Phase E sessions:
 - **Where:** never inside agent-toolkit. Item 1: fresh folder (e.g. `~/src/dogfood-local`),
   `git init`, no remote. Items 2+: `gh repo clone wilsonkichoi/dogfood-dev ~/src/dogfood-dev`.
   Launch every dogfood session with the working-tree plugin so unpushed skill fixes apply
-  immediately: `claude --model sonnet --plugin-dir /Users/wchoi/src/agent-toolkit/plugins/dev`.
+  immediately: `claude --model sonnet --plugin-dir ${SRC_HOME}/agent-toolkit/plugins/dev`.
 - **Pass protocol:** the session that ran a flow never certifies it. Pass = the artifacts
   show the checklist item's behaviors (tracker states, branch/PR history, doc approval
   dates, rule files), audited by the human or a separate fresh session, plus a clean
