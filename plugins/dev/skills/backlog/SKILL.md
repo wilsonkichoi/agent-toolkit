@@ -37,10 +37,17 @@ For each request:
    declining a ticketless request = record the decision in the triage summary.
 2. **Write a full task packet** (DESIGN.md schema: objective, why with PRD/SPEC link, DoD
    with evidence paths, dependencies, estimate, inlined spec excerpts, suggested steps).
-   Ask the user only for what the docs cannot answer. Genuine unknown blocking the packet →
-   create a spike instead.
-3. **Create at `Backlog`** via `create-task`. Create at `Todo` only when the user explicitly
-   commits it to the current milestone in this conversation; say which status was used.
+   Model implicit ordering as a real dependency, checked in **both directions**: does this
+   request build on existing `Backlog`/`Todo` tickets, and do existing tickets build on it?
+   Ordering that lives only in the ticket prose is invisible to the next-task algorithm -
+   unmodeled ordering is how tasks execute out of order and parallel sessions produce
+   conflicting PRs. Ask the user only for what the docs cannot answer. Genuine unknown
+   blocking the packet → create a spike instead.
+3. **Create at `Backlog`** via `create-task`, wiring dependencies as native relations per
+   the backend section of `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` (both directions from
+   step 2, including new relations on *existing* tickets that this task blocks) - not as
+   packet text alone. Create at `Todo` only when the user explicitly commits it to the
+   current milestone in this conversation; say which status was used.
 
 After intake (and after any doc delta returns from `discover`/`architect`), commit the
 new/changed files - local-backend task files and doc deltas - to `main` with the user's

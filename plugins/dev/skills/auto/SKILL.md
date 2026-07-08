@@ -43,8 +43,9 @@ transitions, reporting. Subagents do: implementation, review, fixes.
 
 1. **Claim** - as `dev:execute` step 1: `next-task` (WIP gate, dependency rules, packet
    validation; invalid packets are skipped with a comment).
-2. **Implement** - background subagent following `dev:execute` steps 2-6 (worktree →
-   implement → tests via `test-writer` → PR or branch → CI green → work-summary comment →
+2. **Implement** - background subagent following `dev:execute` steps 2-7 (worktree →
+   implement → tests via `test-writer` → PR or branch → CI green → local preview
+   instructions when the DoD has visual criteria → work-summary comment →
    `In Review`); it creates the task worktree itself per execute step 2, so spawn it
    without harness worktree isolation. `max_fix_attempts` applies inside; a `Blocked`
    result stops the pipeline.

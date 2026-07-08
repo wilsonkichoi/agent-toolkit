@@ -68,8 +68,11 @@ Do not create anything until the user approves.
 
 On approval, `create-task` each packet at status `Todo` (plan approval is the commitment
 gate), with dependencies, priority, estimate, and milestone mapped per the backend section of
-`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`. Order priorities so the intended execution order falls out of the next-task
-selection algorithm.
+`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`. Packets reference draft ids but the tracker mints
+real identifiers at creation: create in dependency order (or second-pass the relations) so
+every dependency is wired as a native relation using tracker-minted ids, then confirm the
+relations appear in the `list` output. Order priorities so the intended execution order
+falls out of the next-task selection algorithm.
 
 Verify by running `list <milestone>` and comparing against the approved draft. Then commit
 the planning artifacts (task files on the local backend, any doc updates) to `main` with the
