@@ -47,6 +47,12 @@ Classify each learning:
   candidate for the planning conventions in the `.claude/dev.md` body.
 - **Process tuning** - config change (`work_in_progress_limit`, `max_fix_attempts`, test command).
 - **One-off** - bad luck, no generalization: record in the retro comment, promote nothing.
+- **Follow-up work** - a defect or gap in already-merged work, or new work the evidence
+  exposes (e.g. a parity check reveals an earlier task diverged from spec): not a rule, a
+  task. Route it through `/dev:backlog` intake so it lands in the tracker with a packet.
+  A memory note or a mention in the retro comment is not a destination for work - an
+  untracked follow-up is exactly the state-outside-the-tracker failure this plugin exists
+  to prevent.
 
 ## 3. Promote (the point of this skill)
 
@@ -62,8 +68,10 @@ Promotion targets, by `memory_target` in `.claude/dev.md` (default `files`):
 
 Standards for a promotable learning: evidence-cited (link the PR finding / CI run / comment),
 generalizable beyond the one task, and actionable as an instruction ("run X before Y"), never
-vibes ("be careful with the database"). Propose the exact diff per promotion; apply on user
-approval.
+vibes ("be careful with the database"). Propose the exact diff per promotion. Post the retro
+comment (section 4) BEFORE asking for approval, with each promotion listed as "proposed, not
+applied" - stopping the turn to ask is how a drafted retro ends up existing only in chat.
+Apply on approval, then append the follow-up comment per section 4.
 
 **Commit applied promotions immediately** (with the user's consent, as with every gate): one
 dedicated commit on `main` for the rule/CLAUDE.md changes, before any next task starts -
