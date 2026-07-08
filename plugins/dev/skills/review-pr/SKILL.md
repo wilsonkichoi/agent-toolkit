@@ -20,7 +20,8 @@ Read first: `.claude/dev.md` (config) and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md
 
 The reviewer must not share context with the implementer. If this session implemented the PR
 (or contains its implementation context), do not review inline: delegate the entire review to
-the `dev:reviewer` agent, passing the PR number, the task id, and the packet + work-summary
+the `dev:reviewer` agent (spawned with no `model` override - it pins `model: inherit`),
+passing the PR number, the task id, and the packet + work-summary
 *text fetched verbatim from the tracker* - the agent's toolset (Read/Grep/Glob/Bash) covers
 `gh` but not tracker MCP servers, so on Linear/custom backends it cannot self-fetch them.
 Pass nothing else: no implementation rationale, no opinions about the diff. A fresh session

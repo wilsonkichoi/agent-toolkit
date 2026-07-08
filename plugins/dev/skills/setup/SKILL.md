@@ -125,7 +125,7 @@ commit that later task branches need; leaving setup output uncommitted stalls `d
 mid-run. Then summarize: mode, tracker backend, files created, one-time backend setup
 performed. Remind:
 
-- Unattended runs (`/loop /dev:execute`, headless sessions) stall on permission prompts -
+- Unattended runs (`/loop /dev:execute`, `/dev:auto`) stall on permission prompts -
   pre-approve the needed commands (git, gh, test command) in `.claude/settings.json` first.
 - Next steps: `/dev:discover` (new product), `/dev:architect` (have a PRD), or `/dev:plan`
   (have a spec and roadmap).

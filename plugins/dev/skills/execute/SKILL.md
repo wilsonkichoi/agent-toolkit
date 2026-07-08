@@ -191,11 +191,14 @@ When invoked repeatedly in one session (`/loop /dev:execute`) or asked to "drain
 keep this session a thin orchestrator. Per iteration: claim (step 1) here, then delegate
 steps 2-7 to ONE background subagent, passing it the full packet and this skill's
 instructions; it creates and works in the task worktree per step 2. Spawn it without
-harness worktree isolation (see step 2). Wait for it to finish, relay its report, then iterate.
+harness worktree isolation (see step 2) and without a `model` parameter, so it inherits the
+session model; never downgrade to a smaller model to route around a model-availability
+error - stop and report instead. Wait for it to finish, relay its report, then iterate.
 Never implement in the orchestrator session - context accumulated across tasks is how
 mid-task compaction corrupts work. Stop when the WIP gate closes or after `max_tasks_per_run`
-tasks (config, default 5); report and idle. For true fresh context per task, prefer a shell
-loop of headless sessions (`claude -p "/dev:execute"`).
+tasks (config, default 5); report and idle. For true fresh context per task, the human runs
+a new interactive session per task; never script headless sessions (`claude -p`) or suggest
+them - they run without the human's session config and oversight.
 
 Scope note: this mode only fills the review queue - every task stops at `In Review`, so a
 dependency chain will not advance past its first task (deps unblock at `Done`, and `Done`

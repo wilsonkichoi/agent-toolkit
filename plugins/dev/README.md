@@ -47,6 +47,10 @@ memory): see [docs/adoption.md](docs/adoption.md).
 | `reviewer` | Independent PR review with its own context: fetches packet, diff, CI, spec; posts verdict. Used by `/dev:review-pr` when the calling session implemented the PR. |
 | `verifier` | Independent DoD evidence gathering with its own context: preconditions, evidence per criterion, verification report. Never merges or asks the human. Used by `/dev:verify` when the calling session implemented the PR, and by `/dev:auto`'s verify step. |
 
+All agents pin `model: inherit` and are spawned without a `model` override, so they run at
+the same model as the session that invoked them. A model-availability failure on spawn stops
+the pipeline; it is never routed around by downgrading to a smaller model.
+
 ## Tracker backends
 
 Configured per project in `.claude/dev.md` frontmatter (`tracker:` field). Contract and

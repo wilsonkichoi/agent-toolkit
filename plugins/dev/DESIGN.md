@@ -211,8 +211,8 @@ carry safeguards for all of them:
    task's diffs and CI logs into one window until compaction corrupts the current task. In
    loop/batch mode, `dev:execute` keeps the session as a thin orchestrator and delegates the
    implementation to a background subagent inside the task's worktree; the main window carries
-   only claim/PR/status traffic. The alternative for true fresh context per task is a shell
-   loop of headless sessions (`claude -p "/dev:execute"`), documented in the adoption guide.
+   only claim/PR/status traffic. The alternative for true fresh context per task is a new
+   interactive session per task.
 2. **Runaway spend on a stuck task.** A CI loop that never goes green must not iterate
    forever: after `max_fix_attempts` (config, default 3) CI-fix cycles, mark the task
    `Blocked`, post a diagnostic comment (attempts, failure modes, hypothesis), and move on.

@@ -41,6 +41,22 @@ implementation context accumulates (mid-task compaction is how work gets corrupt
 Orchestrator does: claim, subagent dispatch, artifact checks between steps, merge, status
 transitions, reporting. Subagents do: implementation, review, fixes, verification evidence.
 
+**Model discipline:** spawn every subagent with NO `model` parameter - the dev agents pin
+`model: inherit` and generic subagents inherit the session model by default, and an explicit
+`model` on the Agent call overrides both. Never pass a model alias to "match" the session
+(aliases resolve to the newest model of that family, which the account may not have), and
+never downgrade to a smaller model to route around a model-availability error - that
+silently runs implementation and review on a weaker model than the human chose. If a spawn
+fails on the inherited model, retry once with no override; if it fails again, stop and
+report the error as an environment problem.
+
+**Reviewer/verifier dispatch:** run the `reviewer` and `verifier` agents synchronously
+(`run_in_background: false`) so the verdict or report arrives as the tool result. A review
+or verify agent that errors, goes idle, or returns without a verdict/report is a stop
+condition - the orchestrator never substitutes its own inline review or verification;
+auto_merge condition 1 and `dev:verify`'s independence rule both forbid it, and the
+orchestrator holds the implementer's report, so it is not independent.
+
 ## Per-task pipeline
 
 1. **Claim** - as `dev:execute` step 1: `next-task` (WIP gate, dependency rules, packet
@@ -51,7 +67,9 @@ transitions, reporting. Subagents do: implementation, review, fixes, verificatio
    `In Review`); it creates the task worktree itself per execute step 2, so spawn it
    without harness worktree isolation. `max_fix_attempts` applies inside; a `Blocked`
    result stops the pipeline.
-3. **Review** - fresh `reviewer` agent, exactly as `dev:review-pr` delegation.
+3. **Review** - fresh `reviewer` agent, exactly as `dev:review-pr` delegation, dispatched
+   per the reviewer/verifier discipline above (synchronous, no model override, no verdict →
+   stop).
 4. **Fix loop** - on request-changes: subagent applies `dev:review-pr` fix mode, then a fresh
    review pass. **Comment every cycle** on the task so the review iteration is visible on the
    issue, not only in PR review threads:
@@ -66,13 +84,16 @@ transitions, reporting. Subagents do: implementation, review, fixes, verificatio
    with a final comment listing the unresolved findings (the per-cycle comments are the trail),
    stop.
 5. **Verify + merge** - fresh `verifier` agent runs `dev:verify` sections 1-3
-   (preconditions, evidence per criterion, report), per `dev:verify`'s independence rule;
-   the orchestrator posts the tracker copy of the report on backends the agent cannot
-   write to. All criteria met, each
+   (preconditions, evidence per criterion, report), per `dev:verify`'s independence rule,
+   dispatched per the reviewer/verifier discipline above (synchronous, no model override,
+   no report → stop); the orchestrator posts the tracker copy of the report on backends
+   the agent cannot write to. All criteria met, each
    mechanically evidenced or carrying a recorded human sign-off → merge per `merge_policy`,
-   transition `Done`, clean up worktree. Any criterion unmet, or manual without a recorded
-   sign-off → post the verification report, leave `In Review`, stop and tell the human
-   exactly what needs them.
+   transition `Done`, clean up worktree (remove the task worktree before any branch
+   deletion - a branch checked out in a worktree cannot be deleted, so `--delete-branch`
+   on the merge fails until the worktree is gone). Any criterion unmet, or manual without
+   a recorded sign-off → post the verification report, leave `In Review`, stop and tell
+   the human exactly what needs them.
 6. **Retro (record-only)** - run `dev:retro` for the task with promotions in proposal mode:
    post the retro comment including proposed rule promotions, but never write to
    `.claude/rules/` or CLAUDE.md unattended. Standing instructions change only with a human
@@ -84,8 +105,10 @@ transitions, reporting. Subagents do: implementation, review, fixes, verificatio
 Stop and report (never push past these): nothing claimable (milestone drained, or all
 remaining tasks blocked by non-`Done` deps); `max_tasks_per_run` reached (config, default 5;
 overridable by the `max N tasks` argument); any task `Blocked`; verify stop (unmet
-criterion, or manual criterion without recorded sign-off); merge conflict; tracker write
-failure.
+criterion, or manual criterion without recorded sign-off); review or verify agent failure
+(error, idle, or no verdict/report returned - never substitute orchestrator-inline review
+or verification); subagent spawn failure after the one no-override retry (model
+availability included); merge conflict; tracker write failure.
 
 Report on stop, whatever the reason:
 

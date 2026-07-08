@@ -114,7 +114,7 @@ Two modes with different destinations:
   `In Review`; humans review and verify at their own pace. On a dependency chain it advances
   exactly one task. The session stays a thin orchestrator and delegates implementation to one
   background subagent per task in that task's worktree; for true fresh context per task,
-  prefer a shell loop of headless sessions (`claude -p "/dev:execute"`).
+  run a new interactive session per task instead of looping one.
 - **`/dev:auto` drains a milestone to `Done`.** Per task: execute → independent review →
   bounded fix loop → verify → merge → record-only retro, then the next task. Single-flight.
 
@@ -144,7 +144,7 @@ Unattended runs stall on the first permission prompt: pre-approve git, `gh`, and
 What is safe to run simultaneously, and why:
 
 - **Parallel `/dev:execute` sessions on independent tasks** - the supported way to
-  parallelize implementation (one terminal or headless `claude -p "/dev:execute"` per task).
+  parallelize implementation (one interactive session per task).
   The tracker claim step is the mutex; worktrees isolate the filesystem. There is no
   intra-session fan-out: a `/loop` orchestrator runs ONE implementation subagent at a time,
   deliberately.
