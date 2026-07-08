@@ -26,8 +26,10 @@ the human's standing, revocable approval for merges meeting ALL of:
 
 1. Independent review verdict is approve (from the `reviewer` agent, never self-review).
 2. Every DoD criterion is met, with artifact evidence.
-3. Every DoD criterion is mechanically evidenced (test run or CI check). A manual criterion
-   always stops the pipeline for a human, no matter what the config says.
+3. Every DoD criterion is either mechanically evidenced (test run or CI check) or carries a
+   recorded human sign-off (`dev:verify` section 2: a task/PR comment authored by the human
+   approving that criterion; PR-body checkboxes never count). A manual criterion with
+   neither stops the pipeline for a human, no matter what the config says.
 
 `auto_merge` absent or false: refuse to run, explain the flag, and point at the manual flow.
 Do not fall back to a silent stop-at-verify mode.
@@ -63,10 +65,11 @@ transitions, reporting. Subagents do: implementation, review, fixes.
    At most `max_fix_attempts` review-fix cycles; still not approved → transition to `Blocked`
    with a final comment listing the unresolved findings (the per-cycle comments are the trail),
    stop.
-5. **Verify + merge** - run `dev:verify` evidence gathering. All criteria met and
-   mechanically evidenced → merge per `merge_policy`, transition `Done`, clean up worktree.
-   Any criterion unmet or manual → post the verification report, leave `In Review`, stop and
-   tell the human exactly what needs them.
+5. **Verify + merge** - run `dev:verify` evidence gathering. All criteria met, each
+   mechanically evidenced or carrying a recorded human sign-off → merge per `merge_policy`,
+   transition `Done`, clean up worktree. Any criterion unmet, or manual without a recorded
+   sign-off → post the verification report, leave `In Review`, stop and tell the human
+   exactly what needs them.
 6. **Retro (record-only)** - run `dev:retro` for the task with promotions in proposal mode:
    post the retro comment including proposed rule promotions, but never write to
    `.claude/rules/` or CLAUDE.md unattended. Standing instructions change only with a human
@@ -77,8 +80,9 @@ transitions, reporting. Subagents do: implementation, review, fixes.
 
 Stop and report (never push past these): nothing claimable (milestone drained, or all
 remaining tasks blocked by non-`Done` deps); `max_tasks_per_run` reached (config, default 5;
-overridable by the `max N tasks` argument); any task `Blocked`; verify stop (unmet or manual
-criterion); merge conflict; tracker write failure.
+overridable by the `max N tasks` argument); any task `Blocked`; verify stop (unmet
+criterion, or manual criterion without recorded sign-off); merge conflict; tracker write
+failure.
 
 Report on stop, whatever the reason:
 

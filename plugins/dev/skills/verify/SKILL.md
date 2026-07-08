@@ -15,8 +15,10 @@ merge. This skill is the only thing in the lifecycle allowed to merge or to set 
 Without explicit human approval in this session, do not merge - with one carve-out: when
 invoked by `/dev:auto` with `auto_merge: true` in `.claude/dev.md`, that flag is the human's
 standing approval, valid only when the review is approved AND every criterion is met AND
-every criterion is mechanically evidenced (test or CI). A manual criterion always requires a
-live human, regardless of config.
+every criterion is either mechanically evidenced (test or CI) or carries a recorded human
+sign-off (section 2). A manual criterion always requires a human - a recorded sign-off or a
+live confirmation in this session - regardless of config; `auto_merge` never substitutes
+for it.
 
 Read first: `.claude/dev.md` (config) and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`.
 
@@ -63,12 +65,26 @@ For each Definition of Done criterion in the packet, gather evidence by type:
   fight over HEAD. (Manual-criterion commands that need the branch's files run there too.)
 - **CI-backed:** cite the check name and the run URL from `gh pr checks`.
 - **Manual:** perform the stated verification step where tools allow (run the binary, curl
-  the endpoint, inspect the artifact); when only a human can observe it, present the step and
-  ask the user for the observation.
-- **Visual / UI:** criteria requiring human judgment of appearance or interaction. Point the
-  human to the "Local preview" section in the PR body (added by `dev:execute`) and ask them
-  to run the dev server, interact with the UI, and confirm pass/fail. Never mark these as
-  met without explicit human confirmation.
+  the endpoint, inspect the artifact); when only a human can observe it, check for a recorded
+  sign-off (below) first, and only if none exists present the step and ask the user for the
+  observation.
+- **Visual / UI:** criteria requiring human judgment of appearance or interaction. Check for
+  a recorded sign-off (below) first. If none: point the human to the "Local preview" section
+  in the PR body (added by `dev:execute`) and ask them to run the dev server, interact with
+  the UI, and confirm pass/fail. Never mark these as met without explicit human confirmation,
+  recorded or live.
+
+**Recorded sign-off.** The canonical record of a human-gate confirmation is a comment - on
+the task or the PR - authored by the human, naming the criterion and approving it. Before
+asking live, scan the task and PR comments (a prior `dev:verify` report counts, since its
+evidence cell records who confirmed and when); cite the comment (author, date, link) as the
+evidence. PR-body DoD checkbox state is NOT sign-off evidence: a checkbox carries no author
+or timestamp, so a checked human-gate box proves nothing by itself - treat it as display
+only. When the human instead confirms live in this session, make it durable: record who
+confirmed and when in the report's evidence cell (the report is posted as a PR and task
+comment, so it becomes the recorded sign-off for any later run), and check that criterion's
+DoD box in the PR body. `dev:verify` after live or recorded confirmation is the only writer
+allowed to check a human-gate box (`dev:execute` is barred from it).
 
 A criterion with no evidence path is **unmet** - never "assumed met". Evidence must come from
 the artifact (tests, CI, observed behavior), not from the implementer's claims in the work

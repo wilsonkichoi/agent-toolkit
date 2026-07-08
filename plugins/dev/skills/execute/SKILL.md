@@ -150,7 +150,10 @@ If no visual criteria exist in the DoD, skip to step 7.
 
 1. Refresh the PR body: any DoD checklist written at PR-open time was written before CI and
    lifecycle facts existed - set each box to its now-verified state (`gh pr edit`). Stale
-   unchecked boxes misreport the PR to reviewers.
+   unchecked boxes misreport the PR to reviewers. Exception: never check a box for a manual
+   or visual/UI criterion - those record human sign-off and are set only by `dev:verify`
+   after the human confirms. An unchecked human-gate box must reliably mean "not yet signed
+   off".
 2. Post the work-summary comment on the task:
 
    ```

@@ -120,8 +120,10 @@ Two modes with different destinations:
 
 `/dev:auto` merges only when ALL hold: `auto_merge: true` (standing, revocable human
 approval), the independent review verdict is approve, every DoD criterion is met, and every
-criterion is mechanically evidenced (test run or CI check). A manual DoD criterion always
-stops the pipeline for a live human, regardless of config. Unattended retro never writes
+criterion is either mechanically evidenced (test run or CI check) or carries a recorded
+human sign-off (a task/PR comment authored by the human approving that criterion). A manual
+DoD criterion with neither stops the pipeline for a live human, regardless of config;
+PR-body checkboxes are display only and never count as sign-off. Unattended retro never writes
 rules; promotions accumulate as proposals for a human retro pass.
 
 Safeguards (all config-backed): `work_in_progress_limit` stops claims when the review queue
