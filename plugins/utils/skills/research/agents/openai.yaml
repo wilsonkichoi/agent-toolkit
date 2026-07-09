@@ -1,0 +1,5 @@
+interface:
+  display_name: "Research"
+  short_description: "Produce a comprehensive, well-organized research report"
+policy:
+  allow_implicit_invocation: false

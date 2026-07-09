@@ -1,0 +1,5 @@
+interface:
+  display_name: "Session Retrospective"
+  short_description: "Brutally honest retrospective on the user's working session"
+policy:
+  allow_implicit_invocation: false

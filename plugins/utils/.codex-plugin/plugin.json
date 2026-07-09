@@ -1,0 +1,6 @@
+{
+  "name": "utils",
+  "version": "0.0.4",
+  "description": "General-purpose utility skills for research, investigation, knowledge synthesis, session retrospectives, and security auditing. Includes structured research reports, LLM Wiki, work session retros, and on-demand security scanning.",
+  "skills": "./skills/"
+}
