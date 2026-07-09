@@ -77,13 +77,15 @@ verifiable), scope (which spec components/contracts), success criteria, explicit
 out-of-scope. Order by risk: the milestone that retires the biggest unknown ships first.
 2-5 milestones; a 10-milestone roadmap at this stage is fiction.
 
-## 5. Update CLAUDE.md and gate
+## 5. Update the context file and gate
 
-Add or refresh the project `CLAUDE.md` architecture pointer: 5-10 lines summarizing the
-architecture and linking to SPEC/ROADMAP/ADRs; keep CLAUDE.md lean. Then the human gate:
-present the architecture summary, the contested ADRs, and the milestone order. This gate
-deserves a line-by-line review; say so. Record approval date in SPEC.md, then commit the
-approved docs (SPEC, ROADMAP, ADRs, CLAUDE.md update) with the user's consent before ending.
+Add or refresh the architecture pointer in the project context file named by `context_file`
+in `.claude/dev.md` (default `CLAUDE.md` when the field is absent, which keeps existing
+projects unchanged; `AGENTS.md` on Codex and Kiro): 5-10 lines summarizing the architecture
+and linking to SPEC/ROADMAP/ADRs; keep the context file lean. Then the human gate: present
+the architecture summary, the contested ADRs, and the milestone order. This gate deserves a
+line-by-line review; say so. Record approval date in SPEC.md, then commit the approved docs
+(SPEC, ROADMAP, ADRs, context-file update) with the user's consent before ending.
 Next step: `dev:plan` for milestone 1.
 
 ## Delta mode (`delta <change summary>`)

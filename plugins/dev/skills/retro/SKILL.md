@@ -38,10 +38,11 @@ Per task, in this order of value:
 3. **CI history:** failure runs on the task branch (`gh run list --branch task/<id>-*`);
    recurring failure classes (env setup, flaky test, missing migration) matter more than
    one-offs.
-4. **Session transcripts** (best effort): search the harness's session store for the task id -
-   Claude Code: `~/.claude/projects/<project-slug>/`; Codex: `~/.codex/sessions/`; Kiro:
-   `~/.kiro/sessions/`. Use to reconstruct why something took N attempts. Skip silently if
-   absent or unreadable.
+4. **Session transcripts** (best effort): search every session store present on this machine
+   for the task id, not only the current harness's - a task may have been executed under a
+   different harness - Claude Code: `~/.claude/projects/<project-slug>/`; Codex:
+   `~/.codex/sessions/`; Kiro: `~/.kiro/sessions/`. Use to reconstruct why something took N
+   attempts. Skip silently for any store that is absent or unreadable.
 5. **Lifecycle-contract compliance:** check what each lifecycle step actually produced
    against its skill's contract - verification report present on the PR, human-gate DoD
    boxes checked, work-summary comment posted, `status:*` labels stripped at terminal

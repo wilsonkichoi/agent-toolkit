@@ -60,6 +60,9 @@ Claude Code), only what cannot be inferred:
    reports, drive-by PRs) worked in place, without a primary-tracker ticket? If yes, record
    `secondary_intake: github` + `github_repo: owner/repo`. See the "Secondary intake channel"
    section in `tracker.md`. Skip the question when the primary tracker already is `github`.
+6. **Multiple harnesses?** Will this project be worked from more than one agent harness
+   (some teammates on Claude Code, others on Codex or Kiro; or you alternating harnesses per
+   task)? Default no. This decides the memory target in step 3.
 
 ## 3. Scaffold
 
@@ -99,6 +102,13 @@ Set `rules_dir` and `context_file` to the values for the harness setup is runnin
 Code: `.claude/rules/` + `CLAUDE.md`; Codex: omit `rules_dir`, use `AGENTS.md`; Kiro:
 `.kiro/steering/` + `AGENTS.md`). `dev:retro` reads these when promoting learnings and, when
 they are absent, defaults to `.claude/rules/` and `CLAUDE.md`.
+
+**Mixed-harness projects (interview Q6 = yes):** override those per-harness defaults with
+`context_file: AGENTS.md` and omit `rules_dir`, whichever harness setup runs in. `AGENTS.md`
+is read natively by Claude Code, Codex, and Kiro, so promoted learnings (`dev:retro`) and the
+architecture pointer (`dev:architect`) reach every harness; a `.claude/rules/` or
+`.kiro/steering/` target would close the memory loop for one harness only. This is the
+recommended config for any project touched by more than one harness.
 
 Add Linear fields (`linear_team`, `linear_project`) when applicable. When the user opted into
 a secondary GitHub intake channel (interview Q5), add `secondary_intake: github`,
