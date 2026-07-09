@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Authoring conventions for this repository, written harness-neutral so they apply whether you
-work in Claude Code, Codex, or Kiro. Claude Code reads both this file and `CLAUDE.md`; keep
+work in Claude Code or Codex. Claude Code reads both this file and `CLAUDE.md`; keep
 the two consistent. Claude-Code-specific install and invocation details live in `CLAUDE.md`
 and the repo `README.md`.
 
@@ -25,14 +25,11 @@ Version fields live in, and must stay in lockstep:
 ```
 .claude-plugin/         # Claude marketplace manifest
 .agents/                # Codex-native marketplace manifest (plugins/marketplace.json)
-AGENTS.md               # this file (read by Claude Code, Codex, Kiro)
+AGENTS.md               # this file (read by Claude Code and Codex)
 CLAUDE.md               # Claude-Code-specific conventions + install
 bootstrap/              # Standalone setup script + config (Claude-only; not a plugin)
-tools/
-  export_kiro.py        # mechanical Kiro export (stdlib only; run: uv run tools/export_kiro.py)
 dist/                   # generated / copy-me artifacts, not plugin-installable
   codex/agents/         #   Codex agent TOMLs (copy to ~/.codex/agents/ or project .codex/agents/)
-  kiro/                 #   generated Kiro skill + agent tree (committed)
 plugins/<name>/         # Each plugin
   .claude-plugin/       #   Claude plugin manifest (plugin.json)
   .codex-plugin/        #   Codex plugin manifest (plugin.json)
@@ -45,11 +42,8 @@ plugins/<name>/         # Each plugin
 Each skill is a directory under `plugins/<plugin>/skills/<skill-name>/` containing at minimum
 a `SKILL.md` with YAML frontmatter (`name`, `description`) and markdown body.
 
-Skill directory names can be CJK (e.g. `回顧/`); Claude Code and Codex load them as-is. The
-Kiro export renames non-conforming and generically-named skills (dev skills gain a `dev-`
-prefix; `回顧` becomes `retro-zh`) because Kiro's flat namespace and name-conformance rules
-require it. Never rename a skill in `plugins/`; renames happen only in the generated
-`dist/kiro/` tree.
+Skill directory names can be CJK (e.g. `回顧/`); Claude Code and Codex load them as-is.
+Never rename a skill in `plugins/`.
 
 Skill prose must stay harness-neutral: refer to skills as `dev:verify` (not `/dev:verify`),
 render harness-specific invocations only when addressing the user, and gate any
@@ -64,10 +58,9 @@ Before any commit that adds, removes, or modifies files under `skills/`:
 2. Same version mirrored in `plugins/<plugin>/.codex-plugin/plugin.json`
 3. Version bumped in `.claude-plugin/marketplace.json` (matching entry)
 4. `plugins/<plugin>/README.md` updated
-5. Kiro export regenerated: `uv run tools/export_kiro.py` (commit the `dist/kiro/` diff)
-6. Agent sources changed? Regenerate `dist/codex/agents/*.toml` and `dist/kiro/agents/*.md`
-7. `.claude-plugin/marketplace.json` description/keywords updated if needed
-8. `README.md` (repo root) and `AGENTS.md` updated if plugin behavior/description changed
+5. Agent sources changed? Regenerate `dist/codex/agents/*.toml`
+6. `.claude-plugin/marketplace.json` description/keywords updated if needed
+7. `README.md` (repo root) and `AGENTS.md` updated if plugin behavior/description changed
 
 Do not commit skill changes without completing this checklist. Read the checklist, don't rely
 on memory.

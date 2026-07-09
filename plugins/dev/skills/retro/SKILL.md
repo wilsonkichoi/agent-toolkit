@@ -41,7 +41,7 @@ Per task, in this order of value:
 4. **Session transcripts** (best effort): search every session store present on this machine
    for the task id, not only the current harness's - a task may have been executed under a
    different harness - Claude Code: `~/.claude/projects/<project-slug>/`; Codex:
-   `~/.codex/sessions/`; Kiro: `~/.kiro/sessions/`. Use to reconstruct why something took N
+   `~/.codex/sessions/`. Use to reconstruct why something took N
    attempts. Skip silently for any store that is absent or unreadable.
 5. **Lifecycle-contract compliance:** check what each lifecycle step actually produced
    against its skill's contract - verification report present on the PR, human-gate DoD

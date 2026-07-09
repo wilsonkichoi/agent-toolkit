@@ -1,7 +1,7 @@
 # agent-toolkit
 
 Personal agent plugin marketplace with research workflows and development utilities. Primary
-target is Claude Code; the `utils` and `dev` plugins also install on **Codex** and **Kiro**
+target is Claude Code; the `utils` and `dev` plugins also install on **Codex**
 (see the per-harness install sections and the [harness support matrix](#harness-support) below).
 
 ## Quick Setup (Claude Code)
@@ -66,43 +66,25 @@ context file to `AGENTS.md` (`dev:setup` does this on Codex). Known degradations
 - **`research` / `retro` do not fire implicitly** (guarded by `agents/openai.yaml`); invoke
   them explicitly.
 
-## Install on Kiro
-
-Kiro uses the generated, renamed export under `dist/kiro/` (Kiro's flat namespace requires
-`dev-<name>` prefixes and a spec-conformant `retro-zh` name).
-
-```bash
-# Skills (primary): bulk-add the exported skill tree
-npx skills add wilsonkichoi/agent-toolkit/dist/kiro/skills
-
-# Fallback: import an individual skill by GitHub URL, e.g. dist/kiro/skills/dev-execute,
-# or clone the repo and import dist/kiro/skills/<skill> as a local folder.
-
-# Agents: copy the exported markdown agents
-cp dist/kiro/agents/*.md .kiro/agents/               # project scope; or ~/.kiro/agents/ global
-```
-
-Skills land in `.kiro/skills/` (project) or `~/.kiro/skills/` (global) and appear in the `/`
-picker as `/dev-execute`, `/research`, etc. Context lives in `AGENTS.md` (read natively);
-`dev:setup` on Kiro sets `rules_dir: .kiro/steering/` so retro promotions land as steering
-rules. Known degradations on Kiro: `dev:auto` and execute loop/batch mode are unavailable (no
-loop/background-subagent primitive in Kiro IDE); the skills refuse gracefully.
-
 ## Harness support
 
-| Feature | Claude Code | Codex | Kiro |
-|---|---|---|---|
-| utils + dev skills (explicit invoke) | `/utils:research`, `/dev:execute` | `$research`, `$execute` | `/research`, `/dev-execute` |
-| `research` / `retro` implicit-fire guard | description guard | `openai.yaml` policy (verified) | description guard (weaker) |
-| dev interactive lifecycle (setup→plan→execute→review→verify→retro) | ✅ | ✅ | ✅ |
-| tracker doc reachable from dev skills | `$CLAUDE_PLUGIN_ROOT` env | relative path | bundled `references/tracker.md` |
-| retro / architect promotion target | `.claude/rules/` + `CLAUDE.md` | `AGENTS.md` | `.kiro/steering/` + `AGENTS.md` |
-| bundled agents (reviewer/test-writer/verifier) | native (auto-delegated) | copy TOML (advisory) | copy markdown (advisory) |
-| automatic subagent delegation | ✅ | ❌ advisory | ❌ advisory |
-| `dev:auto` / execute loop-batch mode | ✅ | ❌ (deferred) | ❌ |
-| `回顧` CJK skill name | ✅ as-is | ✅ as-is | renamed `retro-zh` |
+| Feature | Claude Code | Codex |
+|---|---|---|
+| utils + dev skills (explicit invoke) | `/utils:research`, `/dev:execute` | `$research`, `$execute` |
+| `research` / `retro` implicit-fire guard | description guard | `openai.yaml` policy (verified) |
+| dev interactive lifecycle (setup→plan→execute→review→verify→retro) | ✅ | ✅ |
+| tracker doc reachable from dev skills | `$CLAUDE_PLUGIN_ROOT` env | relative path |
+| retro / architect promotion target | `.claude/rules/` + `CLAUDE.md` | `AGENTS.md` |
+| bundled agents (reviewer/test-writer/verifier) | native (auto-delegated) | copy TOML (advisory) |
+| automatic subagent delegation | ✅ | ❌ advisory |
+| `dev:auto` / execute loop-batch mode | ✅ | ❌ (deferred) |
+| `回顧` CJK skill name | ✅ as-is | ✅ as-is |
 
-`bootstrap/` is Claude Code only. Codex and Kiro use the manual steps above.
+`bootstrap/` is Claude Code only. Codex uses the manual steps above.
+
+Kiro support was explored and dropped (2026-07-09): Kiro cannot invoke custom agents, has no
+headless verification channel, and the committed export tree was a per-commit maintenance tax.
+The mechanical exporter and generated tree live in git history (`de7d72c`) if Kiro matures.
 
 ## Plugins
 
@@ -116,11 +98,9 @@ loop/background-subagent primitive in Kiro IDE); the skills refuse gracefully.
 ```
 .claude-plugin/     # Claude marketplace manifest
 .agents/            # Codex-native marketplace manifest
-AGENTS.md           # harness-neutral authoring conventions (Codex/Kiro; Claude reads CLAUDE.md)
+AGENTS.md           # harness-neutral authoring conventions (Codex; Claude reads CLAUDE.md)
 bootstrap/          # Standalone setup script + config (Claude Code only; not a plugin)
-tools/export_kiro.py  # regenerates dist/kiro/ from plugins/ (uv run tools/export_kiro.py)
 dist/codex/agents/  # Codex agent TOMLs (copy-me)
-dist/kiro/          # generated Kiro skill + agent tree (committed; copy-me / npx skills add)
 plugins/utils/      # Utility skills (research, etc.)
 plugins/dev/        # Dev plugin
 ```

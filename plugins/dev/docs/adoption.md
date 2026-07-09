@@ -5,7 +5,7 @@ adoption, existing codebases, existing backlogs, trackers this plugin does not s
 backend for, and memory systems beyond plain files.
 
 Skill references are written `dev:<skill>` (e.g. `dev:setup`); invoke them with your harness's
-mechanism — `/dev:setup` on Claude Code, `$setup` / `dev:setup` on Codex, `/dev-setup` on Kiro.
+mechanism — `/dev:setup` on Claude Code, `$setup` / `dev:setup` on Codex.
 
 The one architectural fact that makes all of this possible: **the tracker is the only shared
 state between skills.** Docs (`docs/PRD.md`, `docs/SPEC.md`) carry intent, the tracker

@@ -28,11 +28,11 @@ Setup knows which harness it is running in; use the matching column below (refer
 steps 2 and 7). Step 6 (claude-review.yml) is unchanged across harnesses — the GitHub Action
 runs server-side and only needs `ANTHROPIC_API_KEY`, regardless of the local harness.
 
-| Concern | Claude Code | Codex | Kiro |
-|---|---|---|---|
-| Linear MCP config | `claude mcp add` / plugin MCP | `[mcp_servers]` in `~/.codex/config.toml` | `.kiro/settings/mcp.json` |
-| Pre-approve commands for unattended runs | `.claude/settings.json` permissions | approvals config + `.rules` command policy | agent `permissions.rules` |
-| Context file seeded in step 4 | `CLAUDE.md` | `AGENTS.md` | `AGENTS.md` |
+| Concern | Claude Code | Codex |
+|---|---|---|
+| Linear MCP config | `claude mcp add` / plugin MCP | `[mcp_servers]` in `~/.codex/config.toml` |
+| Pre-approve commands for unattended runs | `.claude/settings.json` permissions | approvals config + `.rules` command policy |
+| Context file seeded in step 4 | `CLAUDE.md` | `AGENTS.md` |
 
 ## 1. Detect mode
 
@@ -61,7 +61,7 @@ Claude Code), only what cannot be inferred:
    `secondary_intake: github` + `github_repo: owner/repo`. See the "Secondary intake channel"
    section in `tracker.md`. Skip the question when the primary tracker already is `github`.
 6. **Multiple harnesses?** Will this project be worked from more than one agent harness
-   (some teammates on Claude Code, others on Codex or Kiro; or you alternating harnesses per
+   (some teammates on Claude Code, others on Codex; or you alternating harnesses per
    task)? Default no. This decides the memory target in step 3.
 
 ## 3. Scaffold
@@ -72,7 +72,7 @@ Create only what is missing:
 docs/            # PRD.md, SPEC.md, ROADMAP.md arrive via dev:discover / dev:architect
 docs/adr/
 research/raw/
-.claude/rules/   # the configured rules_dir (this Claude Code default; .kiro/steering/ on Kiro; omitted on Codex)
+.claude/rules/   # the configured rules_dir (this Claude Code default; omitted on Codex)
 .dev/tasks/      # only when tracker: local
 ```
 
@@ -92,25 +92,25 @@ work_in_progress_limit: 3      # max tasks simultaneously In Progress + In Revie
 max_fix_attempts: 3            # CI-fix or review-fix cycles before a task goes Blocked
 max_tasks_per_run: 5           # batch cap for dev:auto and execute loop/batch mode
 auto_merge: false              # standing merge approval for dev:auto (see that skill)
-rules_dir: .claude/rules/      # dir for promoted rule files; omit on Codex (no auto-loaded rules dir); .kiro/steering/ on Kiro
-context_file: CLAUDE.md        # project context file; AGENTS.md on Codex and Kiro
+rules_dir: .claude/rules/      # dir for promoted rule files; omit on Codex (no auto-loaded rules dir)
+context_file: CLAUDE.md        # project context file; AGENTS.md on Codex
 ---
 Project conventions the fields cannot capture go here as free text.
 ```
 
 Set `rules_dir` and `context_file` to the values for the harness setup is running in (Claude
-Code: `.claude/rules/` + `CLAUDE.md`; Codex: omit `rules_dir`, use `AGENTS.md`; Kiro:
-`.kiro/steering/` + `AGENTS.md`). `dev:retro` reads these when promoting learnings and, when
+Code: `.claude/rules/` + `CLAUDE.md`; Codex: omit `rules_dir`, use `AGENTS.md`).
+`dev:retro` reads these when promoting learnings and, when
 they are absent, defaults to `.claude/rules/` and `CLAUDE.md`.
 
 **Mixed-harness projects (interview Q6 = yes):** set `context_file: AGENTS.md` and omit
 `rules_dir`, whichever harness setup runs in, so a single shared file carries promoted
-learnings (`dev:retro`) and the architecture pointer (`dev:architect`). Codex and Kiro read
+learnings (`dev:retro`) and the architecture pointer (`dev:architect`). Codex reads
 `AGENTS.md` natively. Claude Code does NOT auto-load `AGENTS.md` (it loads `CLAUDE.md`), so on
 a mixed-harness project also seed a one-line `CLAUDE.md` whose entire body is the import
 `@AGENTS.md` - Claude Code then pulls the shared file into context through its native import.
-With that in place the memory loop closes for all three harnesses through one file; a
-`.claude/rules/` or `.kiro/steering/` target would close it for one harness only. This is the
+With that in place the memory loop closes for both harnesses through one file; a
+`.claude/rules/` target would close it for one harness only. This is the
 recommended config for any project touched by more than one harness.
 
 Add Linear fields (`linear_team`, `linear_project`) when applicable. When the user opted into
@@ -127,7 +127,7 @@ Backend one-time setup:
 ## 4. Seed the context file
 
 Seed the `context_file` chosen in step 3 (`CLAUDE.md` on Claude Code, `AGENTS.md` on
-Codex/Kiro). Greenfield: create a lean context file (< 50 lines) stating the project name,
+Codex). Greenfield: create a lean context file (< 50 lines) stating the project name,
 pointing to `docs/PRD.md`, `docs/SPEC.md`, `docs/ROADMAP.md`, `docs/adr/`, and the configured
 `rules_dir` (`.claude/rules/` on Claude Code), and naming the tracker backend. Brownfield:
 append the pointers section to the existing context file instead; touch nothing else in it.
@@ -173,7 +173,7 @@ performed. Remind:
 
 - Unattended runs (`dev:execute` loop/batch mode, `dev:auto`) stall on permission prompts -
   pre-approve the needed commands (git, gh, test command) first: on Claude Code in
-  `.claude/settings.json`; see Harness specifics for the Codex and Kiro equivalents. (Loop/batch
-  and `dev:auto` are Claude-Code-only today; on Kiro run one task per session.)
+  `.claude/settings.json`; see Harness specifics for the Codex equivalent. (Loop/batch
+  and `dev:auto` are Claude-Code-only today.)
 - Next steps: `dev:discover` (new product), `dev:architect` (have a PRD), or `dev:plan`
   (have a spec and roadmap).

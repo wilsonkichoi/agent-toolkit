@@ -39,12 +39,11 @@ Before any commit that adds, removes, or modifies files under `skills/` or `agen
 2. Same version mirrored in `plugins/<plugin>/.codex-plugin/plugin.json`
 3. Version bumped in `.claude-plugin/marketplace.json` (matching entry)
 4. `plugins/<plugin>/README.md` updated
-5. Kiro export regenerated: `uv run tools/export_kiro.py` (commit the `dist/kiro/` diff)
-6. Agent sources changed? Regenerate `dist/codex/agents/*.toml` and `dist/kiro/agents/*.md`
-7. `.claude-plugin/marketplace.json` description/keywords updated if needed
-8. `README.md` (repo root) and `AGENTS.md` updated if plugin behavior/description changed
+5. Agent sources changed? Regenerate `dist/codex/agents/*.toml`
+6. `.claude-plugin/marketplace.json` description/keywords updated if needed
+7. `README.md` (repo root) and `AGENTS.md` updated if plugin behavior/description changed
 
 Do not commit skill changes without completing this checklist. Read the checklist, don't rely on memory.
 
-Codex/Kiro authoring conventions live in `AGENTS.md` (harness-neutral). Keep the two files
+Codex authoring conventions live in `AGENTS.md` (harness-neutral). Keep the two files
 consistent.

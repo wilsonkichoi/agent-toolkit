@@ -31,11 +31,10 @@ Skill names below are written Claude-Code style (`/dev:execute`). Render your ha
 |---|---|---|
 | Claude Code | `/dev:execute` | full feature set (agents auto-delegate, `dev:auto` + loop mode) |
 | Codex | `$execute` | agents copied from `dist/codex/agents/`, advisory independence; no `auto`/loop |
-| Kiro | `/dev-execute` | export renames dev skills `dev-<name>`; agents from `dist/kiro/agents/`; no `auto`/loop |
 
-Install per harness: see the repo-root [README](../../README.md). Codex/Kiro do not carry the
+Install per harness: see the repo-root [README](../../README.md). Codex does not carry the
 `.claude/`-specific machinery automatically; `dev:setup` chooses the right context file and
-promotion target per harness (`AGENTS.md` on Codex/Kiro).
+promotion target per harness (`AGENTS.md` on Codex).
 
 ## Skills
 

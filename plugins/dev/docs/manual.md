@@ -7,8 +7,8 @@ human gates, unattended operation, and platform constraints. Related references:
 [adoption.md](adoption.md) (brownfield adoption, custom trackers, third-party memory).
 
 Skill references are written `dev:<skill>` (e.g. `dev:execute`); invoke them with your harness's
-mechanism — `/dev:execute` on Claude Code, `$execute` / `dev:execute` on Codex, `/dev-execute`
-on Kiro. `/loop` is a Claude Code command, shown literally where it appears.
+mechanism — `/dev:execute` on Claude Code, `$execute` / `dev:execute` on Codex.
+`/loop` is a Claude Code command, shown literally where it appears.
 
 ## Mental model
 
@@ -114,7 +114,7 @@ which branches from `main`).
 
 Both unattended modes below are Claude-Code-specific today: they need a loop/repeat-invocation
 mechanism and background subagents. On Codex, per-task parity is deferred (an outer `codex exec`
-loop, pending a design pass); on Kiro IDE neither exists, so run one task per session there.
+loop, pending a design pass); run one task per session there.
 
 Two modes with different destinations:
 

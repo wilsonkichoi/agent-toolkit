@@ -3,10 +3,9 @@
 General-purpose utility skills for research, investigation, knowledge synthesis, session retrospectives, and security auditing.
 
 **Invocation across harnesses:** the `/research` / `/utils:research` forms below are Claude
-Code. On Codex invoke explicitly as `$research`; on Kiro as `/research`. `research` and `retro`
-never fire implicitly (guarded per harness). The `回顧` skill keeps its CJK name on Claude Code
-and Codex; the Kiro export renames it `retro-zh`. Install per harness: repo-root
-[README](../../README.md).
+Code. On Codex invoke explicitly as `$research`. `research` and `retro` never fire implicitly
+(guarded per harness). The `回顧` skill keeps its CJK name on Claude Code and Codex. Install
+per harness: repo-root [README](../../README.md).
 
 ## Skills
 
