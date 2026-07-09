@@ -209,6 +209,16 @@ the `test_command` run stands in for CI; `dev:review-pr` reviews
 `git diff main...task/<id>-<slug>` and posts the review as a task comment; `dev:verify`
 merges locally per policy and deletes the branch.
 
+**Packet visibility with `tracker: local`.** Task packets are repo files under `.dev/tasks/`,
+so a packet's state travels with the branch that edits it. `dev:execute` flips a task's
+`status` (to `in-review`) and appends the work-summary on the **task branch**, not on `main`.
+Until the task merges, those updates are invisible from `main`: `dev:status` run on `main`
+will show the task at its pre-execute status (e.g. `in-progress`), while the same packet in the
+task's worktree shows `in-review` with the work-summary. To see current in-flight state,
+run `dev:status` from the task worktree, or read the packet on the branch. State becomes
+visible on `main` when `dev:verify` merges. This is inherent to storing packets in-repo;
+the Linear and GitHub backends do not have it, since their packets live outside the repo.
+
 ## Known platform constraints
 
 - **No self-approval on GitHub.** GitHub rejects `APPROVE`/`REQUEST_CHANGES` review types on
