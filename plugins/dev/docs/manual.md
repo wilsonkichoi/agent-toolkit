@@ -32,10 +32,12 @@ Four rules explain every skill's behavior:
   `dev:execute` branches from `main`, so an empty repo gains its root commit at `dev:setup`.
 - **`github` backend:** `gh auth status` must succeed and the repo needs a GitHub remote.
   `dev:setup` creates the `status:*` / `priority:*` / `size:*` labels once.
-- **`linear` backend:** the official Linear MCP server:
+- **`linear` backend:** the official Linear MCP server — Claude Code:
   `claude mcp add --scope local --transport http linear https://mcp.linear.app/mcp` (browser OAuth on first
-  call). The team needs an `In Review` workflow state; `dev:setup` asks a human to add it if
-  missing.
+  call); Codex: `codex mcp add linear --url https://mcp.linear.app/mcp`, then
+  `codex mcp login linear` (writes `[mcp_servers.linear]` to `~/.codex/config.toml`,
+  machine-global). The team needs an `In Review` workflow state; `dev:setup` asks a human to
+  add it if missing.
 - **`local` backend:** nothing beyond git. Tasks live in `.dev/tasks/`, one file per task.
 - **Optional auto-review GitHub Action:** repo secret `ANTHROPIC_API_KEY`
   (`gh secret set ANTHROPIC_API_KEY`); each auto-review spends API tokens. The manual
