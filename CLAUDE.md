@@ -9,11 +9,10 @@ All version fields use semver (`major.minor.patch`). Always use the minimum incr
 
 While in pre-release (`0.0.x`), use patch for everything including new features. Save minor/major bumps for after the plugin has real consumers.
 
-Version fields live in:
+Version fields live in, and must stay in sync when bumping:
 - `.claude-plugin/marketplace.json` (marketplace version + per-plugin version entries)
 - `plugins/<name>/.claude-plugin/plugin.json`
-
-Keep all version references in sync when bumping.
+- `plugins/<name>/.codex-plugin/plugin.json` (Codex manifest; mirrors the Claude version)
 
 ## Structure
 
@@ -34,12 +33,18 @@ Skill directory names can be CJK (e.g. `回顧/`). Use descriptive names.
 
 ## Pre-commit checklist
 
-Before any commit that adds, removes, or modifies files under `skills/`:
+Before any commit that adds, removes, or modifies files under `skills/` or `agents/`:
 
 1. Version bumped in `plugins/<plugin>/.claude-plugin/plugin.json`
-2. Version bumped in `.claude-plugin/marketplace.json` (matching entry)
-3. `plugins/<plugin>/README.md` updated
-4. `.claude-plugin/marketplace.json` description/keywords updated if needed
-5. `README.md` (repo root) updated if plugin description changed
+2. Same version mirrored in `plugins/<plugin>/.codex-plugin/plugin.json`
+3. Version bumped in `.claude-plugin/marketplace.json` (matching entry)
+4. `plugins/<plugin>/README.md` updated
+5. Kiro export regenerated: `uv run tools/export_kiro.py` (commit the `dist/kiro/` diff)
+6. Agent sources changed? Regenerate `dist/codex/agents/*.toml` and `dist/kiro/agents/*.md`
+7. `.claude-plugin/marketplace.json` description/keywords updated if needed
+8. `README.md` (repo root) and `AGENTS.md` updated if plugin behavior/description changed
 
 Do not commit skill changes without completing this checklist. Read the checklist, don't rely on memory.
+
+Codex/Kiro authoring conventions live in `AGENTS.md` (harness-neutral). Keep the two files
+consistent.

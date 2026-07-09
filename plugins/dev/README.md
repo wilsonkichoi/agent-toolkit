@@ -23,6 +23,20 @@ rough edges there.
 Adopting into an existing project (partial adoption, Jira/custom trackers, Mem0/OB1/MemSearch
 memory): see [docs/adoption.md](docs/adoption.md).
 
+## Invocation across harnesses
+
+Skill names below are written Claude-Code style (`/dev:execute`). Render your harness's form:
+
+| Harness | Invoke | Notes |
+|---|---|---|
+| Claude Code | `/dev:execute` | full feature set (agents auto-delegate, `dev:auto` + loop mode) |
+| Codex | `$execute` | agents copied from `dist/codex/agents/`, advisory independence; no `auto`/loop |
+| Kiro | `/dev-execute` | export renames dev skills `dev-<name>`; agents from `dist/kiro/agents/`; no `auto`/loop |
+
+Install per harness: see the repo-root [README](../../README.md). Codex/Kiro do not carry the
+`.claude/`-specific machinery automatically; `dev:setup` chooses the right context file and
+promotion target per harness (`AGENTS.md` on Codex/Kiro).
+
 ## Skills
 
 | Skill | Job |
