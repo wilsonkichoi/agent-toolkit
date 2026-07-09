@@ -13,15 +13,19 @@ argument-hint: "[milestone N]"
 One screen answering "where are we and what should happen next". Strictly read-only: no
 transitions, no comments, no fixes - flag problems, point at the skill that fixes them.
 
-Read first: `.claude/dev.md` and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`. Scope: the given
-milestone, else the active one.
+Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
+run one, render your harness's invocation for it (Claude Code: `/dev:verify`).
+
+Read first: `.claude/dev.md` and the plugin's `docs/tracker.md` — on Claude Code
+`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
+skill's directory. Scope: the given milestone, else the active one.
 
 ## Gather
 
 1. **Tracker:** `list <milestone>` - counts by status, plus per-task id/title/status.
 2. **PRs:** open PRs on `task/*` branches (`gh pr list`), each with CI state
    (`gh pr checks`) and review verdict. Skip when no GitHub remote. When
-   `secondary_intake: github` is set (`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`), a `task/*` PR that links a `#N` issue but
+   `secondary_intake: github` is set (`docs/tracker.md`), a `task/*` PR that links a `#N` issue but
    matches no primary task is legitimate in-place work - list it separately as github-native,
    not as a violation.
 3. **Next up:** apply the next-task algorithm; show the top 3 claimable tasks with priority
@@ -38,8 +42,8 @@ Progress: <done>/<total> done | <in-review> in review | <in-progress> in progres
 WIP: <n>/<work_in_progress_limit>  <"(gate closed - review/verify to unblock)" when full>
 
 ## Needs human action
-- <task> In Review, PR #<n> CI green, review approved  -> /dev:verify <id>
-- <task> In Review, PR #<n> review requested changes   -> /dev:review-pr <n> fix
+- <task> In Review, PR #<n> CI green, review approved  -> dev:verify <id>
+- <task> In Review, PR #<n> review requested changes   -> dev:review-pr <n> fix
 - <task> Blocked: <one-line diagnostic>                -> human
 ## In flight
 - <task> In Progress (PR #<n>: CI running | no PR yet)
@@ -54,7 +58,7 @@ review fixes, then blocked tasks.
 
 Flag, do not fix:
 
-- Task `In Review` but its PR is merged or closed → `/dev:verify` was skipped or died
+- Task `In Review` but its PR is merged or closed → `dev:verify` was skipped or died
   mid-run; the task state is lying.
 - GitHub backend: closed issue still carrying a `status:*` label → stale terminal
   transition (auto-close does not touch labels); suggest
@@ -71,4 +75,4 @@ Flag, do not fix:
   `worktree-agent-*` from harness isolation) → orphan; suggest `git branch -d` if it has no
   unique commits.
 - Dependency cycles or a `Todo` task depending on a `Wont Do` task → planning error; route
-  to `/dev:backlog`.
+  to `dev:backlog`.

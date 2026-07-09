@@ -15,12 +15,17 @@ Close the memory loop. A retro that only produces a summary is ADW's dead RETRO-
 this skill's deliverable is the **promotion**: concrete additions to the project's standing
 instructions, applied on approval, that change how the next session behaves.
 
-Read first: `.claude/dev.md` and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`. Scope: one task
-(`task <id>`) or all `Done`/`Wont Do`/`Blocked` tasks in a milestone (`milestone <n>`).
+Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
+run one, render your harness's invocation for it (Claude Code: `/dev:verify`).
+
+Read first: `.claude/dev.md` and the plugin's `docs/tracker.md` — on Claude Code
+`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
+skill's directory. Scope: one task (`task <id>`) or all `Done`/`Wont Do`/`Blocked` tasks in a
+milestone (`milestone <n>`).
 
 If the target task is not yet terminal (e.g. `In Review` awaiting merge), do not close it
 out yourself - merging and `Done` belong to `dev:verify`, even if the user approves the
-merge in this session. Direct them to run `/dev:verify`, then retro after it finishes.
+merge in this session. Direct them to run `dev:verify`, then retro after it finishes.
 
 ## 1. Gather evidence
 
@@ -33,8 +38,10 @@ Per task, in this order of value:
 3. **CI history:** failure runs on the task branch (`gh run list --branch task/<id>-*`);
    recurring failure classes (env setup, flaky test, missing migration) matter more than
    one-offs.
-4. **Session transcripts** (best effort): search `~/.claude/projects/<project-slug>/` for the
-   task id; use to reconstruct why something took N attempts. Skip silently if absent.
+4. **Session transcripts** (best effort): search the harness's session store for the task id -
+   Claude Code: `~/.claude/projects/<project-slug>/`; Codex: `~/.codex/sessions/`; Kiro:
+   `~/.kiro/sessions/`. Use to reconstruct why something took N attempts. Skip silently if
+   absent or unreadable.
 5. **Lifecycle-contract compliance:** check what each lifecycle step actually produced
    against its skill's contract - verification report present on the PR, human-gate DoD
    boxes checked, work-summary comment posted, `status:*` labels stripped at terminal
@@ -56,7 +63,7 @@ Classify each learning:
 - **One-off** - bad luck, no generalization: record in the retro comment, promote nothing.
 - **Follow-up work** - a defect or gap in already-merged work, or new work the evidence
   exposes (e.g. a parity check reveals an earlier task diverged from spec): not a rule, a
-  task. Route it through `/dev:backlog` intake so it lands in the tracker with a packet.
+  task. Route it through `dev:backlog` intake so it lands in the tracker with a packet.
   A memory note or a mention in the retro comment is not a destination for work - an
   untracked follow-up is exactly the state-outside-the-tracker failure this plugin exists
   to prevent.
@@ -72,13 +79,18 @@ Classify each learning:
 
 Promotion targets, by `memory_target` in `.claude/dev.md` (default `files`):
 
-- **`files`:** one atomic rule per file in `.claude/rules/<slug>.md` (a rule future sessions
-  must obey), or a line in the relevant CLAUDE.md section for pointers/summaries. Check
-  existing rules first - update or strengthen rather than duplicate; delete rules the
-  evidence now contradicts.
+- **`files`:** promote to the rules directory and context file named by `rules_dir` and
+  `context_file` in `.claude/dev.md`; when those fields are absent, default to `.claude/rules/`
+  and `CLAUDE.md` (this default keeps every existing project working unchanged). Write one
+  atomic rule per file in `<rules_dir>/<slug>.md` (a rule future sessions must obey), or a
+  line in the relevant `context_file` section for pointers/summaries. When `rules_dir` is
+  unset (e.g. Codex, which has no auto-loaded rules directory), promote into a clearly-marked
+  rules section of `context_file` instead of separate rule files. Check existing rules first -
+  update or strengthen rather than duplicate; delete rules the evidence now contradicts.
 - **MCP memory** (`mem0`, `openbrain`, `memsearch`, …): store each learning via that system's
-  MCP tool; recall is that system's job. Still write rules that gate correctness to
-  `.claude/rules/` - files are the only target every future session is guaranteed to load.
+  MCP tool; recall is that system's job. Still write rules that gate correctness to the file
+  target (`rules_dir`/`context_file`, default `.claude/rules/`) - files are the only target
+  every future session is guaranteed to load.
 
 Standards for a promotable learning: evidence-cited (link the PR finding / CI run / comment),
 generalizable beyond the one task, and actionable as an instruction ("run X before Y"), never

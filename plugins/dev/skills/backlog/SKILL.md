@@ -15,8 +15,13 @@ Change management between planning cycles. The product recalibrates here instead
 re-running the whole pipeline. Docs stay the source of truth for intent, the tracker for
 state; this skill's job is keeping the two consistent while requests arrive.
 
-Read first: `.claude/dev.md`, `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, and skim `docs/PRD.md`
-and `docs/SPEC.md` headings; triage is impossible without knowing current intent.
+Skill references like `dev:architect` mean this plugin's `architect` skill; when telling the
+user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`).
+
+Read first: `.claude/dev.md`, the plugin's `docs/tracker.md` (on Claude Code
+`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
+skill's directory), and skim `docs/PRD.md` and `docs/SPEC.md` headings; triage is impossible
+without knowing current intent.
 
 ## Intake (`add <request>`, or a batch of requests)
 
@@ -25,10 +30,10 @@ For each request:
 1. **Triage impact** against the docs:
    - **Goal-impacting** - it changes what the product is for, who it serves, or a non-goal in
      `docs/PRD.md`. Stop: summarize the needed PRD delta and direct the user to
-     `/dev:discover`; re-run intake after the PRD is updated. Do not create the task first.
+     `dev:discover`; re-run intake after the PRD is updated. Do not create the task first.
    - **Spec-impacting** - it needs new architecture, contracts, or contradicts `docs/SPEC.md`
      (including PRD non-goals' technical enforcement). Stop: summarize the needed SPEC/ROADMAP
-     delta and the ADR it warrants, direct to `/dev:architect`, re-run intake after.
+     delta and the ADR it warrants, direct to `dev:architect`, re-run intake after.
    - **Backlog-only** - fits current PRD and SPEC. Proceed.
 
    At a goal- or spec-impacting verdict, always offer declining the request as the
@@ -44,7 +49,7 @@ For each request:
    conflicting PRs. Ask the user only for what the docs cannot answer. Genuine unknown
    blocking the packet → create a spike instead.
 3. **Create at `Backlog`** via `create-task`, wiring dependencies as native relations per
-   the backend section of `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` (both directions from
+   the backend section of `docs/tracker.md` (both directions from
    step 2, including new relations on *existing* tickets that this task blocks) - not as
    packet text alone. Create at `Todo` only when the user explicitly commits it to the
    current milestone in this conversation; say which status was used.
@@ -56,7 +61,7 @@ consent; approved-but-uncommitted artifacts strand downstream skills.
 ## GitHub issue intake (`#N`, secondary channel)
 
 Only when `secondary_intake: github` is set with a non-github primary tracker
-(`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` "Secondary intake channel"). `gh issue view <n>` for the request, then run the same triage
+(`docs/tracker.md` "Secondary intake channel"). `gh issue view <n>` for the request, then run the same triage
 above and route to exactly one of three fates:
 
 - **Promote** - real planned work (needs design, touches the spec, belongs to a milestone, or
@@ -65,7 +70,7 @@ above and route to exactly one of three fates:
   with a comment naming the new ticket. From here it is a normal primary-tracker task. If a PR
   already exists for the item, link the new ticket to that PR rather than opening a second one.
 - **Work in place** - isolated and self-contained. Do not create a primary ticket; recommend
-  `/dev:execute #<n>`. GitHub owns it end to end.
+  `dev:execute #<n>`. GitHub owns it end to end.
 - **Decline** - `Wont Do`: close the issue with the triage rationale (`gh issue close`).
 
 Promotion is the *only* path that pulls a GitHub issue into `discover`/`architect`/`plan`; an
@@ -86,10 +91,10 @@ in-place item never runs them.
 
 Require a rationale (ask if not given). Comment the rationale on the task, then transition to
 `Wont Do` (backend mapping: Linear `Canceled`, GitHub closed as "not planned" plus removing
-the remaining `status:*` label - closed issues carry none, see `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`). The reason
+the remaining `status:*` label - closed issues carry none, see `docs/tracker.md`). The reason
 must survive; a bare closure is not acceptable. If the task encodes a spec requirement being
 abandoned, flag that `docs/SPEC.md` needs a matching edit and offer the delta summary for
-`/dev:architect`.
+`dev:architect`.
 
 ## Split (`split <id>`)
 

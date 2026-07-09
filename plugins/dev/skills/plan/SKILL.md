@@ -13,12 +13,17 @@ argument-hint: "[milestone N]"
 Decompose one milestone into task packets in the tracker. One milestone per run; do not plan
 ahead of the next milestone - later milestones get better packets after earlier ones ship.
 
+Skill references like `dev:architect` mean this plugin's `architect` skill; when telling the
+user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`).
+
 Read first:
 
 1. `.claude/dev.md` - tracker backend and config.
-2. `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` - verbs and backend mapping.
+2. the plugin's `docs/tracker.md` - verbs and backend mapping (on Claude Code
+   `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to
+   this skill's directory).
 3. `docs/SPEC.md`, `docs/ROADMAP.md`, and `docs/PRD.md` - intent. If SPEC.md or ROADMAP.md is
-   missing, stop and direct the user to `/dev:architect`.
+   missing, stop and direct the user to `dev:architect`.
 4. `list <milestone>` on the tracker - never create duplicates of tasks that already exist.
 
 ## 1. Draft packets
@@ -56,7 +61,7 @@ output: an ADR in `docs/adr/` plus a tracker comment with the recommendation. Sp
 knowledge, not merged code.
 
 If drafting reveals a spec gap (needed behavior the spec does not define), stop drafting that
-task and list the gap in the dry run under "Spec gaps - needs /dev:architect"; do not guess.
+task and list the gap in the dry run under "Spec gaps - needs dev:architect"; do not guess.
 
 ## 2. Dry run (human gate)
 
@@ -68,7 +73,7 @@ Do not create anything until the user approves.
 
 On approval, `create-task` each packet at status `Todo` (plan approval is the commitment
 gate), with dependencies, priority, estimate, and milestone mapped per the backend section of
-`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`. Packets reference draft ids but the tracker mints
+`docs/tracker.md`. Packets reference draft ids but the tracker mints
 real identifiers at creation: create in dependency order (or second-pass the relations) so
 every dependency is wired as a native relation using tracker-minted ids, then confirm the
 relations appear in the `list` output. Order priorities so the intended execution order
@@ -79,4 +84,4 @@ the planning artifacts (task files on the local backend, any doc updates) to `ma
 user's consent - approved-but-uncommitted artifacts strand the next skill, since
 `dev:execute` branches from `main` (dogfood T-001: execution stalled on a repo with zero
 commits). Report: tasks created, spikes created, dependency count, and any spec gaps
-deferred to `/dev:architect`.
+deferred to `dev:architect`.

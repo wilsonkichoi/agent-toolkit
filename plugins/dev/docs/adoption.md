@@ -1,8 +1,11 @@
 # Adopting the dev Plugin in an Existing Project
 
-Greenfield adoption is `/dev:setup` and go. This guide covers everything else: partial
+Greenfield adoption is `dev:setup` and go. This guide covers everything else: partial
 adoption, existing codebases, existing backlogs, trackers this plugin does not ship a
 backend for, and memory systems beyond plain files.
+
+Skill references are written `dev:<skill>` (e.g. `dev:setup`); invoke them with your harness's
+mechanism — `/dev:setup` on Claude Code, `$setup` / `dev:setup` on Codex, `/dev-setup` on Kiro.
 
 The one architectural fact that makes all of this possible: **the tracker is the only shared
 state between skills.** Docs (`docs/PRD.md`, `docs/SPEC.md`) carry intent, the tracker
@@ -24,19 +27,19 @@ works with any subset that produces PR/tracker evidence.
 
 ## 2. Brownfield setup and architecture archaeology
 
-`/dev:setup` detects an existing codebase and offers archaeology: reverse-engineering the
+`dev:setup` detects an existing codebase and offers archaeology: reverse-engineering the
 **current** state into `docs/SPEC.md` (components, interfaces, data flow, known debt marked
-as debt). Do not skip it if you plan to use `/dev:plan` - packets against undocumented code
+as debt). Do not skip it if you plan to use `dev:plan` - packets against undocumented code
 force the planner to guess, and guessed spec excerpts are worse than none.
 
 Order for a full brownfield onboarding:
 
-1. `/dev:setup` - config, scaffold, archaeology into a current-state SPEC.
-2. `/dev:discover` - only if product intent is fuzzy or undocumented; else write a minimal
+1. `dev:setup` - config, scaffold, archaeology into a current-state SPEC.
+2. `dev:discover` - only if product intent is fuzzy or undocumented; else write a minimal
    PRD by hand (problem, customer, north star, non-goals) so triage has an anchor.
-3. `/dev:architect` - forward-looking spec sections on top of the current-state spec; the
+3. `dev:architect` - forward-looking spec sections on top of the current-state spec; the
    spec must say what is kept, replaced, and debt.
-4. Import the backlog (next section), then `/dev:plan` for new milestone work.
+4. Import the backlog (next section), then `dev:plan` for new milestone work.
 
 ## 3. Importing existing docs and backlogs
 
@@ -45,7 +48,7 @@ Order for a full brownfield onboarding:
 plus an honesty pass: mark stale sections rather than silently keeping them.
 
 **Backlogs:** import tickets into the configured tracker at `Backlog` status, then run
-`/dev:backlog triage` - it re-checks every imported item against the current docs and flags
+`dev:backlog triage` - it re-checks every imported item against the current docs and flags
 stale ones for `Wont Do`. Do not import straight to `Todo`; committed status should survive
 a triage, not a copy-paste.
 
@@ -54,10 +57,10 @@ a triage, not a copy-paste.
 - Finish in-flight ADW milestones with ADW; switch at a milestone boundary.
 - `workflow/spec/SPEC.md` → `docs/SPEC.md` (drop HANDOFF.md; packets replace it).
 - `workflow/decisions/DR-*.md` → `docs/adr/` (renumber, keep statuses).
-- `workflow/plan/PLAN.md` unfinished tasks → tracker `Backlog` via `/dev:backlog` intake, so
+- `workflow/plan/PLAN.md` unfinished tasks → tracker `Backlog` via `dev:backlog` intake, so
   each gets a real packet; do NOT bulk-copy checkbox lines.
 - `workflow/plan/reviews/task-*.md` and `RETRO-*.md` → keep as history in `research/raw/` if
-  useful; run `/dev:retro` conventions going forward. PROGRESS.md dies; the tracker is the
+  useful; run `dev:retro` conventions going forward. PROGRESS.md dies; the tracker is the
   progress.
 
 ## 4. Third-party trackers (`tracker: custom`)

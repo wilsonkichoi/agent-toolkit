@@ -12,9 +12,14 @@ argument-hint: "[pr-number | task-id] [fix]"
 # dev:review-pr
 
 Independent review of one task's PR, or (fix mode) application of an existing review's
-findings. Never merge; merging is `/dev:verify`'s job.
+findings. Never merge; merging is `dev:verify`'s job.
 
-Read first: `.claude/dev.md` (config) and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`.
+Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
+run one, render your harness's invocation for it (Claude Code: `/dev:verify`).
+
+Read first: `.claude/dev.md` (config) and the plugin's `docs/tracker.md` — on Claude Code
+`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
+skill's directory.
 
 ## Independence rule
 
@@ -22,9 +27,9 @@ The reviewer must not share context with the implementer. If this session implem
 (or contains its implementation context), do not review inline: delegate the entire review to
 the `dev:reviewer` agent (spawned with no `model` override - it pins `model: inherit`),
 passing the PR number, the task id, and the packet + work-summary
-*text fetched verbatim from the tracker* - the agent's toolset (Read/Grep/Glob/Bash) covers
-`gh` but not tracker MCP servers, so on Linear/custom backends it cannot self-fetch them.
-Pass nothing else: no implementation rationale, no opinions about the diff. A fresh session
+*text fetched verbatim from the tracker* - the agent works from the local repo + `gh` only
+and has no tracker access, so on Linear/custom backends it cannot self-fetch them - pass the
+packet text verbatim. Pass nothing else: no implementation rationale, no opinions about the diff. A fresh session
 (one that did not implement the PR and contains no implementation context) reviews inline;
 delegate only when the independence rule forces it.
 
@@ -79,13 +84,13 @@ delegate only when the independence rule forces it.
    comment (solo-repo fallback, task-comment reviews) and carries no native `commit_id`.
    Always fill it with the head SHA of the diff actually reviewed.
 4. **Record on the tracker:** comment the verdict + finding count on the task. Approved →
-   next step is `/dev:verify`. Request-changes → next step is `/dev:review-pr <n> fix`.
+   next step is `dev:verify`. Request-changes → next step is `dev:review-pr <n> fix`.
 
 **No GitHub remote** (local-only projects): review `git diff main...task/<id>-<slug>` with the
 same rubric and post the full review as a task comment instead of a PR review.
 
 **No primary task** (a secondary-channel in-place `#N` PR, or a drive-by PR with no issue at
-all - `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` "Secondary intake channel"): there is no packet. Gather instead the PR diff +
+all - `docs/tracker.md` "Secondary intake channel"): there is no packet. Gather instead the PR diff +
 CI, the linked GitHub issue's body and acceptance criteria when one exists (`gh issue view
 <n>`), and `docs/SPEC.md` / `docs/PRD.md`. Run the same rubric with "DoD compliance" reading
 against the issue's stated acceptance criteria (or, absent an issue, the PR description);
@@ -105,5 +110,5 @@ implementation; independence applies to reviewing, not fixing.
    human; never silently skip or resolve a finding without either a fix or a reply.
 3. Run the `test_command`, push to the same branch, let CI run.
 4. Reply per finding: what changed, or why not. Then re-request review (`gh pr edit
-   --add-reviewer` or re-run `/dev:review-pr` fresh) and stop. The fix author never declares
+   --add-reviewer` or re-run `dev:review-pr` fresh) and stop. The fix author never declares
    the findings resolved; the next review pass does.

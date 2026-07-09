@@ -6,6 +6,10 @@ human gates, unattended operation, and platform constraints. Related references:
 [tracker.md](tracker.md) (tracker contract and backend mappings) and
 [adoption.md](adoption.md) (brownfield adoption, custom trackers, third-party memory).
 
+Skill references are written `dev:<skill>` (e.g. `dev:execute`); invoke them with your harness's
+mechanism — `/dev:execute` on Claude Code, `$execute` / `dev:execute` on Codex, `/dev-execute`
+on Kiro. `/loop` is a Claude Code command, shown literally where it appears.
+
 ## Mental model
 
 Four rules explain every skill's behavior:
@@ -35,7 +39,7 @@ Four rules explain every skill's behavior:
 - **`local` backend:** nothing beyond git. Tasks live in `.dev/tasks/`, one file per task.
 - **Optional auto-review GitHub Action:** repo secret `ANTHROPIC_API_KEY`
   (`gh secret set ANTHROPIC_API_KEY`); each auto-review spends API tokens. The manual
-  `/dev:review-pr` path works without it.
+  `dev:review-pr` path works without it.
 
 ## Configuration: `.claude/dev.md`
 
@@ -55,7 +59,7 @@ fields per developer.
 | `work_in_progress_limit` | `3` | `execute`, `auto`, `status` | Max tasks simultaneously `In Progress` + `In Review`; claims refuse past it |
 | `max_fix_attempts` | `3` | `execute`, `auto` | CI-fix or review-fix cycles before the task goes `Blocked` with a diagnostic comment |
 | `max_tasks_per_run` | `5` | `execute` loop mode, `auto` | Batch cap per unattended run |
-| `auto_merge` | `false` | `auto`, `verify` | Standing merge approval for `/dev:auto`; see Unattended operation |
+| `auto_merge` | `false` | `auto`, `verify` | Standing merge approval for `dev:auto`; see Unattended operation |
 | `memory_target` | `files` | `retro` | Where promotions land: `.claude/rules/`/CLAUDE.md, or a memory MCP system (see adoption.md §5) |
 | `secondary_intake` | - | `execute`, `review-pr`, `verify`, `backlog`, `status` | Opt into GitHub as an isolated-work channel on a non-github-primary project (`github`); see Secondary intake channel below |
 | `github_repo` | - | secondary-channel skills | `owner/repo` the secondary issues/PRs live in; only with `secondary_intake: github` |
@@ -79,9 +83,9 @@ Rules that surprise people:
 
 - **Dependencies unblock only at `Done`.** A dependency sitting at `In Review` still blocks
   its dependents, because "done" means merged. This is why `/loop /dev:execute` cannot
-  advance a dependency chain and `/dev:auto` exists.
+  advance a dependency chain and `dev:auto` exists.
 - **`Backlog → Todo` promotion is never automatic.** It is a human decision, made in the
-  tracker UI or by asking `/dev:backlog`.
+  tracker UI or by asking `dev:backlog`.
 - **Hand-written tickets are validated at claim time.** If a manually created ticket lacks an
   objective or DoD, `dev:execute` does not guess - executing an underspecified ticket would
   mean the agent inventing its own scope. It drafts the missing fields from the docs, posts
@@ -99,14 +103,18 @@ which branches from `main`).
 
 | Gate | Skill | Approval unblocks |
 |---|---|---|
-| PRD review | `discover` | `/dev:architect` |
-| Spec + roadmap review | `architect` | `/dev:plan` |
+| PRD review | `discover` | `dev:architect` |
+| Spec + roadmap review | `architect` | `dev:plan` |
 | Plan dry run | `plan` | Packets pushed to the tracker at `Todo` |
 | Merge | `verify` | Merge per policy, task → `Done`, cleanup (carve-out: `auto_merge`, below) |
 | Rule promotion | `retro` | Learnings written to `.claude/rules/` / CLAUDE.md |
 | `Backlog → Todo`, `Wont Do` | `backlog` | Task enters or leaves the committed queue |
 
 ## Unattended operation
+
+Both unattended modes below are Claude-Code-specific today: they need a loop/repeat-invocation
+mechanism and background subagents. On Codex, per-task parity is deferred (an outer `codex exec`
+loop, pending a design pass); on Kiro IDE neither exists, so run one task per session there.
 
 Two modes with different destinations:
 
@@ -115,10 +123,10 @@ Two modes with different destinations:
   exactly one task. The session stays a thin orchestrator and delegates implementation to one
   background subagent per task in that task's worktree; for true fresh context per task,
   run a new interactive session per task instead of looping one.
-- **`/dev:auto` drains a milestone to `Done`.** Per task: execute → independent review →
+- **`dev:auto` drains a milestone to `Done`.** Per task: execute → independent review →
   bounded fix loop → verify → merge → record-only retro, then the next task. Single-flight.
 
-`/dev:auto` merges only when ALL hold: `auto_merge: true` (standing, revocable human
+`dev:auto` merges only when ALL hold: `auto_merge: true` (standing, revocable human
 approval), the independent review verdict is approve, every DoD criterion is met, and every
 criterion is either mechanically evidenced (test run or CI check) or carries a recorded
 human sign-off (a task/PR comment authored by the human approving that criterion). A manual
@@ -132,7 +140,7 @@ with a diagnostic comment instead of iterating forever; `max_tasks_per_run` caps
 
 Note which safeguard belongs to which mode: the WIP limit is `/loop /dev:execute`'s
 throttle, because that mode parks every task at `In Review` until a human drains the queue.
-`/dev:auto` cannot trip it through its own activity - single-flight means at most one task
+`dev:auto` cannot trip it through its own activity - single-flight means at most one task
 is `In Progress`/`In Review` at a time - but the check lives in the shared claim step, so
 `auto` still refuses to start if a previous loop left the queue at the limit.
 
@@ -143,7 +151,7 @@ Unattended runs stall on the first permission prompt: pre-approve git, `gh`, and
 
 What is safe to run simultaneously, and why:
 
-- **Parallel `/dev:execute` sessions on independent tasks** - the supported way to
+- **Parallel `dev:execute` sessions on independent tasks** - the supported way to
   parallelize implementation (one interactive session per task).
   The tracker claim step is the mutex; worktrees isolate the filesystem. There is no
   intra-session fan-out: a `/loop` orchestrator runs ONE implementation subagent at a time,
@@ -151,10 +159,10 @@ What is safe to run simultaneously, and why:
 - **Parallel reviews** - safe; reviews are stateless reads, and PRs simultaneously
   `In Review` are dependency-free by construction (dependencies unblock at `Done`, so a
   dependent can never have an open PR alongside its dependency's).
-- **Parallel `/dev:verify`** - evidence gathering is safe in parallel; the merges themselves
+- **Parallel `dev:verify`** - evidence gathering is safe in parallel; the merges themselves
   serialize, and sibling PRs that branched before an earlier merge may need a rebase (a
   rebase that resolves real conflicts in reviewed hunks warrants a re-review).
-- **`/dev:auto`** - single-flight by design; run one at a time.
+- **`dev:auto`** - single-flight by design; run one at a time.
 
 The rule that makes all of this safe: no skill ever checks out a task branch in the main
 working copy. Branch-file operations (tests, reading beyond the diff) happen in that task's
@@ -172,22 +180,22 @@ second channel. Every incoming GitHub issue or PR gets exactly one fate:
 Incoming GitHub issue or PR
 │
 ├─ Needs design / touches the spec / belongs to a milestone / blocks tracked work?
-│     → /dev:backlog #N  →  PROMOTE: full primary-tracker packet, issue linked and
+│     → dev:backlog #N  →  PROMOTE: full primary-tracker packet, issue linked and
 │                            closed as transferred. Only here do discover/architect/plan apply.
 │
 ├─ Isolated and self-contained (typo, drive-by bug, external-contributor PR)?
 │     → WORK IN PLACE. GitHub owns the item; no primary ticket.
-│        /dev:execute #N     claim (self-assign) → worktree → PR (Closes #N) → CI → In place
-│        /dev:review-pr #PR   review against the issue's acceptance criteria + spec
-│        /dev:verify #PR      CI + approving review → merge; issue auto-closes. No primary write.
-│     A pure drive-by PR with no issue: skip execute; /dev:review-pr <pr> then /dev:verify <pr>.
+│        dev:execute #N     claim (self-assign) → worktree → PR (Closes #N) → CI → In place
+│        dev:review-pr #PR   review against the issue's acceptance criteria + spec
+│        dev:verify #PR      CI + approving review → merge; issue auto-closes. No primary write.
+│     A pure drive-by PR with no issue: skip execute; dev:review-pr <pr> then dev:verify <pr>.
 │
 └─ Not worth doing?
-      → /dev:backlog #N  →  DECLINE: Wont Do, issue closed with rationale.
+      → dev:backlog #N  →  DECLINE: Wont Do, issue closed with rationale.
 ```
 
 Routing is by argument shape: `#N` hits the GitHub channel, a primary key (`NOVA-123`) the
-primary tracker. An argument-less `/dev:execute` (or `next-task`) only ever pulls from the
+primary tracker. An argument-less `dev:execute` (or `next-task`) only ever pulls from the
 primary queue, so in-place items never jump ahead of planned work. In-place items skip the
 `status:*` label lifecycle entirely - their state is just open → PR → review → merged. The
 merged PR plus its review and verify report is the audit trail (`audit_trail: link`); no

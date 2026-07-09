@@ -13,14 +13,19 @@ argument-hint: "[task-id | pr-number]"
 The merge gate. `Done` means every DoD criterion has evidence and the human approved the
 merge. This skill is the only thing in the lifecycle allowed to merge or to set `Done`.
 Without explicit human approval in this session, do not merge - with one carve-out: when
-invoked by `/dev:auto` with `auto_merge: true` in `.claude/dev.md`, that flag is the human's
+invoked by `dev:auto` with `auto_merge: true` in `.claude/dev.md`, that flag is the human's
 standing approval, valid only when the review is approved AND every criterion is met AND
 every criterion is either mechanically evidenced (test or CI) or carries a recorded human
 sign-off (section 2). A manual criterion always requires a human - a recorded sign-off or a
 live confirmation in this session - regardless of config; `auto_merge` never substitutes
 for it.
 
-Read first: `.claude/dev.md` (config) and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`.
+Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
+run one, render your harness's invocation for it (Claude Code: `/dev:verify`).
+
+Read first: `.claude/dev.md` (config) and the plugin's `docs/tracker.md` — on Claude Code
+`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
+skill's directory.
 
 ## Independence rule
 
@@ -30,9 +35,10 @@ this session implemented the PR (or contains its implementation context), do not
 evidence inline: delegate sections 1-3 (preconditions, evidence, report) to the
 `dev:verifier` agent (spawned with no `model` override - it pins `model: inherit`),
 passing the PR number, the task id, and the packet + task-comment
-text *fetched verbatim from the tracker* - the agent's toolset (Read/Grep/Glob/Bash) covers
-`gh` but not tracker MCP servers, so on Linear/custom backends it cannot self-fetch them
-(task comments included, since recorded sign-offs live there). Pass nothing else: no
+text *fetched verbatim from the tracker* - the agent works from the local repo + `gh` only
+and has no tracker access, so on Linear/custom backends it cannot self-fetch them (task
+comments included, since recorded sign-offs live there) - pass the packet text verbatim.
+Pass nothing else: no
 implementation rationale, no opinions on whether criteria are met. A fresh session (one
 that did not implement the PR and contains no implementation context) runs sections 1-3
 inline; delegate only when the independence rule forces it.
@@ -57,19 +63,19 @@ warning, not a hard stop; report it and let the human decide whether to proceed 
 The approving review must target the current PR HEAD. Compare the review's `commit_id`
 (`gh api repos/{owner}/{repo}/pulls/<n>/reviews --jq '.[].commit_id'`; for a comment-form
 verdict, the `Commit:` line in its body) against `gh pr view <n> --json headRefOid`. A
-mismatch means commits landed after the review - typically a `/dev:review-pr <n> fix` push -
+mismatch means commits landed after the review - typically a `dev:review-pr <n> fix` push -
 so the approve is stale and the newer commits are unreviewed. Treat a stale approve as no
 approving review: warning in manual mode, hard stop under `auto_merge`. Run a fresh
-`/dev:review-pr <n>` first. A content-identical rebase also trips this check; accept the
+`dev:review-pr <n>` first. A content-identical rebase also trips this check; accept the
 re-review, it is cheap and never wrong. (A rebase performed by verify itself is governed by
 section 4 step 0.) No GitHub remote: compare the review comment's `Commit:` line against the
 task branch head.
 
 **No GitHub remote:** the task records a branch instead of a PR, the approving review is the
-`/dev:review-pr` comment on the task, and the local `test_command` run stands in for CI.
+`dev:review-pr` comment on the task, and the local `test_command` run stands in for CI.
 
 **No primary task** (a secondary-channel in-place `#N` PR, or a drive-by PR with no issue -
-`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` "Secondary intake channel"): there is no primary-tracker task and no `In Review`
+`docs/tracker.md` "Secondary intake channel"): there is no primary-tracker task and no `In Review`
 status to check. Gate on CI green + an approving review only. The DoD criteria to verify come
 from the linked issue's acceptance criteria (`gh issue view <n>`) when one exists, else the PR
 description. Section 4 skips the `Done` transition and status-label strip (there is no primary
@@ -126,8 +132,8 @@ Result: <n>/<total> criteria met
 ```
 
 **Any criterion unmet:** stop. Do not merge; the task stays `In Review`. Route the gap:
-implementation gap → `/dev:review-pr <n> fix` or a fresh `/dev:execute <id>` pass; wrong or
-untestable criterion → the packet is the problem, send it through `/dev:backlog` triage.
+implementation gap → `dev:review-pr <n> fix` or a fresh `dev:execute <id>` pass; wrong or
+untestable criterion → the packet is the problem, send it through `dev:backlog` triage.
 
 ## 4. Human gate and merge
 

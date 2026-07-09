@@ -14,8 +14,11 @@ argument-hint: "[delta <change summary>]"
 Turn raw research plus the user's head-knowledge into `docs/PRD.md`. The objective is
 clarity about what the product is for, who it serves, and why it should exist. Explicitly
 out of scope: architecture, stack, schemas, technical feasibility beyond obvious
-deal-breakers - `/dev:architect` owns those. When technical topics come up, capture them as
+deal-breakers - `dev:architect` owns those. When technical topics come up, capture them as
 notes for the architect and steer back.
+
+Skill references like `dev:architect` mean this plugin's `architect` skill; when telling the
+user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`).
 
 ## 1. Ingest
 
@@ -28,7 +31,8 @@ rather than refusing.
 
 ## 2. Interview
 
-Close the gaps in rounds, most load-bearing first. Use AskUserQuestion only where the answer
+Close the gaps in rounds, most load-bearing first. Use the harness's structured question tool
+(e.g. AskUserQuestion on Claude Code) only where the answer
 is a bounded choice (pick between candidate customers, rank goals, confirm an inference);
 gather narrative answers (problem stories, value articulation) by asking in plain
 conversation. Never author a placeholder option like "I'll describe it myself" - the harness
@@ -76,11 +80,11 @@ Present a summary (problem, customer, value, north star, top non-goals) and the 
 questions. Iterate on feedback in place. The PRD is approved when the user says so; record
 the approval date at the top of the file, then commit it (with the user's consent) before
 ending - approved-but-uncommitted artifacts strand downstream skills that branch from
-`main`. Next step: `/dev:architect`.
+`main`. Next step: `dev:architect`.
 
 ## Delta mode (`delta <change summary>`)
 
-For goal-impacting changes routed from `/dev:backlog`: re-open only the affected sections,
+For goal-impacting changes routed from `dev:backlog`: re-open only the affected sections,
 interview for the specific change, update the PRD with a dated `## Change log` entry (what
 changed, why, what it invalidates), and flag downstream impact: SPEC sections and existing
-tasks that now contradict the PRD, handed back to `/dev:backlog` triage and `/dev:architect`.
+tasks that now contradict the PRD, handed back to `dev:backlog` triage and `dev:architect`.

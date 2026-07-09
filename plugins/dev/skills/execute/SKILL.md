@@ -11,10 +11,14 @@ argument-hint: "[task-id]"
 # dev:execute
 
 Execute exactly one task: claim → worktree → implement → PR → CI green → In Review → stop.
-Merging is `dev:verify`'s job; never merge, even if asked mid-run - point at `/dev:verify`.
+Merging is `dev:verify`'s job; never merge, even if asked mid-run - point at `dev:verify`.
 
-Read first: `.claude/dev.md` (config) and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` (tracker
-verbs, backend mapping, next-task algorithm).
+Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
+run one, render your harness's invocation for it (Claude Code: `/dev:verify`).
+
+Read first: `.claude/dev.md` (config) and the plugin's `docs/tracker.md` (tracker verbs,
+backend mapping, next-task algorithm) — on Claude Code `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`,
+equivalently `../../docs/tracker.md` relative to this skill's directory.
 
 ## 1. Claim
 
@@ -26,7 +30,7 @@ verbs, backend mapping, next-task algorithm).
 - With a `#N` GitHub issue (secondary intake channel, primary tracker not github): this is
   isolated work GitHub owns - skip the primary-queue gates and see **In-place GitHub item**
   below.
-- `claim` the task and confirm the claim won (re-read; see `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` race guard).
+- `claim` the task and confirm the claim won (re-read; see `docs/tracker.md` race guard).
 
 **Packet validation.** A claimable packet has at minimum an Objective and a Definition of
 Done. If either is missing (typical for hand-written tickets), do not guess and do not
@@ -40,7 +44,7 @@ implement:
 
 **In-place GitHub item (`#N`, secondary intake channel).** When the argument is a GitHub issue
 number and `secondary_intake: github` is set with a non-github primary tracker, GitHub owns
-this item (`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` "Secondary intake channel"). Same worktree → PR → CI → review → verify
+this item (`docs/tracker.md` "Secondary intake channel"). Same worktree → PR → CI → review → verify
 path, with these deltas only:
 
 - Claim: no WIP / dependency / `Todo` gate and no `status:*` label. `gh issue view <n>` for
@@ -52,10 +56,10 @@ path, with these deltas only:
 - Step 4 PR body includes `Closes #<n>`; record the PR URL as an issue comment.
 - Step 7 hand-off: refresh the PR body and post the work-summary on the issue, then stop -
   there is **no `In Review` transition** (in-place items carry no status labels). Report the
-  PR number and point at `/dev:review-pr #<pr>`.
+  PR number and point at `dev:review-pr #<pr>`.
 
 A drive-by PR with no issue behind it does not go through `dev:execute` at all - review and
-verify it directly (`/dev:review-pr <pr>`, `/dev:verify <pr>`).
+verify it directly (`dev:review-pr <pr>`, `dev:verify <pr>`).
 
 ## 2. Isolate
 
@@ -67,7 +71,8 @@ path `../<repo>-worktrees/<id>-<slug>` (sibling container dir, one per repo - do
 a different naming scheme per session):
 `git worktree add -b task/<id>-<slug> ../<repo>-worktrees/<id>-<slug> main`. All work
 happens there. Do not use the
-harness's worktree isolation (Agent tool `isolation: worktree` / EnterWorktree) for this:
+harness's built-in worktree-isolation feature for subagents (on Claude Code: Agent tool
+`isolation: worktree` / EnterWorktree) for this:
 it creates its own `worktree-agent-*` branch that no cleanup step knows about, leaking one
 dead branch per task.
 
@@ -80,7 +85,7 @@ The packet is the contract: read its inlined spec excerpts and follow the linked
   cleanup outside the task's files.
 - Spec gap discovered (needed behavior the spec does not define): comment it on the task,
   flag it in the work summary, implement the narrowest reasonable interpretation only if the
-  task is otherwise blocked - otherwise leave the gap for `/dev:backlog` triage.
+  task is otherwise blocked - otherwise leave the gap for `dev:backlog` triage.
 - Stuck: `comment` each genuinely different approach as you abandon it (`## Approach <n>/3
   attempt (dev:execute - <date>)` with what you tried and why it failed), so the dead ends are
   visible on the task, not only in this session. After 3 fail, stop burning tokens - transition
@@ -105,7 +110,7 @@ Push the branch and open a PR:
 
 **No GitHub remote:** skip the PR. Commit on the task branch and record the branch name on
 the task instead; `git diff main...task/<id>-<slug>` becomes the review surface for
-`/dev:review-pr`, and `/dev:verify` merges locally.
+`dev:review-pr`, and `dev:verify` merges locally.
 
 ## 5. CI to green
 
@@ -181,8 +186,8 @@ If no visual criteria exist in the DoD, skip to step 7.
    reader with zero context from this session.
 
 3. Transition the task to `In Review`.
-4. Report: task, PR URL, CI status, spec gaps. Next step: `/dev:review-pr`, then
-   `/dev:verify`. **Stop. Do not merge. Do not start another task in this session** (fresh
+4. Report: task, PR URL, CI status, spec gaps. Next step: `dev:review-pr`, then
+   `dev:verify`. **Stop. Do not merge. Do not start another task in this session** (fresh
    context per task) - except in loop mode below.
 
 ## Loop / batch mode
@@ -200,7 +205,13 @@ tasks (config, default 5); report and idle. For true fresh context per task, the
 a new interactive session per task; never script headless sessions (`claude -p`) or suggest
 them - they run without the human's session config and oversight.
 
+Harness notes: loop/batch mode needs a harness with both a loop/repeat-invocation mechanism
+(`/loop` on Claude Code) and background subagents. On a harness without them (e.g. Kiro IDE),
+do not attempt loop mode - run one task per session and tell the user that batch mode is
+unavailable there. A Codex outer loop (`codex exec` per task) is deferred pending a design
+pass; until then treat batch mode as Claude-Code-only.
+
 Scope note: this mode only fills the review queue - every task stops at `In Review`, so a
 dependency chain will not advance past its first task (deps unblock at `Done`, and `Done`
-needs `/dev:verify`). To drive tasks all the way to `Done` unattended, including merge and
-per-task retro, use `/dev:auto`.
+needs `dev:verify`). To drive tasks all the way to `Done` unattended, including merge and
+per-task retro, use `dev:auto`.

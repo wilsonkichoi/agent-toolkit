@@ -37,13 +37,13 @@ Confirm scope, exit plan mode.
 
 ### 2. Gather Material
 
-**URLs**: WebFetch first. If blocked/empty, fall back to Playwright (navigate, snapshot, extract). Record failures.
+**URLs**: fetch the URL with the harness's web-fetch tool first. If blocked/empty, fall back to browser automation (e.g. Playwright: navigate, snapshot, extract) when available. Record failures.
 
 **Local files**: Read directly. PDFs use pages parameter for large files. Folders: scan and read relevant files.
 
 **GitHub repos**: README + directory structure + key files (docs/, src/ entry points, configs).
 
-**Web search**: 3-5 searches to fill gaps from provided sources. For broad topics, fan out subagents via workflow, one per research angle, 2-3 searches each in parallel.
+**Web search**: 3-5 searches to fill gaps from provided sources. For broad topics, fan out parallel subagents where the harness supports them (one per research angle, 2-3 searches each in parallel); otherwise work the angles sequentially.
 
 Extract everything. Miss nothing. Operational details, gotchas, exact commands, edge cases, known bugs matter more than high-level summaries.
 

@@ -13,15 +13,19 @@ argument-hint: "[delta <change summary>]"
 
 Turn the approved PRD into buildable technical intent: `docs/SPEC.md`, `docs/ROADMAP.md`, and
 ADRs. This is the highest-leverage gate in the lifecycle - a bad spec cascades into every
-packet `/dev:plan` writes. Docs only: produce no product code, no scaffolding.
+packet `dev:plan` writes. Docs only: produce no product code, no scaffolding.
 
-Preconditions: `docs/PRD.md` exists and is approved (else stop, direct to `/dev:discover`).
+Skill references like `dev:plan` mean this plugin's `plan` skill; when telling the user to run
+one, render your harness's invocation for it (Claude Code: `/dev:plan`).
+
+Preconditions: `docs/PRD.md` exists and is approved (else stop, direct to `dev:discover`).
 Brownfield: read the current-state SPEC.md from setup archaeology; the spec being written
 here extends or replaces it, and must say which.
 
 ## 1. Interview
 
-One AskUserQuestion round for what the PRD cannot answer: stack preferences and existing
+One structured question round (use the harness's question tool, e.g. AskUserQuestion on Claude
+Code) for what the PRD cannot answer: stack preferences and existing
 expertise, deploy target and budget ceiling, team size, hard NFR floors (latency, uptime,
 data residency), integration constraints. Read the PRD's "Notes for architecture" section
 first; do not re-ask what it already answers.
@@ -42,7 +46,7 @@ Date / Status: proposed | accepted | superseded by ADR-NNN
 
 Present contested decisions to the user before writing them into the spec; trivial choices
 (formatter, directory naming) get no ADR. Spikes are the other escape hatch: a genuine
-unknown that analysis cannot settle becomes a spike recommendation for `/dev:plan`, noted in
+unknown that analysis cannot settle becomes a spike recommendation for `dev:plan`, noted in
 the spec section it blocks.
 
 ## 3. Write `docs/SPEC.md`
@@ -63,7 +67,7 @@ the spec section it blocks.
 
 Diagrams in Mermaid inside the markdown. Every PRD goal maps to at least one component or
 contract; every PRD non-goal to a negative requirement. Contracts that later tasks build
-against must be concrete (fields, types, error shapes), because `/dev:plan` inlines them
+against must be concrete (fields, types, error shapes), because `dev:plan` inlines them
 into packets verbatim.
 
 ## 4. Write `docs/ROADMAP.md`
@@ -80,11 +84,11 @@ architecture and linking to SPEC/ROADMAP/ADRs; keep CLAUDE.md lean. Then the hum
 present the architecture summary, the contested ADRs, and the milestone order. This gate
 deserves a line-by-line review; say so. Record approval date in SPEC.md, then commit the
 approved docs (SPEC, ROADMAP, ADRs, CLAUDE.md update) with the user's consent before ending.
-Next step: `/dev:plan` for milestone 1.
+Next step: `dev:plan` for milestone 1.
 
 ## Delta mode (`delta <change summary>`)
 
-For spec-impacting changes routed from `/dev:backlog`: edit only the affected SPEC/ROADMAP
+For spec-impacting changes routed from `dev:backlog`: edit only the affected SPEC/ROADMAP
 sections, write an ADR when the change reverses or constrains a prior decision, append a
 dated change-log entry to SPEC.md, and report which existing tasks (via `list` on the
-tracker) now contradict the spec so `/dev:backlog` can re-triage them.
+tracker) now contradict the spec so `dev:backlog` can re-triage them.

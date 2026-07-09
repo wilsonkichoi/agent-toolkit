@@ -14,10 +14,19 @@ argument-hint: "[milestone N] [max N tasks]"
 Drive tasks to `Done` one at a time: execute → independent review → fix → verify → merge →
 retro, then claim the next. This is what `/loop /dev:execute` cannot do: that loop stops
 every task at `In Review`, so a dependency chain never advances past its first task. Use
-`/loop /dev:execute` to fill the review queue for human-paced review; use `/dev:auto` to
+`/loop /dev:execute` to fill the review queue for human-paced review; use `dev:auto` to
 drain a milestone.
 
-Read first: `.claude/dev.md` and `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`.
+Skill references like `dev:execute` mean this plugin's `execute` skill; when telling the user
+to run one, render your harness's invocation for it (Claude Code: `/dev:execute`).
+
+Read first: `.claude/dev.md` and the plugin's `docs/tracker.md` — on Claude Code
+`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
+skill's directory.
+
+Requires a harness with background subagents for the orchestration discipline below (Claude
+Code today). On a harness without them, refuse to run and point the user at the
+one-task-at-a-time flow: dev:execute → dev:review-pr → dev:verify → dev:retro.
 
 ## Standing authorization (`auto_merge`)
 
@@ -95,9 +104,10 @@ orchestrator holds the implementer's report, so it is not independent.
    a recorded sign-off → post the verification report, leave `In Review`, stop and tell
    the human exactly what needs them.
 6. **Retro (record-only)** - run `dev:retro` for the task with promotions in proposal mode:
-   post the retro comment including proposed rule promotions, but never write to
-   `.claude/rules/` or CLAUDE.md unattended. Standing instructions change only with a human
-   in the loop; proposals accumulate for a later `/dev:retro milestone N` pass.
+   post the retro comment including proposed rule promotions, but never write to the configured
+   `rules_dir`/`context_file` (default `.claude/rules/` and `CLAUDE.md`) unattended. Standing
+   instructions change only with a human in the loop; proposals accumulate for a later
+   `dev:retro milestone N` pass.
 7. **Next** - loop to step 1.
 
 ## Stop conditions
@@ -116,13 +126,13 @@ Report on stop, whatever the reason:
 # dev:auto - stopped: <reason>
 Completed to Done: <ids>
 Stopped at: <id> - <what needs the human>
-Pending retro proposals: <count> (run /dev:retro milestone N to review)
+Pending retro proposals: <count> (run dev:retro milestone N to review)
 Next: <the single next human action>
 ```
 
 ## Constraints
 
 - Single-flight: one task at a time, sequentially. Parallelism is a human decision made by
-  running parallel `/dev:execute` sessions, not something this skill does.
+  running parallel `dev:execute` sessions, not something this skill does.
 - Never applies rule promotions, never overrides `Blocked`, never merges around a failed
-  condition, never re-plans; defects in packets go to `/dev:backlog`, not silent edits.
+  condition, never re-plans; defects in packets go to `dev:backlog`, not silent edits.
