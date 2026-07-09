@@ -1,0 +1,86 @@
+---
+name: dev-plan
+description: >
+  This skill should be used when the user asks to "plan the milestone", "break down the
+  milestone into tasks", "create task packets", "generate the backlog from the spec", or
+  invokes /dev:plan. Decomposes a roadmap milestone into self-contained task packets and
+  pushes them to the configured tracker after a human-approved dry run.
+metadata:
+  argument-hint: "[milestone N]"
+---
+
+# dev:plan
+
+Decompose one milestone into task packets in the tracker. One milestone per run; do not plan
+ahead of the next milestone - later milestones get better packets after earlier ones ship.
+
+Skill references like `dev:architect` mean this plugin's `architect` skill; when telling the
+user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`).
+
+Read first:
+
+1. `.claude/dev.md` - tracker backend and config.
+2. the plugin's `references/tracker.md` - verbs and backend mapping (bundled with this skill).
+3. `docs/SPEC.md`, `docs/ROADMAP.md`, and `docs/PRD.md` - intent. If SPEC.md or ROADMAP.md is
+   missing, stop and direct the user to `dev:architect`.
+4. `list <milestone>` on the tracker - never create duplicates of tasks that already exist.
+
+## 1. Draft packets
+
+For the target milestone (argument, or the first roadmap milestone with unplanned scope),
+draft tasks against the packet schema. Every packet:
+
+- **Title**, **Type** (`task` | `spike`).
+- **Objective** - what exists when done, 1-3 sentences.
+- **Why** - the problem it solves, naming the PRD/SPEC section that motivates it.
+- **Definition of Done** - checkable criteria only. Each criterion must name its evidence: a
+  test command, a CI check, or an explicit manual verification step. "Works correctly" is not
+  a criterion. Prefer test-backed: if a behavior is fully checkable by a script (stdout, exit
+  code, API response), write one test-backed criterion - never a manual criterion duplicating
+  what an automated test in the same task covers. Manual criteria are for genuinely
+  human-observable things (visual layout, UX judgment), and each one forces `dev:auto` to
+  stop for a human regardless of `auto_merge`.
+- **Dependencies** - task ids that must be `Done` first. Model implicit ordering (B builds on
+  A's code) as a real dependency; unmodeled ordering is how parallel sessions produce
+  conflicting PRs.
+- **Estimate** - S/M/L plus rough hours.
+- **Spec references** - links to `docs/SPEC.md#section`, with the load-bearing excerpt
+  (contract, schema, constraint) inlined verbatim so a fresh executor cannot skip it.
+- **Suggested steps** - 3-8 advisory bullets.
+
+Scope rules: single concern, independently verifiable, describable in 2-3 sentences. Split
+anything that fails these. Scaffold tasks additionally: their DoD must prove the toolchain
+end-to-end (test runner collects, imports, and passes at least one sanity test against the
+scaffold), not merely that files exist - otherwise the first feature task inherits a broken
+harness (dogfood T-002: package imported fine but was not importable by pytest).
+
+**Spikes:** create a spike (not a task) where the spec leaves a genuine unknown that blocks
+estimation or design. A spike packet carries the question, a timebox, and the required
+output: an ADR in `docs/adr/` plus a tracker comment with the recommendation. Spikes produce
+knowledge, not merged code.
+
+If drafting reveals a spec gap (needed behavior the spec does not define), stop drafting that
+task and list the gap in the dry run under "Spec gaps - needs dev:architect"; do not guess.
+
+## 2. Dry run (human gate)
+
+Present the complete draft before touching the tracker: every packet in full, the dependency
+edges (as a list or Mermaid graph), spike rationale, and any spec gaps. Iterate on feedback.
+Do not create anything until the user approves.
+
+## 3. Push
+
+On approval, `create-task` each packet at status `Todo` (plan approval is the commitment
+gate), with dependencies, priority, estimate, and milestone mapped per the backend section of
+`references/tracker.md`. Packets reference draft ids but the tracker mints
+real identifiers at creation: create in dependency order (or second-pass the relations) so
+every dependency is wired as a native relation using tracker-minted ids, then confirm the
+relations appear in the `list` output. Order priorities so the intended execution order
+falls out of the next-task selection algorithm.
+
+Verify by running `list <milestone>` and comparing against the approved draft. Then commit
+the planning artifacts (task files on the local backend, any doc updates) to `main` with the
+user's consent - approved-but-uncommitted artifacts strand the next skill, since
+`dev:execute` branches from `main` (dogfood T-001: execution stalled on a repo with zero
+commits). Report: tasks created, spikes created, dependency count, and any spec gaps
+deferred to `dev:architect`.
