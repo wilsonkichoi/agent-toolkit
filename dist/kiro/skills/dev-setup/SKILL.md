@@ -102,11 +102,14 @@ Code: `.claude/rules/` + `CLAUDE.md`; Codex: omit `rules_dir`, use `AGENTS.md`; 
 `.kiro/steering/` + `AGENTS.md`). `dev:retro` reads these when promoting learnings and, when
 they are absent, defaults to `.claude/rules/` and `CLAUDE.md`.
 
-**Mixed-harness projects (interview Q6 = yes):** override those per-harness defaults with
-`context_file: AGENTS.md` and omit `rules_dir`, whichever harness setup runs in. `AGENTS.md`
-is read natively by Claude Code, Codex, and Kiro, so promoted learnings (`dev:retro`) and the
-architecture pointer (`dev:architect`) reach every harness; a `.claude/rules/` or
-`.kiro/steering/` target would close the memory loop for one harness only. This is the
+**Mixed-harness projects (interview Q6 = yes):** set `context_file: AGENTS.md` and omit
+`rules_dir`, whichever harness setup runs in, so a single shared file carries promoted
+learnings (`dev:retro`) and the architecture pointer (`dev:architect`). Codex and Kiro read
+`AGENTS.md` natively. Claude Code does NOT auto-load `AGENTS.md` (it loads `CLAUDE.md`), so on
+a mixed-harness project also seed a one-line `CLAUDE.md` whose entire body is the import
+`@AGENTS.md` - Claude Code then pulls the shared file into context through its native import.
+With that in place the memory loop closes for all three harnesses through one file; a
+`.claude/rules/` or `.kiro/steering/` target would close it for one harness only. This is the
 recommended config for any project touched by more than one harness.
 
 Add Linear fields (`linear_team`, `linear_project`) when applicable. When the user opted into
@@ -127,6 +130,10 @@ Codex/Kiro). Greenfield: create a lean context file (< 50 lines) stating the pro
 pointing to `docs/PRD.md`, `docs/SPEC.md`, `docs/ROADMAP.md`, `docs/adr/`, and the configured
 `rules_dir` (`.claude/rules/` on Claude Code), and naming the tracker backend. Brownfield:
 append the pointers section to the existing context file instead; touch nothing else in it.
+
+Mixed-harness projects (Q6 = yes, `context_file: AGENTS.md`): also seed a `CLAUDE.md` whose
+entire body is `@AGENTS.md` so Claude Code imports the shared file; if a `CLAUDE.md` already
+exists, add the `@AGENTS.md` import line rather than replacing it.
 
 ## 5. Brownfield: architecture archaeology
 
