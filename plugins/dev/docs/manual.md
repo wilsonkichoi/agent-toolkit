@@ -62,7 +62,9 @@ fields per developer.
 | `max_fix_attempts` | `3` | `execute`, `auto` | CI-fix or review-fix cycles before the task goes `Blocked` with a diagnostic comment |
 | `max_tasks_per_run` | `5` | `execute` loop mode, `auto` | Batch cap per unattended run |
 | `auto_merge` | `false` | `auto`, `verify` | Standing merge approval for `dev:auto`; see Unattended operation |
-| `memory_target` | `files` | `retro` | Where promotions land: `.claude/rules/`/CLAUDE.md, or a memory MCP system (see adoption.md §5) |
+| `rules_dir` | `.claude/rules/` | `retro` | Directory for promoted rule files; omitted on Codex (no auto-loaded rules dir) |
+| `context_file` | `CLAUDE.md` | `retro`, `architect` | Project context file for promotions and the architecture pointer; `AGENTS.md` on Codex |
+| `memory_target` | `files` | `retro` | Where promotions land: the configured `rules_dir`/`context_file` files, or a memory MCP system (see adoption.md §5) |
 | `secondary_intake` | - | `execute`, `review-pr`, `verify`, `backlog`, `status` | Opt into GitHub as an isolated-work channel on a non-github-primary project (`github`); see Secondary intake channel below |
 | `github_repo` | - | secondary-channel skills | `owner/repo` the secondary issues/PRs live in; only with `secondary_intake: github` |
 | `audit_trail` | `link` | secondary-channel skills | `link`: the PR/issue is the record. `mirror` (per-merge primary ticket) is reserved, not built |
@@ -109,7 +111,7 @@ which branches from `main`).
 | Spec + roadmap review | `architect` | `dev:plan` |
 | Plan dry run | `plan` | Packets pushed to the tracker at `Todo` |
 | Merge | `verify` | Merge per policy, task → `Done`, cleanup (carve-out: `auto_merge`, below) |
-| Rule promotion | `retro` | Learnings written to `.claude/rules/` / CLAUDE.md |
+| Rule promotion | `retro` | Learnings written to the configured `rules_dir` / `context_file` (default `.claude/rules/` / CLAUDE.md) |
 | `Backlog → Todo`, `Wont Do` | `backlog` | Task enters or leaves the committed queue |
 
 ## Unattended operation

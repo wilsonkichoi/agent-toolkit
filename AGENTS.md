@@ -1,9 +1,9 @@
 # AGENTS.md
 
 Authoring conventions for this repository, written harness-neutral so they apply whether you
-work in Claude Code or Codex. Claude Code reads both this file and `CLAUDE.md`; keep
-the two consistent. Claude-Code-specific install and invocation details live in `CLAUDE.md`
-and the repo `README.md`.
+work in Claude Code or Codex. Codex reads this file natively; Claude Code auto-loads only
+`CLAUDE.md`, which mirrors these conventions - keep the two consistent. Claude-Code-specific
+install and invocation details live in `CLAUDE.md` and the repo `README.md`.
 
 ## Versioning
 
@@ -52,7 +52,7 @@ harness-note so other harnesses degrade gracefully.
 
 ## Pre-commit checklist
 
-Before any commit that adds, removes, or modifies files under `skills/`:
+Before any commit that adds, removes, or modifies files under `skills/` or `agents/`:
 
 1. Version bumped in `plugins/<plugin>/.claude-plugin/plugin.json`
 2. Same version mirrored in `plugins/<plugin>/.codex-plugin/plugin.json`

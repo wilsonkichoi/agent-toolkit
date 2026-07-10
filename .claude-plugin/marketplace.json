@@ -1,7 +1,7 @@
 {
   "name": "agent-toolkit",
   "metadata": {
-    "description": "Personal agent toolkit: research workflows, utility skills, and development aids for Claude Code.",
+    "description": "Personal agent toolkit: research workflows, utility skills, and development aids for Claude Code and Codex.",
     "version": "0.0.1"
   },
   "owner": { "name": "Wilson Choi" },

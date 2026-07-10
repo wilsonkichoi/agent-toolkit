@@ -17,10 +17,13 @@ Version fields live in, and must stay in sync when bumping:
 ## Structure
 
 ```
-.claude-plugin/         # Marketplace manifest
+.claude-plugin/         # Claude marketplace manifest
+.agents/                # Codex-native marketplace manifest (plugins/marketplace.json)
 bootstrap/              # Standalone setup script + config (not a plugin)
+dist/codex/agents/      # Codex agent TOMLs (generated from plugins/dev/agents/)
 plugins/<name>/         # Each plugin
-  .claude-plugin/       #   Plugin manifest (plugin.json)
+  .claude-plugin/       #   Claude plugin manifest (plugin.json)
+  .codex-plugin/        #   Codex plugin manifest (plugin.json)
   skills/              #   Skill directories, each with SKILL.md
   README.md            #   Plugin docs
 ```
