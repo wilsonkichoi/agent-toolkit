@@ -46,7 +46,9 @@ Per task, in this order of value:
    a worktree whose slug is a distinct directory (e.g. `<repo-slug>-worktrees-<branch>` or
    `<repo-slug>-.claude-worktrees-...`), so the execution transcript lives outside the
    repo-root slug and a repo-root-only search misses it; do NOT widen to unrelated projects'
-   slugs, whose task ids can collide with yours. Skip silently if the store is
+   slugs, whose task ids can collide with yours. Codex: content-grep
+   `~/.codex/sessions/**/*.jsonl` for the task id (flat date-partitioned tree with no
+   per-project split; grep the entire tree). Skip silently if the store is
    absent or unreadable. This source is **machine-local and single-harness**: do not try to
    read another provider's session store (Codex `~/.codex/sessions/` under Claude, or vice
    versa) - bridging proprietary, undocumented session formats across providers is not worth
