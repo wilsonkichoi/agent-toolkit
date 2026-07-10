@@ -1,9 +1,10 @@
 # AGENTS.md
 
-Authoring conventions for this repository, written harness-neutral so they apply whether you
-work in Claude Code or Codex. Codex reads this file natively; Claude Code auto-loads only
-`CLAUDE.md`, which mirrors these conventions - keep the two consistent. Claude-Code-specific
-install and invocation details live in `CLAUDE.md` and the repo `README.md`.
+Authoring conventions for this repository - the single source of truth for every harness.
+Codex reads this file natively; Claude Code loads it through the one-line `@AGENTS.md`
+import that is `CLAUDE.md`'s entire body (Claude Code does not auto-load `AGENTS.md`
+directly). Do not add content to `CLAUDE.md`; it belongs here. Install and invocation
+details live in the repo `README.md`.
 
 ## Versioning
 
@@ -25,8 +26,8 @@ Version fields live in, and must stay in lockstep:
 ```
 .claude-plugin/         # Claude marketplace manifest
 .agents/                # Codex-native marketplace manifest (plugins/marketplace.json)
-AGENTS.md               # this file (read by Claude Code and Codex)
-CLAUDE.md               # Claude-Code-specific conventions + install
+AGENTS.md               # this file - conventions SSOT for all harnesses
+CLAUDE.md               # one-line @AGENTS.md import (Claude Code entry point)
 bootstrap/              # Standalone setup script + config (Claude-only; not a plugin)
 dist/                   # generated / copy-me artifacts, not plugin-installable
   codex/agents/         #   Codex agent TOMLs (copy to ~/.codex/agents/ or project .codex/agents/)

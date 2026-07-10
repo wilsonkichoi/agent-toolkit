@@ -56,8 +56,8 @@ codex plugin add dev@agent-toolkit
 cp dist/codex/agents/*.toml ~/.codex/agents/        # or a project ./.codex/agents/
 ```
 
-Invoke skills explicitly with `$<name>` (e.g. `$research`, `$execute`). Set the project
-context file to `AGENTS.md` (`dev:setup` does this on Codex). Known degradations on Codex:
+Invoke skills explicitly with `$<name>` (e.g. `$research`, `$execute`). The project context
+file is `AGENTS.md` (`dev:setup`'s default config on every harness). Known degradations on Codex:
 
 - **No automatic subagent delegation.** `review-pr` / `verify` independence is advisory
   (prompt-enforced), not tool-enforced; run them in a separate session from the implementer.
@@ -74,7 +74,7 @@ context file to `AGENTS.md` (`dev:setup` does this on Codex). Known degradations
 | `research` / `retro` implicit-fire guard | description guard | `openai.yaml` policy (verified) |
 | dev interactive lifecycle (setup→plan→execute→review→verify→retro) | ✅ | ✅ |
 | tracker doc reachable from dev skills | `$CLAUDE_PLUGIN_ROOT` env | relative path |
-| retro / architect promotion target | `.claude/rules/` + `CLAUDE.md` | `AGENTS.md` |
+| retro / architect promotion target (default config) | `AGENTS.md` via the `CLAUDE.md` = `@AGENTS.md` import | `AGENTS.md` natively |
 | bundled agents (reviewer/test-writer/verifier) | native (auto-delegated) | copy TOML (advisory) |
 | automatic subagent delegation | ✅ | ❌ advisory |
 | `dev:auto` / execute loop-batch mode | ✅ | ❌ (deferred) |
@@ -98,7 +98,7 @@ The mechanical exporter and generated tree live in git history (`de7d72c`) if Ki
 ```
 .claude-plugin/     # Claude marketplace manifest
 .agents/            # Codex-native marketplace manifest
-AGENTS.md           # harness-neutral authoring conventions (Codex; Claude reads CLAUDE.md)
+AGENTS.md           # authoring conventions SSOT (Claude Code imports it via CLAUDE.md = @AGENTS.md)
 bootstrap/          # Standalone setup script + config (Claude Code only; not a plugin)
 dist/codex/agents/  # Codex agent TOMLs (copy-me)
 plugins/utils/      # Utility skills (research, etc.)
