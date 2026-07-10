@@ -72,6 +72,11 @@ Skills read that file before every tracker call; the body mapping is the impleme
 
 ### Worked example: Jira via the Atlassian MCP server
 
+> **Not verified.** Only the shipped Linear, GitHub Issues, and local-file backends are
+> tested. This Jira/Atlassian mapping is an illustrative template that has never been run
+> end to end - tool names and transitions are best-guess. Verify every verb by hand (see the
+> lifecycle check below) before any unattended use.
+
 Connect the official Atlassian Remote MCP server, then discover exact tool names from the
 runtime tool list (they change; typical names shown). `.agent/dev.md` body:
 
@@ -120,6 +125,12 @@ and retro stores learnings through that system's MCP tools instead:
 | `mem0` | Mem0 managed API | Mem0 cloud | Mem0 plugin injection / MCP search | cross-tool + cross-machine; data off-machine; managed service |
 | `openbrain` | OB1 / OpenBrain | self-owned Supabase pgvector | MCP search from any connected tool | cross-tool, self-owned; setup cost, query latency |
 | `memsearch` | MemSearch (Zilliz) | local markdown + Milvus shadow index | hook-injected semantic matches per prompt | local + cross-CLI-tool; machine-local only |
+
+> **Not verified.** Only `files` is exercised by this plugin's tests. The `mem0`/`openbrain`/
+> `memsearch` rows describe the *intended* integration - `dev:retro` emits a generic "store
+> this via that system's MCP tool" instruction - but no config ships bundled and none has been
+> run end to end. Adopt at your own risk: wire up the MCP server yourself and confirm a real
+> promotion lands through it before relying on it.
 
 Two rules regardless of target:
 

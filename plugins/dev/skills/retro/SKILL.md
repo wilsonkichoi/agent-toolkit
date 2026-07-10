@@ -39,16 +39,17 @@ Per task, in this order of value:
 3. **CI history:** failure runs on the task branch (`gh run list --branch task/<id>-*`);
    recurring failure classes (env setup, flaky test, missing migration) matter more than
    one-offs.
-4. **Session transcripts** (best effort): search every session store present on this machine
-   for the task id, not only the current harness's - a task may have been executed under a
-   different harness - Claude Code: `~/.claude/projects/<project-slug>/`; Codex:
-   `~/.codex/sessions/`. Use to reconstruct why something took N
-   attempts. Skip silently for any store that is absent or unreadable. This source is
-   **machine-local**: transcripts never leave the machine they were created on, so a retro run
-   on a different machine or by a different teammate loses it but keeps every other source here
-   (tracker comments, PR threads, CI are server-side; contract compliance is in git). Run retro
-   where the work ran when you can; when you can't, the mandatory `dev:execute` work-summary
-   comment (item 1) is the durable, shared substitute for what the transcript would have shown.
+4. **Session transcripts** (best effort, current harness only): grep this harness's own
+   session store by content for the task id, to reconstruct why something took N attempts -
+   Claude Code: `~/.claude/projects/**/*.jsonl` (grep across slugs; a task run in its own
+   worktree sits under a different slug than the repo root). Skip silently if the store is
+   absent or unreadable. This source is **machine-local and single-harness**: do not try to
+   read another provider's session store (Codex `~/.codex/sessions/` under Claude, or vice
+   versa) - bridging proprietary, undocumented session formats across providers is not worth
+   it. A retro on a different machine, or after the work ran under a different harness, simply
+   won't have transcripts, and that is fine: the promoted rules plus the durable server/git
+   evidence (tracker comments, PR threads, CI, contract compliance) and the mandatory
+   `dev:execute` work-summary comment carry the important signal.
 5. **Lifecycle-contract compliance:** check what each lifecycle step actually produced
    against its skill's contract - verification report present on the PR, human-gate DoD
    boxes checked, work-summary comment posted, `status:*` labels stripped at terminal
