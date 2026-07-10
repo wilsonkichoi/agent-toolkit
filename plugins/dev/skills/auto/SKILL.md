@@ -20,7 +20,7 @@ drain a milestone.
 Skill references like `dev:execute` mean this plugin's `execute` skill; when telling the user
 to run one, render your harness's invocation for it (Claude Code: `/dev:execute`).
 
-Read first: `.claude/dev.md` and the plugin's `docs/tracker.md` — on Claude Code
+Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
 skill's directory.
 
@@ -30,7 +30,7 @@ one-task-at-a-time flow: dev:execute → dev:review-pr → dev:verify → dev:re
 
 ## Standing authorization (`auto_merge`)
 
-Unattended merging requires `auto_merge: true` in `.claude/dev.md` frontmatter. That flag is
+Unattended merging requires `auto_merge: true` in `.agent/dev.md` frontmatter. That flag is
 the human's standing, revocable approval for merges meeting ALL of:
 
 1. Independent review verdict is approve (from the `reviewer` agent, never self-review).

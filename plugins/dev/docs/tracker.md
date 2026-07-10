@@ -1,7 +1,7 @@
 # Tracker Contract
 
 The tracker is the single source of truth for task state. Every dev skill that touches tasks
-implements the verbs below against the backend configured in the project's `.claude/dev.md`
+implements the verbs below against the backend configured in the project's `.agent/dev.md`
 frontmatter (`tracker:` field). Skills never maintain a parallel status file (no PLAN.md
 checkboxes, no PROGRESS.md). Docs (`docs/PRD.md`, `docs/SPEC.md`) are the source of truth for
 intent; the tracker only for state.
@@ -41,7 +41,7 @@ Ownership rules - who may set what:
 All backends use the same algorithm:
 
 1. **WIP gate first:** count tasks with status `In Progress` or `In Review`. If the count is
-   `>= work_in_progress_limit` (from `.claude/dev.md`, default 3), return nothing and report that the WIP
+   `>= work_in_progress_limit` (from `.agent/dev.md`, default 3), return nothing and report that the WIP
    limit is reached - review/verify must drain the queue before more work starts.
 2. **Candidates:** tasks with status `Todo` in the active milestone whose dependencies are all
    `Done`. A dependency in any other status (including `In Review`) blocks the dependent task,
@@ -54,7 +54,7 @@ All backends use the same algorithm:
 Uses the official Linear MCP server (`mcp.linear.app`). Discover exact tool names from the MCP
 tool list at runtime (typically `list_issues`, `get_issue`, `create_issue`, `update_issue`,
 `create_comment`, `list_comments`); do not assume names not present in the tool list. Scope
-all calls with `linear_team` / `linear_project` from `.claude/dev.md`.
+all calls with `linear_team` / `linear_project` from `.agent/dev.md`.
 
 **Verified writes** (found in Linear dogfood, milestone 2): status updates with a value
 that is not an exact workflow-state name can fail *silently* - e.g. writing a `Blocked`
@@ -73,7 +73,7 @@ the candidate set from an unfiltered listing. When a specific issue matters, con
 | Contract concept | Linear mapping |
 |---|---|
 | Task | Issue in the configured team + project |
-| Milestone | Linear project milestone (preferred) or label `milestone:<n>` - record the choice in `.claude/dev.md` body |
+| Milestone | Linear project milestone (preferred) or label `milestone:<n>` - record the choice in `.agent/dev.md` body |
 | Status | Workflow states: `Backlog`, `Todo`, `In Progress`, `In Review`, `Done`. `Wont Do` → `Canceled`. If the team lacks an `In Review` state, ask the human to add one (workflow edits are a human decision) |
 | `Blocked` | Keep the workflow state, add label `blocked` + diagnostic comment. Native "blocked by" relations express dependencies, not the Blocked status |
 | Dependencies | Linear "blocked by" issue relations; fall back to a `Deps: <ids>` line in the description if relations are unavailable via MCP |
@@ -174,7 +174,7 @@ primary tracker's metrics. Instead, GitHub is an optional *secondary intake chan
 isolated item is either promoted into the primary tracker (then the primary owns it) or worked
 in place (then GitHub owns it), never both.
 
-Enable it in `.claude/dev.md` frontmatter (all optional; absent = single-tracker behavior):
+Enable it in `.agent/dev.md` frontmatter (all optional; absent = single-tracker behavior):
 
 ```
 tracker: linear              # primary, unchanged
@@ -218,7 +218,7 @@ To adopt any other tracker (Jira, Asana, Shortcut, …) without changing the ski
    ownership rules (`Done` only via `dev:verify`, etc.).
 3. **Map dependencies, priority, estimate, milestone** to native fields where they exist,
    body-text conventions where they do not (the GitHub backend shows the body-text style).
-4. Write the mapping into `.claude/dev.md`: set `tracker: custom` in frontmatter and put the
+4. Write the mapping into `.agent/dev.md`: set `tracker: custom` in frontmatter and put the
    two mapping tables in the markdown body. Skills read this file before any tracker call, so
    the body mapping is what makes the custom backend work.
 5. Verify by hand before unattended use: create a task, claim it, transition it through the

@@ -17,7 +17,7 @@ so any subset of skills works alone.
 | You want | Adopt | Skip | Notes |
 |---|---|---|---|
 | Only the execution loop | `setup`, `execute`, `review-pr`, `verify` | `discover`, `architect`, `plan` | Your existing backlog feeds `execute` directly. Tickets must survive packet validation (Objective + DoD); `execute` drafts missing fields from whatever docs exist and asks. The thinner your docs, the more it asks. |
-| Planning discipline, own review process | `setup`, `plan`, `backlog`, `execute` | `review-pr`, `verify` | You lose the `Done`-means-verified guarantee. Decide who sets `Done` and record it in `.claude/dev.md` body, or `In Review` tasks pile up forever. |
+| Planning discipline, own review process | `setup`, `plan`, `backlog`, `execute` | `review-pr`, `verify` | You lose the `Done`-means-verified guarantee. Decide who sets `Done` and record it in `.agent/dev.md` body, or `In Review` tasks pile up forever. |
 | Product docs only | `discover`, `architect` | everything tracker-side | PRD/SPEC/ADRs are useful standalone. `tracker: local` in config satisfies setup without adopting task flow. |
 | Everything | all | - | Run `setup` in brownfield mode first; see below. |
 
@@ -67,13 +67,13 @@ a triage, not a copy-paste.
 
 The plugin ships Linear, GitHub Issues, and local-file backends. Anything else follows the
 "Adding a backend" recipe at the end of [tracker.md](tracker.md): map the seven verbs and the
-status lifecycle, write both tables into the `.claude/dev.md` body, set `tracker: custom`.
+status lifecycle, write both tables into the `.agent/dev.md` body, set `tracker: custom`.
 Skills read that file before every tracker call; the body mapping is the implementation.
 
 ### Worked example: Jira via the Atlassian MCP server
 
 Connect the official Atlassian Remote MCP server, then discover exact tool names from the
-runtime tool list (they change; typical names shown). `.claude/dev.md` body:
+runtime tool list (they change; typical names shown). `.agent/dev.md` body:
 
 ```markdown
 ## Tracker mapping (Jira)
@@ -111,7 +111,7 @@ The plugin's only memory integration point is `dev:retro`'s promotion step. Defa
 (`memory_target: files`, or field absent): learnings become `.claude/rules/<slug>.md` files
 and CLAUDE.md lines - git-shared, zero latency, loaded by every session.
 
-Teams already running a memory system set `memory_target` in `.claude/dev.md` frontmatter
+Teams already running a memory system set `memory_target` in `.agent/dev.md` frontmatter
 and retro stores learnings through that system's MCP tools instead:
 
 | `memory_target` | System | Storage | Recall path | Tradeoff vs files |

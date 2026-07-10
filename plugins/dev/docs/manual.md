@@ -43,12 +43,13 @@ Four rules explain every skill's behavior:
   (`gh secret set ANTHROPIC_API_KEY`); each auto-review spends API tokens. The manual
   `dev:review-pr` path works without it.
 
-## Configuration: `.claude/dev.md`
+## Configuration: `.agent/dev.md`
 
 Written by `dev:setup`, committed and team-shared. Structured fields live in YAML
 frontmatter; the markdown body holds free-text conventions skills cannot parse (e.g. "all API
-changes need a migration note in the PR body"). `.claude/dev.local.md` (gitignored) overrides
-fields per developer.
+changes need a migration note in the PR body"). `.agent/dev.local.md` (gitignored) overrides
+fields per developer. Legacy location: `.claude/dev.md` - every skill reads `.agent/dev.md`
+first and falls back to it, and `dev:setup` offers a `git mv` migration on existing projects.
 
 | Field | Default | Read by | Meaning |
 |---|---|---|---|
@@ -62,8 +63,8 @@ fields per developer.
 | `max_fix_attempts` | `3` | `execute`, `auto` | CI-fix or review-fix cycles before the task goes `Blocked` with a diagnostic comment |
 | `max_tasks_per_run` | `5` | `execute` loop mode, `auto` | Batch cap per unattended run |
 | `auto_merge` | `false` | `auto`, `verify` | Standing merge approval for `dev:auto`; see Unattended operation |
-| `rules_dir` | `.claude/rules/` | `retro` | Directory for promoted rule files; omitted on Codex (no auto-loaded rules dir) |
-| `context_file` | `CLAUDE.md` | `retro`, `architect` | Project context file for promotions and the architecture pointer; `AGENTS.md` on Codex |
+| `rules_dir` | `.claude/rules/` | `retro` | Directory for promoted rule files; only set on the Claude-only config - the default mixed-harness config omits it and rules land in `context_file` |
+| `context_file` | `CLAUDE.md` | `retro`, `architect` | Project context file for promotions and the architecture pointer; `AGENTS.md` on the default mixed-harness config (with a one-line `CLAUDE.md` = `@AGENTS.md` import) |
 | `memory_target` | `files` | `retro` | Where promotions land: the configured `rules_dir`/`context_file` files, or a memory MCP system (see adoption.md §5) |
 | `secondary_intake` | - | `execute`, `review-pr`, `verify`, `backlog`, `status` | Opt into GitHub as an isolated-work channel on a non-github-primary project (`github`); see Secondary intake channel below |
 | `github_repo` | - | secondary-channel skills | `owner/repo` the secondary issues/PRs live in; only with `secondary_intake: github` |
@@ -177,7 +178,7 @@ worktree; the main checkout's HEAD only moves at merge time.
 When your primary tracker is Linear (or local) but the project still gets GitHub issues and
 drive-by PRs that are isolated - not part of a milestone, not in the backlog - forcing each
 into the primary tracker recreates dual state and pollutes its metrics. Set
-`secondary_intake: github` + `github_repo: owner/repo` in `.claude/dev.md` to accept them as a
+`secondary_intake: github` + `github_repo: owner/repo` in `.agent/dev.md` to accept them as a
 second channel. Every incoming GitHub issue or PR gets exactly one fate:
 
 ```

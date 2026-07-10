@@ -4,7 +4,7 @@ description: >
   This skill should be used when the user asks to "set up the dev workflow", "initialize this
   project for dev", "run dev setup", "adopt the dev plugin", "configure the tracker", or
   invokes /dev:setup. Initializes a project (greenfield or existing/brownfield) for the dev
-  plugin: scaffolds the docs layout, selects the tracker backend, and writes .claude/dev.md.
+  plugin: scaffolds the docs layout, selects the tracker backend, and writes .agent/dev.md.
 argument-hint: "[project-dir]"
 ---
 
@@ -30,9 +30,9 @@ runs server-side and only needs `ANTHROPIC_API_KEY`, regardless of the local har
 
 | Concern | Claude Code | Codex |
 |---|---|---|
-| Linear MCP config | `claude mcp add` / plugin MCP | `[mcp_servers]` in `~/.codex/config.toml` |
+| Linear MCP config | `claude mcp add` / plugin MCP | `codex mcp add` (writes `[mcp_servers]` in `~/.codex/config.toml`) |
 | Pre-approve commands for unattended runs | `.claude/settings.json` permissions | approvals config + `.rules` command policy |
-| Context file seeded in step 4 | `CLAUDE.md` | `AGENTS.md` |
+| Context file seeded in step 4 | `AGENTS.md` default (+ `CLAUDE.md` import); `CLAUDE.md` on Claude-only config | `AGENTS.md` |
 
 ## 1. Detect mode
 
@@ -60,9 +60,11 @@ Claude Code), only what cannot be inferred:
    reports, drive-by PRs) worked in place, without a primary-tracker ticket? If yes, record
    `secondary_intake: github` + `github_repo: owner/repo`. See the "Secondary intake channel"
    section in `tracker.md`. Skip the question when the primary tracker already is `github`.
-6. **Multiple harnesses?** Will this project be worked from more than one agent harness
+6. **Multiple harnesses?** Will this project ever be worked from more than one agent harness
    (some teammates on Claude Code, others on Codex; or you alternating harnesses per
-   task)? Default no. This decides the memory target in step 3.
+   task)? Default yes - the mixed-harness config below works identically on every harness,
+   so it is the safe default. Answer no only for a deliberately Claude-Code-only project.
+   This decides the memory target in step 3.
 
 ## 3. Scaffold
 
@@ -72,14 +74,19 @@ Create only what is missing:
 docs/            # PRD.md, SPEC.md, ROADMAP.md arrive via dev:discover / dev:architect
 docs/adr/
 research/raw/
-.claude/rules/   # the configured rules_dir (this Claude Code default; omitted on Codex)
+.claude/rules/   # only with the Claude-only config (Q6 = no); the default config has no rules_dir
 .dev/tasks/      # only when tracker: local
 ```
 
-Create the configured `rules_dir` (see the `dev.md` template below) rather than hardcoding
-`.claude/rules/`; skip it on a harness where `rules_dir` is omitted (Codex).
+Create the configured `rules_dir` only when the interview chose the Claude-only config; the
+default (mixed-harness) config omits `rules_dir` entirely.
 
-Write `.claude/dev.md` with YAML frontmatter:
+**Existing projects:** when a legacy `.claude/dev.md` (or `.claude/dev.local.md`) exists,
+offer to `git mv` it to `.agent/dev.md` (and `.agent/dev.local.md`, updating the
+`.gitignore` entry). Every dev skill reads `.agent/dev.md` first and falls back to the
+legacy path, so the migration is safe but optional.
+
+Write `.agent/dev.md` with YAML frontmatter:
 
 ```markdown
 ---
@@ -92,31 +99,30 @@ work_in_progress_limit: 3      # max tasks simultaneously In Progress + In Revie
 max_fix_attempts: 3            # CI-fix or review-fix cycles before a task goes Blocked
 max_tasks_per_run: 5           # batch cap for dev:auto and execute loop/batch mode
 auto_merge: false              # standing merge approval for dev:auto (see that skill)
-rules_dir: .claude/rules/      # dir for promoted rule files; omit on Codex (no auto-loaded rules dir)
-context_file: CLAUDE.md        # project context file; AGENTS.md on Codex
+context_file: AGENTS.md        # single shared context file (default); Claude-only config uses CLAUDE.md + rules_dir
 ---
 Project conventions the fields cannot capture go here as free text.
 ```
 
-Set `rules_dir` and `context_file` to the values for the harness setup is running in (Claude
-Code: `.claude/rules/` + `CLAUDE.md`; Codex: omit `rules_dir`, use `AGENTS.md`).
-`dev:retro` reads these when promoting learnings and, when
-they are absent, defaults to `.claude/rules/` and `CLAUDE.md`.
+**Default config (Q6 = yes, mixed-harness):** `context_file: AGENTS.md` and no `rules_dir`,
+whichever harness setup runs in - a single shared file carries promoted learnings
+(`dev:retro`) and the architecture pointer (`dev:architect`). Codex reads `AGENTS.md`
+natively. Claude Code does NOT auto-load `AGENTS.md` (it loads `CLAUDE.md`), so also seed a
+one-line `CLAUDE.md` whose entire body is the import `@AGENTS.md` - Claude Code then pulls
+the shared file into context through its native import, and the memory loop closes for both
+harnesses through one file. If the project already has promoted rules in `.claude/rules/`
+(or another legacy `rules_dir`), offer a one-time migration: move each rule's content into a
+clearly-marked rules section of `AGENTS.md`, then delete the migrated rule files - leaving
+both in place splits the memory between harnesses.
 
-**Mixed-harness projects (interview Q6 = yes):** set `context_file: AGENTS.md` and omit
-`rules_dir`, whichever harness setup runs in, so a single shared file carries promoted
-learnings (`dev:retro`) and the architecture pointer (`dev:architect`). Codex reads
-`AGENTS.md` natively. Claude Code does NOT auto-load `AGENTS.md` (it loads `CLAUDE.md`), so on
-a mixed-harness project also seed a one-line `CLAUDE.md` whose entire body is the import
-`@AGENTS.md` - Claude Code then pulls the shared file into context through its native import.
-With that in place the memory loop closes for both harnesses through one file; a
-`.claude/rules/` target would close it for one harness only. This is the
-recommended config for any project touched by more than one harness.
+**Claude-only config (Q6 = no):** set `rules_dir: .claude/rules/` and
+`context_file: CLAUDE.md`. `dev:retro` reads these when promoting learnings and, when both
+fields are absent (pre-existing projects), defaults to these same values.
 
 Add Linear fields (`linear_team`, `linear_project`) when applicable. When the user opted into
 a secondary GitHub intake channel (interview Q5), add `secondary_intake: github`,
 `github_repo: owner/repo`, and `audit_trail: link`. Do not create
-`.claude/dev.local.md`; mention it exists for personal overrides (gitignored).
+`.agent/dev.local.md`; mention it exists for personal overrides (gitignored).
 
 Backend one-time setup:
 
@@ -126,15 +132,15 @@ Backend one-time setup:
 
 ## 4. Seed the context file
 
-Seed the `context_file` chosen in step 3 (`CLAUDE.md` on Claude Code, `AGENTS.md` on
-Codex). Greenfield: create a lean context file (< 50 lines) stating the project name,
-pointing to `docs/PRD.md`, `docs/SPEC.md`, `docs/ROADMAP.md`, `docs/adr/`, and the configured
-`rules_dir` (`.claude/rules/` on Claude Code), and naming the tracker backend. Brownfield:
-append the pointers section to the existing context file instead; touch nothing else in it.
+Seed the `context_file` chosen in step 3 (`AGENTS.md` by default; `CLAUDE.md` on the
+Claude-only config). Greenfield: create a lean context file (< 50 lines) stating the project
+name, pointing to `docs/PRD.md`, `docs/SPEC.md`, `docs/ROADMAP.md`, `docs/adr/`, the
+configured `rules_dir` when one exists, and naming the tracker backend. Brownfield: append
+the pointers section to the existing context file instead; touch nothing else in it.
 
-Mixed-harness projects (Q6 = yes, `context_file: AGENTS.md`): also seed a `CLAUDE.md` whose
-entire body is `@AGENTS.md` so Claude Code imports the shared file; if a `CLAUDE.md` already
-exists, add the `@AGENTS.md` import line rather than replacing it.
+Default config (`context_file: AGENTS.md`): also seed a `CLAUDE.md` whose entire body is
+`@AGENTS.md` so Claude Code imports the shared file; if a `CLAUDE.md` already exists, add
+the `@AGENTS.md` import line rather than replacing it.
 
 ## 5. Brownfield: architecture archaeology
 
@@ -160,7 +166,7 @@ Offer when the repo is GitHub-hosted and a CI workflow exists. If accepted:
    name).
 2. Tell the user to add the API key secret: `gh secret set ANTHROPIC_API_KEY`. Warn: each
    auto-review spends API tokens; the manual `dev:review-pr` path keeps working either way.
-3. Set `review_action_installed: true` in `.claude/dev.md` frontmatter.
+3. Set `review_action_installed: true` in `.agent/dev.md` frontmatter.
 4. Note that the template should be sanity-checked against the current
    `anthropics/claude-code-action` docs on first run.
 

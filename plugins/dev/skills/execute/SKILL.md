@@ -16,7 +16,7 @@ Merging is `dev:verify`'s job; never merge, even if asked mid-run - point at `de
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`).
 
-Read first: `.claude/dev.md` (config) and the plugin's `docs/tracker.md` (tracker verbs,
+Read first: `.agent/dev.md` (config; legacy fallback: `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` (tracker verbs,
 backend mapping, next-task algorithm) — on Claude Code `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`,
 equivalently `../../docs/tracker.md` relative to this skill's directory.
 
@@ -96,7 +96,7 @@ The packet is the contract: read its inlined spec excerpts and follow the linked
 giving it ONLY: the task packet, the spec excerpts, and the public interface (signatures,
 schemas, endpoints). Never show it the implementation diff - it tests the contract, not the
 code. Trivial tasks (config, docs, one-liners) may test inline. Run the full
-`test_command` from `.claude/dev.md`; everything passes before pushing.
+`test_command` from `.agent/dev.md`; everything passes before pushing.
 
 ## 4. PR
 

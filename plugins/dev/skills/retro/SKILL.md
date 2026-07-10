@@ -5,7 +5,8 @@ description: >
   <id>", "retro the milestone", "what did we learn", "update the rules from what happened",
   or invokes /dev:retro. Mines the evidence trail of completed tasks (PR review threads, CI
   history, tracker comments, session transcripts) and closes the memory loop: distilled
-  learnings are promoted into .claude/rules/ or CLAUDE.md so future sessions start smarter.
+  learnings are promoted into the project's configured memory files (AGENTS.md by default,
+  or rules_dir/context_file) so future sessions start smarter.
 argument-hint: "[task <id> | milestone <n>]"
 ---
 
@@ -18,7 +19,7 @@ instructions, applied on approval, that change how the next session behaves.
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`).
 
-Read first: `.claude/dev.md` and the plugin's `docs/tracker.md` — on Claude Code
+Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
 skill's directory. Scope: one task (`task <id>`) or all `Done`/`Wont Do`/`Blocked` tasks in a
 milestone (`milestone <n>`).
@@ -59,7 +60,7 @@ Classify each learning:
 - **Project rule** - generalizable constraint or convention ("integration tests need
   `docker compose up db` first", "API errors follow shape X"): candidate for promotion.
 - **Packet-quality lesson** - the packet was wrong/thin (untestable DoD, missing dependency):
-  candidate for the planning conventions in the `.claude/dev.md` body.
+  candidate for the planning conventions in the `.agent/dev.md` body.
 - **Process tuning** - config change (`work_in_progress_limit`, `max_fix_attempts`, test command).
 - **One-off** - bad luck, no generalization: record in the retro comment, promote nothing.
 - **Follow-up work** - a defect or gap in already-merged work, or new work the evidence
@@ -78,13 +79,13 @@ Classify each learning:
 
 ## 3. Promote (the point of this skill)
 
-Promotion targets, by `memory_target` in `.claude/dev.md` (default `files`):
+Promotion targets, by `memory_target` in `.agent/dev.md` (default `files`):
 
 - **`files`:** promote to the rules directory and context file named by `rules_dir` and
-  `context_file` in `.claude/dev.md`; when those fields are absent, default to `.claude/rules/`
+  `context_file` in `.agent/dev.md`; when those fields are absent, default to `.claude/rules/`
   and `CLAUDE.md` (this default keeps every existing project working unchanged). Write one
   atomic rule per file in `<rules_dir>/<slug>.md` (a rule future sessions must obey), or a
-  line in the relevant `context_file` section for pointers/summaries. Only when `.claude/dev.md`
+  line in the relevant `context_file` section for pointers/summaries. Only when `.agent/dev.md`
   sets `context_file` but omits `rules_dir` (the Codex and mixed-harness configs - no
   auto-loaded rules directory there) do full rules go into a clearly-marked rules section of
   the configured `context_file` instead of separate rule files; when both fields are absent,

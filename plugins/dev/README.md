@@ -6,7 +6,7 @@ PR-native (worktree → PR → CI → review → verified merge), and every task
 packet a fresh session can execute without prior context.
 
 Replaces [agentic_development_workflow](https://github.com/wilsonkichoi/agentic_development_workflow).
-This README is the index; the operating guide (prerequisites, `.claude/dev.md` config
+This README is the index; the operating guide (prerequisites, `.agent/dev.md` config
 reference, lifecycle and ownership rules, human gates, unattended operation) is
 [docs/manual.md](docs/manual.md). Design rationale and build history: [DESIGN.md](DESIGN.md).
 Workflow diagram: [docs/dev-workflow.drawio](docs/dev-workflow.drawio).
@@ -32,9 +32,11 @@ Skill names below are written Claude-Code style (`/dev:execute`). Render your ha
 | Claude Code | `/dev:execute` | full feature set (agents auto-delegate, `dev:auto` + loop mode) |
 | Codex | `$execute` | agents copied from `dist/codex/agents/`, advisory independence; no `auto`/loop |
 
-Install per harness: see the repo-root [README](../../README.md). Codex does not carry the
-`.claude/`-specific machinery automatically; `dev:setup` chooses the right context file and
-promotion target per harness (`AGENTS.md` on Codex).
+Install per harness: see the repo-root [README](../../README.md). Config lives in
+`.agent/dev.md` (legacy `.claude/dev.md` still read). `dev:setup` defaults to the shared
+memory config - promotions and the architecture pointer target `AGENTS.md`, which Claude
+Code imports via a one-line `CLAUDE.md`; a Claude-only config (`.claude/rules/` +
+`CLAUDE.md`) remains available.
 
 ## Skills
 
@@ -42,7 +44,7 @@ promotion target per harness (`AGENTS.md` on Codex).
 |---|---|
 | `/dev:discover` | Ingest `research/raw/`, interview the user to close gaps, produce `docs/PRD.md`: problem, customer, value, north star, non-goals. Business clarity only; delta mode for goal-impacting changes. |
 | `/dev:architect` | Approved PRD → `docs/SPEC.md` (architecture, contracts, NFRs, negative requirements, Mermaid diagrams), `docs/ROADMAP.md` (risk-ordered milestones), ADRs for contested choices. Docs only; delta mode for spec-impacting changes. |
-| `/dev:setup` | Initialize a project (greenfield or brownfield): scaffold `docs/`, pick tracker backend, write `.claude/dev.md`. Brownfield mode offers architecture archaeology into a current-state SPEC.md. Optional installer for the auto-review GitHub Action. |
+| `/dev:setup` | Initialize a project (greenfield or brownfield): scaffold `docs/`, pick tracker backend, write `.agent/dev.md`. Brownfield mode offers architecture archaeology into a current-state SPEC.md. Optional installer for the auto-review GitHub Action. |
 | `/dev:plan` | Decompose one roadmap milestone into self-contained task packets (objective, why, DoD, dependencies, inlined spec excerpts) and push them to the tracker after a human-approved dry run. |
 | `/dev:backlog` | Mid-flight change management: intake requests as full packets with impact triage (backlog-only vs spec vs product goal) and dependency wiring as native tracker relations (both directions against existing tickets), promote `Backlog → Todo`, split tasks, close as `Wont Do` with rationale, periodic triage sweep. |
 | `/dev:execute` | Claim one task → git worktree → implement → tests (via the `test-writer` agent, contract-only context) → PR → CI to green → visual self-check + local preview instructions (when DoD has visual criteria; the executor inspects touched pages against the comparison target before hand-off) → work-summary comment → `In Review`. Never merges. Safeguards: `work_in_progress_limit`, `max_fix_attempts`, packet validation for hand-written tickets. |
@@ -66,7 +68,7 @@ the pipeline; it is never routed around by downgrading to a smaller model.
 
 ## Tracker backends
 
-Configured per project in `.claude/dev.md` frontmatter (`tracker:` field). Contract and
+Configured per project in `.agent/dev.md` frontmatter (`tracker:` field). Contract and
 backend mappings: [docs/tracker.md](docs/tracker.md).
 
 | Backend | Mechanism |

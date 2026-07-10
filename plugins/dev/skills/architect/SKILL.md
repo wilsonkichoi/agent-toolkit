@@ -80,7 +80,7 @@ out-of-scope. Order by risk: the milestone that retires the biggest unknown ship
 ## 5. Update the context file and gate
 
 Add or refresh the architecture pointer in the project context file named by `context_file`
-in `.claude/dev.md` (default `CLAUDE.md` when the field is absent, which keeps existing
+in `.agent/dev.md` (legacy fallback: `.claude/dev.md`; default `CLAUDE.md` when the field is absent, which keeps existing
 projects unchanged; `AGENTS.md` on Codex): 5-10 lines summarizing the architecture
 and linking to SPEC/ROADMAP/ADRs; keep the context file lean. Then the human gate: present
 the architecture summary, the contested ADRs, and the milestone order. This gate deserves a
