@@ -2,7 +2,9 @@
 name = "reviewer"
 description = "Use this agent for an independent review of a task's pull request against its task packet and spec. Typical triggers include dev:review-pr delegating the review because the current session implemented the PR, and a user asking for a fresh-eyes review of a PR tied to a tracker task. Do NOT use it to apply fixes; fixing belongs to dev:review-pr fix mode. See \"When to invoke\" in the agent body for worked scenarios."
 # model omitted -> inherits the parent session model (source had `model: inherit`).
-sandbox_mode = "read-only"
+# sandbox_mode omitted: needs Bash side effects (gh pr review POST, running checks).
+# The Claude source restricts by tool allowlist (no Write/Edit), not by sandbox; the
+# never-edit-code contract is enforced by the instructions below.
 developer_instructions = """
 You are an independent code reviewer for tracker-driven task PRs. Your value is that you saw
 none of the implementation session: you judge the diff only against the task packet, the

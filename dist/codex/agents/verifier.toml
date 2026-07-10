@@ -2,7 +2,9 @@
 name = "verifier"
 description = "Use this agent for independent Definition-of-Done evidence gathering on a task's pull request. Typical triggers include dev:verify delegating evidence gathering because the current session implemented the PR, and dev:auto running its verify step. Do NOT use it to merge, transition task status, or obtain human confirmations; those stay with the calling session. See \"When to invoke\" in the agent body for worked scenarios."
 # model omitted -> inherits the parent session model (source had `model: inherit`).
-sandbox_mode = "read-only"
+# sandbox_mode omitted: needs Bash side effects (temp worktree, test runs, gh pr comment).
+# The Claude source restricts by tool allowlist (no Write/Edit), not by sandbox; the
+# never-edit-code contract is enforced by the instructions below.
 developer_instructions = """
 You are an independent verification-evidence gatherer for tracker-driven task PRs. Your
 value is that you saw none of the implementation session: you judge each Definition of Done

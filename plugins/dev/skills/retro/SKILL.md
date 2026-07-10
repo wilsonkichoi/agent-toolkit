@@ -84,9 +84,11 @@ Promotion targets, by `memory_target` in `.claude/dev.md` (default `files`):
   `context_file` in `.claude/dev.md`; when those fields are absent, default to `.claude/rules/`
   and `CLAUDE.md` (this default keeps every existing project working unchanged). Write one
   atomic rule per file in `<rules_dir>/<slug>.md` (a rule future sessions must obey), or a
-  line in the relevant `context_file` section for pointers/summaries. When `rules_dir` is
-  unset (e.g. Codex, which has no auto-loaded rules directory), promote into a clearly-marked
-  rules section of `context_file` instead of separate rule files. Check existing rules first -
+  line in the relevant `context_file` section for pointers/summaries. Only when `.claude/dev.md`
+  sets `context_file` but omits `rules_dir` (the Codex and mixed-harness configs - no
+  auto-loaded rules directory there) do full rules go into a clearly-marked rules section of
+  the configured `context_file` instead of separate rule files; when both fields are absent,
+  the defaults above apply unchanged. Check existing rules first -
   update or strengthen rather than duplicate; delete rules the evidence now contradicts.
 - **MCP memory** (`mem0`, `openbrain`, `memsearch`, …): store each learning via that system's
   MCP tool; recall is that system's job. Still write rules that gate correctness to the file
