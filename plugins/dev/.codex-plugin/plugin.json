@@ -1,6 +1,6 @@
 {
   "name": "dev",
-  "version": "0.0.42",
+  "version": "0.0.43",
   "description": "AI-assisted product development lifecycle: tracker-backed task packets (Linear, GitHub Issues, or local files) with PR-native execution via worktrees, CI, review, and verified merge.",
   "skills": "./skills/"
 }

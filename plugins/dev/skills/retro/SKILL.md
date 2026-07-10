@@ -82,18 +82,20 @@ Classify each learning:
 Promotion targets, by `memory_target` in `.agent/dev.md` (default `files`):
 
 - **`files`:** promote to the rules directory and context file named by `rules_dir` and
-  `context_file` in `.agent/dev.md`; when those fields are absent, default to `.claude/rules/`
-  and `CLAUDE.md` (this default keeps every existing project working unchanged). Write one
+  `context_file` in `.agent/dev.md`; when those fields are absent, fall back to `.claude/rules/`
+  and `CLAUDE.md` - the pre-port behavior, kept as a safety net for legacy or hand-written
+  configs, not the recommended target (a fresh `dev:setup` writes explicit fields and defaults
+  to `AGENTS.md`). Write one
   atomic rule per file in `<rules_dir>/<slug>.md` (a rule future sessions must obey), or a
   line in the relevant `context_file` section for pointers/summaries. Only when `.agent/dev.md`
   sets `context_file` but omits `rules_dir` (the Codex and mixed-harness configs - no
   auto-loaded rules directory there) do full rules go into a clearly-marked rules section of
   the configured `context_file` instead of separate rule files; when both fields are absent,
-  the defaults above apply unchanged. Check existing rules first -
+  the safety-net fallback above applies. Check existing rules first -
   update or strengthen rather than duplicate; delete rules the evidence now contradicts.
 - **MCP memory** (`mem0`, `openbrain`, `memsearch`, …): store each learning via that system's
   MCP tool; recall is that system's job. Still write rules that gate correctness to the file
-  target (`rules_dir`/`context_file`, default `.claude/rules/`) - files are the only target
+  target (`rules_dir`/`context_file`, fallback `.claude/rules/`) - files are the only target
   every future session is guaranteed to load.
 
 Standards for a promotable learning: evidence-cited (link the PR finding / CI run / comment),

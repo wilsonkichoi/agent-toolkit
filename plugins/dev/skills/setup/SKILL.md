@@ -117,7 +117,8 @@ both in place splits the memory between harnesses.
 
 **Claude-only config (Q6 = no):** set `rules_dir: .claude/rules/` and
 `context_file: CLAUDE.md`. `dev:retro` reads these when promoting learnings and, when both
-fields are absent (pre-existing projects), defaults to these same values.
+fields are absent (legacy or hand-written configs), falls back to these same values as a
+safety net - not a recommended config; run `dev:setup` to write explicit fields.
 
 Add Linear fields (`linear_team`, `linear_project`) when applicable. When the user opted into
 a secondary GitHub intake channel (interview Q5), add `secondary_intake: github`,
