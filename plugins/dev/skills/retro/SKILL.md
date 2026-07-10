@@ -43,7 +43,12 @@ Per task, in this order of value:
    for the task id, not only the current harness's - a task may have been executed under a
    different harness - Claude Code: `~/.claude/projects/<project-slug>/`; Codex:
    `~/.codex/sessions/`. Use to reconstruct why something took N
-   attempts. Skip silently for any store that is absent or unreadable.
+   attempts. Skip silently for any store that is absent or unreadable. This source is
+   **machine-local**: transcripts never leave the machine they were created on, so a retro run
+   on a different machine or by a different teammate loses it but keeps every other source here
+   (tracker comments, PR threads, CI are server-side; contract compliance is in git). Run retro
+   where the work ran when you can; when you can't, the mandatory `dev:execute` work-summary
+   comment (item 1) is the durable, shared substitute for what the transcript would have shown.
 5. **Lifecycle-contract compliance:** check what each lifecycle step actually produced
    against its skill's contract - verification report present on the PR, human-gate DoD
    boxes checked, work-summary comment posted, `status:*` labels stripped at terminal
