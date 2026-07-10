@@ -41,8 +41,12 @@ Per task, in this order of value:
    one-offs.
 4. **Session transcripts** (best effort, current harness only): grep this harness's own
    session store by content for the task id, to reconstruct why something took N attempts -
-   Claude Code: `~/.claude/projects/**/*.jsonl` (grep across slugs; a task run in its own
-   worktree sits under a different slug than the repo root). Skip silently if the store is
+   Claude Code: content-grep the `*.jsonl` under this repo's own slug in `~/.claude/projects/`
+   AND under any sibling slug sharing this repo's path prefix - `dev:execute` runs the task in
+   a worktree whose slug is a distinct directory (e.g. `<repo-slug>-worktrees-<branch>` or
+   `<repo-slug>-.claude-worktrees-...`), so the execution transcript lives outside the
+   repo-root slug and a repo-root-only search misses it; do NOT widen to unrelated projects'
+   slugs, whose task ids can collide with yours. Skip silently if the store is
    absent or unreadable. This source is **machine-local and single-harness**: do not try to
    read another provider's session store (Codex `~/.codex/sessions/` under Claude, or vice
    versa) - bridging proprietary, undocumented session formats across providers is not worth
