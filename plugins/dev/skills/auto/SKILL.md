@@ -24,9 +24,14 @@ Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent) and 
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
 skill's directory.
 
-Requires a harness with background subagents for the orchestration discipline below (Claude
-Code today). On a harness without them, refuse to run and point the user at the
-one-task-at-a-time flow: dev:execute → dev:review-pr → dev:verify → dev:retro.
+Requires a harness that can spawn fresh-context subagents and wait on their results, with
+this plugin's named agents (`reviewer`, `verifier`, `test-writer`) resolvable - Claude Code
+natively; Codex via `spawn_agent`/`wait_agent` with the `dist/codex/agents/*.toml` files
+copied into `~/.codex/agents/` or the project's `.codex/agents/`. Check by use, not by
+config archaeology: the first spawn of a named agent that fails to resolve is a stop -
+report it with the copy/install instructions from the repo README. Refuse to run only on a
+harness with no subagent mechanism at all, pointing at the one-task-at-a-time flow:
+dev:execute → dev:review-pr → dev:verify → dev:retro.
 
 ## Standing authorization (`auto_merge`)
 
@@ -47,20 +52,27 @@ Do not fall back to a silent stop-at-verify mode.
 
 The session stays a thin orchestrator; every heavy step runs in a fresh subagent so no
 implementation context accumulates (mid-task compaction is how work gets corrupted).
-Orchestrator does: claim, subagent dispatch, artifact checks between steps, merge, status
-transitions, reporting. Subagents do: implementation, review, fixes, verification evidence.
+Orchestrator does: claim, subagent dispatch, artifact validation between steps, merge,
+status transitions, tracker writes the agents cannot make, reporting. Subagents do:
+implementation, review, fixes, verification evidence.
+
+**Fresh context, never forked:** every subagent starts with fresh context. Never fork or
+copy this session's history into one (Codex: no full-history fork - leave `fork_context`
+unset; the platform rejects it combined with `agent_type` anyway). Everything the agent
+needs is passed as text per the delegation contracts in `dev:review-pr` / `dev:verify`.
 
 **Model discipline:** spawn every subagent with NO `model` parameter - the dev agents pin
 `model: inherit` and generic subagents inherit the session model by default, and an explicit
-`model` on the Agent call overrides both. Never pass a model alias to "match" the session
+`model` on the spawn call overrides both. Never pass a model alias to "match" the session
 (aliases resolve to the newest model of that family, which the account may not have), and
 never downgrade to a smaller model to route around a model-availability error - that
 silently runs implementation and review on a weaker model than the human chose. If a spawn
 fails on the inherited model, retry once with no override; if it fails again, stop and
 report the error as an environment problem.
 
-**Reviewer/verifier dispatch:** run the `reviewer` and `verifier` agents synchronously
-(`run_in_background: false`) so the verdict or report arrives as the tool result. A review
+**Reviewer/verifier dispatch:** dispatch the `reviewer` and `verifier` agents and wait for
+the result before advancing, so the verdict or report arrives as the tool result (Claude
+Code: `run_in_background: false`; Codex: `spawn_agent` then `wait_agent`). A review
 or verify agent that errors, goes idle, or returns without a verdict/report is a stop
 condition - the orchestrator never substitutes its own inline review or verification;
 auto_merge condition 1 and `dev:verify`'s independence rule both forbid it, and the
@@ -70,15 +82,45 @@ orchestrator holds the implementer's report, so it is not independent.
 
 1. **Claim** - as `dev:execute` step 1: `next-task` (WIP gate, dependency rules, packet
    validation; invalid packets are skipped with a comment).
-2. **Implement** - background subagent following `dev:execute` steps 2-7 (worktree →
-   implement → tests via `test-writer` → PR or branch → CI green → local preview
-   instructions when the DoD has visual criteria → work-summary comment →
-   `In Review`); it creates the task worktree itself per execute step 2, so spawn it
-   without harness worktree isolation. `max_fix_attempts` applies inside; a `Blocked`
-   result stops the pipeline.
-3. **Review** - fresh `reviewer` agent, exactly as `dev:review-pr` delegation, dispatched
-   per the reviewer/verifier discipline above (synchronous, no model override, no verdict →
-   stop).
+2. **Implement** - never inline in the orchestrator session, on any harness. Two shapes,
+   by whether the implementation subagent can itself spawn `test-writer` (nested
+   delegation):
+   - **Nested delegation available** (Claude Code): one fresh subagent follows
+     `dev:execute` steps 2-7 (worktree → implement → tests via `test-writer` → PR or
+     branch → CI green → local preview instructions when the DoD has visual criteria →
+     work-summary comment → `In Review`); it creates the task worktree itself per execute
+     step 2, so spawn it without harness worktree isolation.
+   - **Nested delegation unavailable** (Codex: the default `agents.max_depth = 1` blocks
+     grandchild spawns - no configuration change needed): the orchestrator dispatches the
+     phases as siblings. First judge triviality from the packet per execute step 3's
+     exception (config, docs, one-liners); a trivial task runs as ONE worker dispatch of
+     execute steps 2-7 testing inline. Non-trivial (borderline counts as non-trivial):
+     1. Worker (Codex built-in) runs execute steps 2-3: worktree, implement - no push or
+        PR yet. Its report must return the worktree path, branch, and the public interface
+        (signatures, CLI surface, schemas) for the test-writer briefing.
+     2. `test-writer` (named agent), briefed with ONLY the packet, spec excerpts, public
+        interface, worktree path, and `test_command` - never the implementation diff or
+        the worker's rationale. It writes and runs contract tests, reporting pass/fail
+        verbatim.
+     3. Worker (fresh, given the worktree path and the test results) reconciles failures
+        (code vs contract), runs the full `test_command`, then executes steps 4-7: PR, CI
+        to green, work summary, `In Review`.
+
+   `max_fix_attempts` applies inside the implementation phase; a `Blocked` result stops
+   the pipeline.
+3. **Review** - fresh `reviewer` agent, exactly as `dev:review-pr` delegation (the dispatch
+   message embeds the packet + work-summary text verbatim, the review body format, the
+   solo-repo `--comment` fallback, and the current-HEAD `Commit:` requirement), dispatched
+   per the reviewer/verifier discipline above (waited-on, no model override, no verdict →
+   stop). **Validate the artifact before advancing:** fetch the PR reviews and require one
+   (native or comment-form) whose body contains `## dev:review-pr - <id>`, an exact
+   `Verdict:` line, and `Commit:` equal to the current `headRefOid`; and require the
+   tracker verdict record - on backends the agent cannot write to, post it from the
+   agent's returned body (same proxy rule as verify). Artifact missing or malformed
+   despite an approve-in-substance result: respawn the reviewer ONCE with the full
+   embedded contract; still malformed → stop. Never conclude a different GitHub account is
+   needed - the comment-form review is the designed solo-repo path (`dev:review-pr`
+   step 3).
 4. **Fix loop** - on request-changes: subagent applies `dev:review-pr` fix mode, then a fresh
    review pass. **Comment every cycle** on the task so the review iteration is visible on the
    issue, not only in PR review threads:
@@ -93,10 +135,13 @@ orchestrator holds the implementer's report, so it is not independent.
    with a final comment listing the unresolved findings (the per-cycle comments are the trail),
    stop.
 5. **Verify + merge** - fresh `verifier` agent runs `dev:verify` sections 1-3
-   (preconditions, evidence per criterion, report), per `dev:verify`'s independence rule,
-   dispatched per the reviewer/verifier discipline above (synchronous, no model override,
-   no report → stop); the orchestrator posts the tracker copy of the report on backends
-   the agent cannot write to. All criteria met, each
+   (preconditions, evidence per criterion, report), per `dev:verify`'s independence rule
+   and delegation contract (the dispatch message embeds the packet + task-comment text
+   verbatim, the approving-review definition, and the report format), dispatched per the
+   reviewer/verifier discipline above (waited-on, no model override, no report → stop).
+   Validate the artifact: confirm the report landed as a PR comment, and post the tracker
+   copy from the agent's returned body on backends the agent cannot write to. All criteria
+   met, each
    mechanically evidenced or carrying a recorded human sign-off → merge per `merge_policy`,
    transition `Done`, clean up worktree (remove the task worktree before any branch
    deletion - a branch checked out in a worktree cannot be deleted, so `--delete-branch`
@@ -117,10 +162,14 @@ remaining tasks blocked by non-`Done` deps); `max_tasks_per_run` reached (config
 overridable by the `max N tasks` argument); any task `Blocked`; verify stop (unmet
 criterion, or manual criterion without recorded sign-off); review or verify agent failure
 (error, idle, or no verdict/report returned - never substitute orchestrator-inline review
-or verification); subagent spawn failure after the one no-override retry (model
-availability included); merge conflict; tracker write failure.
+or verification); review artifact still missing or malformed after the one respawn; a named
+agent unresolvable at spawn (agent definitions not installed); subagent spawn failure after
+the one no-override retry (model availability included); merge conflict; tracker write
+failure.
 
-Report on stop, whatever the reason:
+Report on stop, whatever the reason. Every field below is required with its stated meaning
+(reason, tasks completed to `Done`, where it stopped and what needs the human, pending
+retro proposal count, the single next action); exact wording may vary:
 
 ```
 # dev:auto - stopped: <reason>

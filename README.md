@@ -59,10 +59,15 @@ cp dist/codex/agents/*.toml ~/.codex/agents/        # or a project ./.codex/agen
 Invoke skills explicitly with `$<name>` (e.g. `$research`, `$execute`). The project context
 file is `AGENTS.md` (`dev:setup`'s default config on every harness). Known degradations on Codex:
 
-- **No automatic subagent delegation.** `review-pr` / `verify` independence is advisory
-  (prompt-enforced), not tool-enforced; run them in a separate session from the implementer.
-- **`dev:auto` and `execute` loop/batch mode are unavailable** (need background subagents +
-  a loop primitive); the skills refuse gracefully and point at the one-task-per-session flow.
+- **Subagents work via `spawn_agent`/`wait_agent`** once the TOMLs above are copied:
+  `review-pr` / `verify` independence delegates to the named reviewer/verifier agents, and
+  `dev:auto` runs the full unattended pipeline. Codex's default `agents.max_depth = 1`
+  blocks nested spawns, so under `dev:auto` the orchestrator dispatches the implementation
+  worker and `test-writer` as siblings (specified in the skill; no configuration needed).
+  Standalone `execute` is unaffected: its session is the root, so `test-writer` is a direct
+  child.
+- **`execute` loop/batch mode is unavailable** (needs a loop primitive); run one task per
+  session, or use `dev:auto` to drain a milestone unattended.
 - **`research` / `retro` do not fire implicitly** (guarded by `agents/openai.yaml`); invoke
   them explicitly.
 
@@ -75,9 +80,10 @@ file is `AGENTS.md` (`dev:setup`'s default config on every harness). Known degra
 | dev interactive lifecycle (setup→plan→execute→review→verify→retro) | ✅ | ✅ |
 | tracker doc reachable from dev skills | `$CLAUDE_PLUGIN_ROOT` env | relative path |
 | retro / architect promotion target (default config) | `AGENTS.md` via the `CLAUDE.md` = `@AGENTS.md` import | `AGENTS.md` natively |
-| bundled agents (reviewer/test-writer/verifier) | native (auto-delegated) | copy TOML (advisory) |
-| automatic subagent delegation | ✅ | ❌ advisory |
-| `dev:auto` / execute loop-batch mode | ✅ | ❌ (deferred) |
+| bundled agents (reviewer/test-writer/verifier) | native (auto-delegated) | copy TOML, spawned by name |
+| subagent delegation | ✅ Agent tool | ✅ `spawn_agent`/`wait_agent` |
+| `dev:auto` unattended pipeline | ✅ | ✅ (sibling test-writer orchestration) |
+| `execute` loop/batch mode | ✅ | ❌ (no loop primitive; deferred) |
 | `回顧` CJK skill name | ✅ as-is | ✅ as-is |
 
 `bootstrap/` is Claude Code only. Codex uses the manual steps above.

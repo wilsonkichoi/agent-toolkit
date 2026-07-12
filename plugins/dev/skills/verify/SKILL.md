@@ -33,12 +33,16 @@ The verifier must not share context with the implementer - the session that wrot
 reads its own work summary as evidence and its motivated reasoning marks criteria met. If
 this session implemented the PR (or contains its implementation context), do not gather
 evidence inline: delegate sections 1-3 (preconditions, evidence, report) to the
-`dev:verifier` agent (spawned with no `model` override - it pins `model: inherit`),
+`dev:verifier` agent (spawned with no `model` override - it pins `model: inherit` - and
+with fresh context, never a fork/copy of this session's history),
 passing the PR number, the task id, and the packet + task-comment
 text *fetched verbatim from the tracker* - the agent works from the local repo + `gh` only
 and has no tracker access, so on Linear/custom backends it cannot self-fetch them (task
 comments included, since recorded sign-offs live there) - pass the packet text verbatim.
-Pass nothing else: no
+The dispatch message must also embed the verification contract itself, because the agent
+cannot reliably read this skill's file on every harness: section 1's approving-review
+definition (including the solo-repo comment form and the stale/malformed distinction) and
+section 3's report format, verbatim. Pass nothing else: no
 implementation rationale, no opinions on whether criteria are met. A fresh session (one
 that did not implement the PR and contains no implementation context) runs sections 1-3
 inline; delegate only when the independence rule forces it.
@@ -57,7 +61,14 @@ Check: task status is `In Review`, CI is green, and an approving review exists
 (`gh pr view <n> --json reviews`). An approving review is either `state: APPROVED` or a
 `dev:review-pr`-formatted review body whose verdict line reads `Verdict: approve` - the
 latter is the only form possible when reviewer and PR author are the same account (GitHub
-forbids self-approval, so solo repos never get `APPROVED` state). A missing review is a
+forbids self-approval, so solo repos never get `APPROVED` state, and an empty
+`reviewDecision` is normal there, not a failure). A review that exists but is malformed -
+approval prose without the `## dev:review-pr - <task-id>` structure, or a body missing the
+exact `Verdict:` line or a `Commit:`/`commit_id` matching the current HEAD - counts as no
+approving review. The remediation for a missing or malformed review is always a (re)run of
+`dev:review-pr <n>` producing a conformant review; it is never a second GitHub account -
+the comment-form review exists precisely because solo repos cannot produce `APPROVED`. A
+missing review is a
 warning, not a hard stop; report it and let the human decide whether to proceed without one.
 
 The approving review must target the current PR HEAD. Compare the review's `commit_id`

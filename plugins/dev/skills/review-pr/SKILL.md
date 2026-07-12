@@ -25,11 +25,16 @@ skill's directory.
 
 The reviewer must not share context with the implementer. If this session implemented the PR
 (or contains its implementation context), do not review inline: delegate the entire review to
-the `dev:reviewer` agent (spawned with no `model` override - it pins `model: inherit`),
-passing the PR number, the task id, and the packet + work-summary
+the `dev:reviewer` agent (spawned with no `model` override - it pins `model: inherit` - and
+with fresh context, never a fork/copy of this session's history), passing the PR number, the
+task id, and the packet + work-summary
 *text fetched verbatim from the tracker* - the agent works from the local repo + `gh` only
 and has no tracker access, so on Linear/custom backends it cannot self-fetch them - pass the
-packet text verbatim. Pass nothing else: no implementation rationale, no opinions about the diff. A fresh session
+packet text verbatim. The dispatch message must also embed the review contract itself,
+because the agent cannot reliably read this skill's file on every harness: the step 3 body
+format verbatim, the solo-repo `gh pr review --comment` fallback, and the requirement to
+fill `Commit:` with the current PR HEAD. Pass nothing else: no implementation rationale, no
+opinions about the diff. A fresh session
 (one that did not implement the PR and contains no implementation context) reviews inline;
 delegate only when the independence rule forces it.
 
@@ -62,9 +67,12 @@ delegate only when the independence rule forces it.
 3. **Post the review** via `gh pr review <n>` with `--request-changes` if any BLOCKER exists,
    else `--approve`. GitHub rejects both flags on the author's own PR (`Can not approve your
    own pull request`) - unavoidable when one account is both implementer and reviewer, e.g.
-   any solo repo. In that case post the identical body with `--comment` instead: the
+   any solo repo. In that case post the identical body with `gh pr review <n> --comment`
+   instead: the
    `Verdict:` line in the body is the verdict of record either way; the formal GitHub review
-   state is best-effort. Body format:
+   state is best-effort. Never fall back to `gh pr comment` - that creates an issue comment,
+   which does not appear in `gh pr view --json reviews`, so `dev:verify` cannot find it.
+   Body format:
 
    ```
    ## dev:review-pr - <task-id>
@@ -83,7 +91,9 @@ delegate only when the independence rule forces it.
    The `Commit:` line is what lets `dev:verify` detect a stale verdict when the review is a
    comment (solo-repo fallback, task-comment reviews) and carries no native `commit_id`.
    Always fill it with the head SHA of the diff actually reviewed.
-4. **Record on the tracker:** comment the verdict + finding count on the task. Approved →
+4. **Record on the tracker:** comment the verdict + finding count on the task. In delegated
+   mode on backends the agent cannot write to (Linear, custom), the calling session posts
+   this comment from the tracker comment body the agent returns. Approved →
    next step is `dev:verify`. Request-changes → next step is `dev:review-pr <n> fix`.
 
 **No GitHub remote** (local-only projects): review `git diff main...task/<id>-<slug>` with the

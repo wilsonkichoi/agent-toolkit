@@ -117,9 +117,12 @@ which branches from `main`).
 
 ## Unattended operation
 
-Both unattended modes below are Claude-Code-specific today: they need a loop/repeat-invocation
-mechanism and background subagents. On Codex, per-task parity is deferred (an outer `codex exec`
-loop, pending a design pass); run one task per session there.
+`/loop /dev:execute` is Claude-Code-specific: it needs the `/loop` primitive (an outer
+`codex exec` loop is deferred pending a design pass). `dev:auto` runs on both Claude Code
+and Codex - it needs subagents, not a loop primitive. On Codex, copy the agent TOMLs per
+the repo README first; because Codex's default `agents.max_depth = 1` blocks nested
+spawns, the `dev:auto` orchestrator dispatches the implementation worker and `test-writer`
+as siblings (specified in the skill; no configuration needed).
 
 Two modes with different destinations:
 

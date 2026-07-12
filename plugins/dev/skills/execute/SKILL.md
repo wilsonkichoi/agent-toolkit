@@ -205,11 +205,14 @@ tasks (config, default 5); report and idle. For true fresh context per task, the
 a new interactive session per task; never script headless sessions (`claude -p`) or suggest
 them - they run without the human's session config and oversight.
 
-Harness notes: loop/batch mode needs a harness with both a loop/repeat-invocation mechanism
-(`/loop` on Claude Code) and background subagents. On a harness without them, do not attempt
-loop mode - run one task per session and tell the user that batch mode is unavailable there.
-A Codex outer loop (`codex exec` per task) is deferred pending a design pass; until then
-treat batch mode as Claude-Code-only.
+Harness notes: loop/batch mode needs a harness with a loop/repeat-invocation mechanism
+(`/loop` on Claude Code); the subagent side exists on both Claude Code and Codex. On a
+harness without a loop primitive, do not attempt loop mode - run one task per session and
+tell the user that batch mode is unavailable there (to drain a milestone unattended without
+a loop primitive, use dev:auto, which needs none). A Codex outer loop (`codex exec` per
+task) is deferred pending a design pass; until then treat loop/batch mode as
+Claude-Code-only. Standalone dev:execute is unaffected by subagent nesting limits: the
+session is the root, so `test-writer` is a direct child.
 
 Scope note: this mode only fills the review queue - every task stops at `In Review`, so a
 dependency chain will not advance past its first task (deps unblock at `Done`, and `Done`

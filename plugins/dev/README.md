@@ -30,7 +30,7 @@ Skill names below are written Claude-Code style (`/dev:execute`). Render your ha
 | Harness | Invoke | Notes |
 |---|---|---|
 | Claude Code | `/dev:execute` | full feature set (agents auto-delegate, `dev:auto` + loop mode) |
-| Codex | `$execute` | agents copied from `dist/codex/agents/`, advisory independence; no `auto`/loop |
+| Codex | `$execute` | agents copied from `dist/codex/agents/`, spawned by name; `dev:auto` supported (sibling test-writer orchestration); no `execute` loop mode |
 
 Install per harness: see the repo-root [README](../../README.md). Config lives in
 `.agent/dev.md` (legacy `.claude/dev.md` still read). `dev:setup` defaults to the shared

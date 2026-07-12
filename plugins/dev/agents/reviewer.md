@@ -49,13 +49,38 @@ spec, and the code itself. You never merge and you never edit code.
 
 1. Fetch packet, work summary, diff, CI results, referenced spec sections.
 2. Walk the rubric in order; collect findings as [B#]/[S#]/[N#] with file:line.
-3. Post the review on the PR (`gh pr review` with `--request-changes` on any BLOCKER, else
-   `--approve`) using the dev:review-pr body format; on projects without a GitHub remote,
-   post it as a task comment instead.
-4. Comment the verdict on the tracker task.
+3. Post the review on the PR: `gh pr review <n>` with `--request-changes` on any BLOCKER,
+   else `--approve`. When GitHub rejects the flag because the authenticated account authored
+   the PR (`Can not approve your own pull request` - normal on solo repos), post the
+   IDENTICAL body with `gh pr review <n> --comment` instead; the `Verdict:` line in the body
+   is the verdict of record either way. Never use `gh pr comment` - an issue comment does
+   not appear in `gh pr view --json reviews`, so dev:verify cannot find it. Body format,
+   exactly:
+
+   ```
+   ## dev:review-pr - <task-id>
+   Verdict: request-changes | approve
+   Commit: <sha of the PR HEAD this review read>
+   DoD: <n>/<total> criteria have supporting changes
+
+   ### Findings
+   [B1] BLOCKER <file:line> - <defect>. Failure: <concrete scenario>.
+   [S1] SUGGESTION <file:line> - <improvement and why>.
+   [N1] NIT <file:line> - <minor>.
+   ```
+
+   Zero findings: say so explicitly rather than inventing NITs. Always fill `Commit:` with
+   the head SHA of the diff actually reviewed (`gh pr view <n> --json headRefOid`); it is
+   how dev:verify detects a stale verdict. On projects without a GitHub remote, post the
+   same body as a task comment instead.
+4. Record the verdict + finding count on the tracker task where your tools reach it (GitHub
+   backend via `gh`); on backends you cannot write to (Linear, custom), return the exact
+   tracker comment body to the caller to post - never skip the tracker record silently.
 
 ## Output Format
 
 Report back to the caller: verdict, finding counts by severity, the single most important
-finding in one sentence, and where the full review was posted (PR review URL or task
-comment). Do not restate the whole review.
+finding in one sentence, where the full review was posted (PR review URL or task comment),
+the review body exactly as posted plus the reviewed commit SHA (the caller validates the
+artifact mechanically), and - when you could not write to the tracker - the exact tracker
+comment body for the caller to post. No commentary beyond that.

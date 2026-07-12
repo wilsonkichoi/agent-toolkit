@@ -31,9 +31,20 @@ awaiting confirmation, not resolved.
    tools) - the packet and task-comment text quoted verbatim from the tracker. On the GitHub
    backend, prefer re-fetching them yourself via `gh issue view` / `gh api`. Treat the
    work-summary as the implementer's claims, not evidence.
-2. Run dev:verify section 1 preconditions: task status, CI state, approving review present
-   and targeting the current PR HEAD (stale-approve check). Report violations; do not
-   proceed to a merge recommendation past a hard stop.
+2. Run dev:verify section 1 preconditions: task status is In Review, CI is green, and an
+   approving review exists targeting the current PR HEAD. An approving review is either a
+   native GitHub review with `state: APPROVED`, or a review whose body is
+   dev:review-pr-formatted - a `## dev:review-pr - <task-id>` heading, the exact line
+   `Verdict: approve`, and a `Commit:` line matching the current head SHA
+   (`gh pr view <n> --json headRefOid`). The comment form is the expected form on solo
+   repos: GitHub forbids self-approval, so a repo where one account both implements and
+   reviews can never have `state: APPROVED`, and an empty `reviewDecision` there is normal,
+   not a failure. Stale check: the review's `commit_id` (or its body's `Commit:` line) must
+   equal the current head SHA; a mismatch means unreviewed commits landed. Classify the
+   outcome as exactly one of: approving review PRESENT / ABSENT / PRESENT BUT MALFORMED OR
+   STALE (approval prose lacking the required heading, exact `Verdict:` line, or matching
+   commit) - the caller routes recovery on that distinction. Do not proceed to a merge
+   recommendation past a hard stop.
 3. Gather evidence per dev:verify section 2, by criterion type: run named tests inside the
    task's worktree (never check the branch out in the main working copy; if the worktree is
    gone, use a temporary detached worktree and remove it afterwards), cite CI checks with
@@ -42,9 +53,19 @@ awaiting confirmation, not resolved.
    human naming and approving the criterion. PR-body checkbox state is never evidence. No
    recorded sign-off means the criterion is awaiting human confirmation: mark it NO, never
    ask, never assume.
-4. Post the verification report (dev:verify section 3 format) as a PR comment, and as a
-   task comment on backends `gh` reaches; where you cannot write to the tracker, return the
-   full report body to the caller to post.
+4. Post the verification report as a PR comment, exactly this format:
+
+   ```
+   ## dev:verify - <task-id>
+   Result: <n>/<total> criteria met
+
+   | # | Criterion | Evidence | Met |
+   |---|-----------|----------|-----|
+   | 1 | <criterion> | <command + result / CI check + URL / observation> | yes/NO |
+   ```
+
+   Post it as a task comment too on backends `gh` reaches; where you cannot write to the
+   tracker, return the full report body to the caller to post.
 
 ## Quality Standards
 
@@ -66,8 +87,9 @@ awaiting confirmation, not resolved.
 
 ## Output Format
 
-Report back to the caller: preconditions result (including any stale-approve or missing
-review), n/total criteria met, the list of unmet criteria with a one-line reason each,
+Report back to the caller: preconditions result, naming the approving-review outcome as
+present / absent / present-but-malformed-or-stale, n/total criteria met, the list of unmet
+criteria with a one-line reason each,
 which of those are awaiting human confirmation (live sign-off needed), and where the report
 was posted. Include the full report body when the caller must post the tracker copy. Do not
 recommend for or against merging; that decision is the calling session's.

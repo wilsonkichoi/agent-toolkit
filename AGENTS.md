@@ -48,8 +48,11 @@ Never rename a skill in `plugins/`.
 
 Skill prose must stay harness-neutral: refer to skills as `dev:verify` (not `/dev:verify`),
 render harness-specific invocations only when addressing the user, and gate any
-Claude-Code-only capability (background subagents, `/loop`, worktree isolation) behind a
-harness-note so other harnesses degrade gracefully.
+Claude-Code-only capability (`/loop`, worktree isolation, `run_in_background`) behind a
+harness-note so other harnesses degrade gracefully. Subagent spawning exists on both
+harnesses (Claude Code: Agent tool; Codex: `spawn_agent`/`wait_agent`, copied agent TOMLs,
+default nesting depth 1) - express orchestration as "dispatch and wait", not in one
+harness's parameters.
 
 ## Pre-commit checklist
 
