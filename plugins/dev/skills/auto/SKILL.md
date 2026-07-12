@@ -18,7 +18,7 @@ every task at `In Review`, so a dependency chain never advances past its first t
 drain a milestone.
 
 Skill references like `dev:execute` mean this plugin's `execute` skill; when telling the user
-to run one, render your harness's invocation for it (Claude Code: `/dev:execute`).
+to run one, render your harness's invocation for it (Claude Code: `/dev:execute`; Codex: `$execute`).
 
 Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this

@@ -14,7 +14,7 @@ Initialize a project for the dev plugin lifecycle. Idempotent: safe to re-run; n
 overwrite existing files without asking.
 
 Skill references like `dev:plan` mean this plugin's `plan` skill; when telling the user to run
-one, render your harness's invocation for it (Claude Code: `/dev:plan`).
+one, render your harness's invocation for it (Claude Code: `/dev:plan`; Codex: `$plan`).
 
 Read first: the plugin's `docs/tracker.md` — on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` (the plugin's own `docs/` directory, two levels above

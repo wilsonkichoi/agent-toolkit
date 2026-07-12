@@ -18,7 +18,7 @@ deal-breakers - `dev:architect` owns those. When technical topics come up, captu
 notes for the architect and steer back.
 
 Skill references like `dev:architect` mean this plugin's `architect` skill; when telling the
-user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`).
+user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`; Codex: `$architect`).
 
 ## 1. Ingest
 

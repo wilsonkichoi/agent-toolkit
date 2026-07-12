@@ -16,7 +16,7 @@ ADRs. This is the highest-leverage gate in the lifecycle - a bad spec cascades i
 packet `dev:plan` writes. Docs only: produce no product code, no scaffolding.
 
 Skill references like `dev:plan` mean this plugin's `plan` skill; when telling the user to run
-one, render your harness's invocation for it (Claude Code: `/dev:plan`).
+one, render your harness's invocation for it (Claude Code: `/dev:plan`; Codex: `$plan`).
 
 Preconditions: `docs/PRD.md` exists and is approved (else stop, direct to `dev:discover`).
 Brownfield: read the current-state SPEC.md from setup archaeology; the spec being written

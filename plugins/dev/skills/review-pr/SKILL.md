@@ -15,7 +15,7 @@ Independent review of one task's PR, or (fix mode) application of an existing re
 findings. Never merge; merging is `dev:verify`'s job.
 
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
-run one, render your harness's invocation for it (Claude Code: `/dev:verify`).
+run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
 Read first: `.agent/dev.md` (config; legacy fallback: `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this

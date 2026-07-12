@@ -14,7 +14,7 @@ Decompose one milestone into task packets in the tracker. One milestone per run;
 ahead of the next milestone - later milestones get better packets after earlier ones ship.
 
 Skill references like `dev:architect` mean this plugin's `architect` skill; when telling the
-user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`).
+user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`; Codex: `$architect`).
 
 Read first:
 

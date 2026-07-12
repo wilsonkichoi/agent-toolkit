@@ -17,7 +17,7 @@ this skill's deliverable is the **promotion**: concrete additions to the project
 instructions, applied on approval, that change how the next session behaves.
 
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
-run one, render your harness's invocation for it (Claude Code: `/dev:verify`).
+run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
 Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this

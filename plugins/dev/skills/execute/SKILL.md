@@ -14,7 +14,7 @@ Execute exactly one task: claim → worktree → implement → PR → CI green �
 Merging is `dev:verify`'s job; never merge, even if asked mid-run - point at `dev:verify`.
 
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
-run one, render your harness's invocation for it (Claude Code: `/dev:verify`).
+run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
 Read first: `.agent/dev.md` (config; legacy fallback: `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` (tracker verbs,
 backend mapping, next-task algorithm) — on Claude Code `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`,

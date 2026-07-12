@@ -16,7 +16,7 @@ re-running the whole pipeline. Docs stay the source of truth for intent, the tra
 state; this skill's job is keeping the two consistent while requests arrive.
 
 Skill references like `dev:architect` mean this plugin's `architect` skill; when telling the
-user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`).
+user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`; Codex: `$architect`).
 
 Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent), the plugin's `docs/tracker.md` (on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
