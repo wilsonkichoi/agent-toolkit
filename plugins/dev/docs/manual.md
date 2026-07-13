@@ -131,8 +131,11 @@ Two modes with different destinations:
   exactly one task. The session stays a thin orchestrator and delegates implementation to one
   background subagent per task in that task's worktree; for true fresh context per task,
   run a new interactive session per task instead of looping one.
-- **`dev:auto` drains a milestone to `Done`.** Per task: execute → independent review →
-  bounded fix loop → verify → merge → record-only retro, then the next task. Single-flight.
+- **`dev:auto` completes a named task or drains a milestone to `Done`.** `dev:auto DOG-14`
+  validates the same Todo/dependency/WIP/packet gates as targeted `dev:execute`, runs only
+  DOG-14, and never falls through. `dev:auto milestone 2 [max N tasks]` processes eligible
+  milestone tasks sequentially. Per task: execute → independent review → bounded fix loop →
+  verify → merge → record-only retro. Both modes are single-flight.
 
 `dev:auto` merges only when ALL hold: `auto_merge: true` (standing, revocable human
 approval), the independent review verdict is approve, every DoD criterion is met, and every
@@ -144,7 +147,8 @@ rules; promotions accumulate as proposals for a human retro pass.
 
 Safeguards (all config-backed): `work_in_progress_limit` stops claims when the review queue
 is full (review capacity is the throttle); `max_fix_attempts` sends a stuck task to `Blocked`
-with a diagnostic comment instead of iterating forever; `max_tasks_per_run` caps the batch.
+with a diagnostic comment instead of iterating forever; `max_tasks_per_run` caps milestone
+and no-target queue runs. A task-id run always has an implicit cap of one.
 
 Note which safeguard belongs to which mode: the WIP limit is `/loop /dev:execute`'s
 throttle, because that mode parks every task at `In Review` until a human drains the queue.

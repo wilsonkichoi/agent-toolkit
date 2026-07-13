@@ -156,7 +156,7 @@ consumes either raw files or an existing wiki. Do not duplicate wiki functionali
 | `dev:plan` | 5 | Milestone → task packets. Creates spikes for genuine unknowns. Dry-run: present the full packet list for human approval, then push to the tracker via the adapter. |
 | `dev:backlog` | ongoing | Mid-flight change management. Intake new requests and priority changes at any point: triage each request, then route it. Backlog-only change → create/re-prioritize/split tasks in the tracker. Spec-impacting → run a `dev:architect` delta (SPEC/ROADMAP update + ADR) before touching tasks. Goal-impacting → `dev:discover` delta (PRD update) first. Also the preferred way to add one-off tickets (it writes a full, immediately executable packet, unlike a hand-written ticket), to promote `Backlog → Todo`, and to close tasks as `Wont Do` with rationale. This is how the product recalibrates without re-running the whole pipeline. |
 | `dev:execute` | 6 | The core loop, one task per session. Claim next unblocked task (or a given ID) → worktree + branch → implement per packet → tests → push → PR linking the task → watch CI (`gh run watch`), fix failures → post work-summary comment (what/decisions/obstacles/spec gaps) on the issue → transition to In Review → **stop; never merges**. |
-| `dev:auto` | 6-8 | Unattended per-task pipeline: execute → independent review → bounded fix loop → verify → merge (only under `auto_merge` conditions) → record-only retro → next task. Single-flight; stops on Blocked, unmet/manual DoD criteria, merge conflicts, or `max_tasks_per_run`. |
+| `dev:auto` | 6-8 | Unattended per-task pipeline for an exact task id or a milestone: execute → independent review → bounded fix loop → verify → merge (only under `auto_merge` conditions) → record-only retro. Task-id mode is strictly one task with no fallthrough; milestone mode advances sequentially. Single-flight; stops on Blocked, unmet/manual DoD criteria, merge conflicts, or `max_tasks_per_run`. |
 | `dev:review-pr` | 6 | Fresh-session reviewer. Fetches PR diff + CI results + linked task packet; checks DoD compliance, spec compliance, code quality; posts a structured PR review via `gh` with verdict (approve / request changes). Also invocable as the fix loop: read review comments, apply fixes, push. |
 | `dev:verify` | 7 | Merge gate. For each DoD criterion, gather evidence (run the test, cite the CI check, or walk the manual step) and post a verification report to the PR. On human approval: merge per policy, transition task to Done, clean up worktree/branch. |
 | `dev:retro` | 8 | Per task or milestone. Sources: PR review threads, CI history, tracker comments (the work-summary comment is the primary input), and local session transcripts under `~/.claude/projects/` when available. Output: retro comment on the tracker + **promotion step**: propose concrete additions to `.claude/rules/` or CLAUDE.md, apply on approval. |
@@ -448,6 +448,9 @@ consider eating our own dogfood and moving remaining phases into it.)
       pipeline; `auto_merge` standing authorization with mechanical-evidence-only merges;
       record-only retro; stop conditions (2026-07-06, from T-001 feedback: `/loop
       /dev:execute` cannot advance a dependency chain)
+- [x] `dev:auto <task-id>` parity contract: validate the exact task with `dev:execute`'s
+      targeted claim gates, run it with an implicit cap of one, and never fall through to a
+      different task (2026-07-12, Claude Code/Codex invocation parity feedback)
 - [x] Config renames/additions: `wip_limit` → `work_in_progress_limit` (clarity),
       `max_tasks_per_run` (batch cap - "max tasks limit" feedback), `auto_merge`;
       `review_action` → `review_action_installed` (2026-07-06, "review_action: false is

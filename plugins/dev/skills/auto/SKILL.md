@@ -1,21 +1,22 @@
 ---
 name: auto
 description: >
-  This skill should be used when the user asks to "auto-run the milestone", "run the full
-  pipeline per task", "drive tasks to done hands-free", "execute review verify and merge
-  automatically", or invokes /dev:auto. Chains execute → review → fix → verify → merge →
-  retro per task so dependency chains progress unattended. Merges only under the auto_merge
-  conditions; stops on anything requiring human judgment.
-argument-hint: "[milestone N] [max N tasks]"
+  This skill should be used when the user asks to "auto-run the milestone", "auto-run a
+  named task", "run the full pipeline per task", "drive tasks to done hands-free", "execute
+  review verify and merge automatically", or invokes /dev:auto. Chains execute → review →
+  fix → verify → merge → retro per task so dependency chains progress unattended. Merges
+  only under the auto_merge conditions; stops on anything requiring human judgment.
+argument-hint: "[milestone N [max N tasks] | task-id]"
 ---
 
 # dev:auto
 
-Drive tasks to `Done` one at a time: execute → independent review → fix → verify → merge →
-retro, then claim the next. This is what `/loop /dev:execute` cannot do: that loop stops
-every task at `In Review`, so a dependency chain never advances past its first task. Use
-`/loop /dev:execute` to fill the review queue for human-paced review; use `dev:auto` to
-drain a milestone.
+Drive a selected task or a milestone's tasks to `Done`, one at a time: execute → independent
+review → fix → verify → merge → retro. A task-id run stops after that exact task; a
+milestone run then claims the next eligible task. This is what `/loop /dev:execute` cannot
+do: that loop stops every task at `In Review`, so a dependency chain never advances past
+its first task. Use `/loop /dev:execute` to fill the review queue for human-paced review;
+use `dev:auto` to complete one named task or drain a milestone.
 
 Skill references like `dev:execute` mean this plugin's `execute` skill; when telling the user
 to run one, render your harness's invocation for it (Claude Code: `/dev:execute`; Codex: `$execute`).
@@ -78,10 +79,26 @@ condition - the orchestrator never substitutes its own inline review or verifica
 auto_merge condition 1 and `dev:verify`'s independence rule both forbid it, and the
 orchestrator holds the implementer's report, so it is not independent.
 
+## Target selection
+
+- **Task id:** run `get-task`, then apply `dev:execute` step 1's targeted-task contract:
+  require `Todo`, all dependencies `Done`, WIP below `work_in_progress_limit`, a valid packet,
+  and a successful race-guarded claim. Refuse and report the exact failed gate; unattended
+  auto never overrides eligibility. Run only this task and stop after its record-only retro.
+  Never fall through to another task if the target is missing, ineligible, has an invalid
+  packet, becomes `Blocked`, or otherwise stops. `max N tasks` is invalid with a task id.
+- **Milestone N:** restrict `next-task` to that milestone. Process eligible tasks sequentially
+  until a stop condition. An explicit `max N tasks` overrides `max_tasks_per_run`; otherwise
+  use the configured value (default 5).
+- **No target:** use `next-task` without a milestone filter and the configured
+  `max_tasks_per_run`. This preserves the existing active-queue behavior.
+
 ## Per-task pipeline
 
-1. **Claim** - as `dev:execute` step 1: `next-task` (WIP gate, dependency rules, packet
-   validation; invalid packets are skipped with a comment).
+1. **Claim** - follow the selected mode above. Queue modes use `next-task` (WIP gate,
+   dependency rules, packet validation; invalid packets are skipped with a comment).
+   Task-id mode gets and claims only the named task; an invalid packet stops instead of
+   skipping to another task.
 2. **Implement** - never inline in the orchestrator session, on any harness. Two shapes,
    by whether the implementation subagent can itself spawn `test-writer` (nested
    delegation):
@@ -153,13 +170,15 @@ orchestrator holds the implementer's report, so it is not independent.
    `rules_dir`/`context_file` (default `.claude/rules/` and `CLAUDE.md`) unattended. Standing
    instructions change only with a human in the loop; proposals accumulate for a later
    `dev:retro milestone N` pass.
-7. **Next** - loop to step 1.
+7. **Next** - for milestone/no-target queue mode, loop to step 1. For task-id mode, stop
+   successfully after the retro; never claim another task.
 
 ## Stop conditions
 
-Stop and report (never push past these): nothing claimable (milestone drained, or all
-remaining tasks blocked by non-`Done` deps); `max_tasks_per_run` reached (config, default 5;
-overridable by the `max N tasks` argument); any task `Blocked`; verify stop (unmet
+Stop and report (never push past these): the targeted task completed; nothing claimable
+(milestone/queue drained, or all remaining tasks blocked by non-`Done` deps);
+`max_tasks_per_run` reached in queue mode (config, default 5; overridable by the
+`max N tasks` argument in milestone mode); any task `Blocked`; verify stop (unmet
 criterion, or manual criterion without recorded sign-off); review or verify agent failure
 (error, idle, or no verdict/report returned - never substitute orchestrator-inline review
 or verification); review artifact still missing or malformed after the one respawn; a named
@@ -175,9 +194,13 @@ retro proposal count, the single next action); exact wording may vary:
 # dev:auto - stopped: <reason>
 Completed to Done: <ids>
 Stopped at: <id> - <what needs the human>
-Pending retro proposals: <count> (run dev:retro milestone N to review)
+Pending retro proposals: <count> (run dev:retro task <id> or dev:retro milestone N to review)
 Next: <the single next human action>
 ```
+
+Successful task-id completion is a normal terminal condition: use `completed: <id>` as the
+reason, say that nothing needs the human in `Stopped at`, and use `Next: none - requested
+task completed`. Do not imply that another task will be claimed.
 
 ## Constraints
 
