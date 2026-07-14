@@ -180,7 +180,7 @@ performed. Remind:
 
 - Unattended runs (`dev:execute` loop/batch mode, `dev:auto`) stall on permission prompts -
   pre-approve the needed commands (git, gh, test command) first: on Claude Code in
-  `.claude/settings.json`; see Harness specifics for the Codex equivalent. (Loop/batch
-  and `dev:auto` are Claude-Code-only today.)
+  `.claude/settings.json`; see Harness specifics for the Codex equivalent. (`dev:auto`
+  runs on Claude Code and Codex; `dev:execute` loop/batch mode is Claude-Code-only.)
 - Next steps: `dev:discover` (new product), `dev:architect` (have a PRD), or `dev:plan`
   (have a spec and roadmap).

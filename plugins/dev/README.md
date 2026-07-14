@@ -1,6 +1,6 @@
 # dev
 
-AI-assisted product development lifecycle for Claude Code: an external tracker (Linear,
+AI-assisted product development lifecycle for Claude Code and Codex: an external tracker (Linear,
 GitHub Issues, or local files) is the single source of truth for tasks, execution is
 PR-native (worktree → PR → CI → review → verified merge), and every task is a self-contained
 packet a fresh session can execute without prior context.
@@ -30,7 +30,7 @@ Skill names below are written Claude-Code style (`/dev:execute`). Render your ha
 | Harness | Invoke | Notes |
 |---|---|---|
 | Claude Code | `/dev:execute` | full feature set (agents auto-delegate, `dev:auto` + loop mode) |
-| Codex | `$execute` | agents copied from `dist/codex/agents/`, spawned by name; `dev:auto` supported (sibling test-writer orchestration); no `execute` loop mode |
+| Codex | `$execute` | agents copied from `dist/codex/agents/`, selected via `spawn_agent`'s `agent_type` parameter; `dev:auto` supported (sibling test-writer orchestration); no `execute` loop mode |
 
 Install per harness: see the repo-root [README](../../README.md). Config lives in
 `.agent/dev.md` (legacy `.claude/dev.md` still read). `dev:setup` defaults to the shared

@@ -112,7 +112,7 @@ which branches from `main`).
 | Spec + roadmap review | `architect` | `dev:plan` |
 | Plan dry run | `plan` | Packets pushed to the tracker at `Todo` |
 | Merge | `verify` | Merge per policy, task → `Done`, cleanup (carve-out: `auto_merge`, below) |
-| Rule promotion | `retro` | Learnings written to the configured `rules_dir` / `context_file` (default `.claude/rules/` / CLAUDE.md) |
+| Rule promotion | `retro` | Learnings written to the configured `rules_dir` / `context_file` (safety-net fallback when both fields are absent: `.claude/rules/` / CLAUDE.md) |
 | `Backlog → Todo`, `Wont Do` | `backlog` | Task enters or leaves the committed queue |
 
 ## Unattended operation
@@ -120,7 +120,9 @@ which branches from `main`).
 `/loop /dev:execute` is Claude-Code-specific: it needs the `/loop` primitive (an outer
 `codex exec` loop is deferred pending a design pass). `dev:auto` runs on both Claude Code
 and Codex - it needs subagents, not a loop primitive. On Codex, copy the agent TOMLs per
-the repo README first; because Codex's default `agents.max_depth = 1` blocks nested
+the repo README first (they are selected by passing `agent_type: "<agent name>"` on
+`spawn_agent`; `task_name` alone does not load them); because Codex's default
+`agents.max_depth = 1` blocks nested
 spawns, the `dev:auto` orchestrator dispatches the implementation worker and `test-writer`
 as siblings (specified in the skill; no configuration needed).
 

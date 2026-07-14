@@ -53,13 +53,15 @@ codex plugin add utils@agent-toolkit
 codex plugin add dev@agent-toolkit
 
 # Copy the dev agents (reviewer / test-writer / verifier) into Codex
+mkdir -p ~/.codex/agents
 cp dist/codex/agents/*.toml ~/.codex/agents/        # or a project ./.codex/agents/
 ```
 
 Invoke skills explicitly with `$<name>` (e.g. `$research`, `$execute`). The project context
 file is `AGENTS.md` (`dev:setup`'s default config on every harness). Known degradations on Codex:
 
-- **Subagents work via `spawn_agent`/`wait_agent`** once the TOMLs above are copied:
+- **Subagents work via `spawn_agent`/`wait_agent`** once the TOMLs above are copied
+  (select the agent with `agent_type: "<name>"`; `task_name` alone runs a generic subagent):
   `review-pr` / `verify` independence delegates to the named reviewer/verifier agents, and
   `dev:auto` runs the full unattended pipeline for one target (`$auto DOG-14`) or a
   milestone (`$auto milestone 2 max 1 tasks`). Codex's default `agents.max_depth = 1`
@@ -81,7 +83,7 @@ file is `AGENTS.md` (`dev:setup`'s default config on every harness). Known degra
 | dev interactive lifecycle (setup→plan→execute→review→verify→retro) | ✅ | ✅ |
 | tracker doc reachable from dev skills | `$CLAUDE_PLUGIN_ROOT` env | relative path |
 | retro / architect promotion target (default config) | `AGENTS.md` via the `CLAUDE.md` = `@AGENTS.md` import | `AGENTS.md` natively |
-| bundled agents (reviewer/test-writer/verifier) | native (auto-delegated) | copy TOML, spawned by name |
+| bundled agents (reviewer/test-writer/verifier) | native (auto-delegated) | copy TOML, spawn with `agent_type` (verified: loads `developer_instructions`) |
 | subagent delegation | ✅ Agent tool | ✅ `spawn_agent`/`wait_agent` |
 | `dev:auto` unattended pipeline | ✅ | ✅ (sibling test-writer orchestration) |
 | `execute` loop/batch mode | ✅ | ❌ (no loop primitive; deferred) |

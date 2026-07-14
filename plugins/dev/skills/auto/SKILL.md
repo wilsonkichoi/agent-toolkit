@@ -28,9 +28,13 @@ skill's directory.
 Requires a harness that can spawn fresh-context subagents and wait on their results, with
 this plugin's named agents (`reviewer`, `verifier`, `test-writer`) resolvable - Claude Code
 natively; Codex via `spawn_agent`/`wait_agent` with the `dist/codex/agents/*.toml` files
-copied into `~/.codex/agents/` or the project's `.codex/agents/`. Check by use, not by
-config archaeology: the first spawn of a named agent that fails to resolve is a stop -
-report it with the copy/install instructions from the repo README. Refuse to run only on a
+copied into `~/.codex/agents/` or the project's `.codex/agents/`. On Codex, selecting a
+named agent means passing `agent_type: "<agent name>"` on `spawn_agent` (e.g.
+`agent_type: "reviewer"`); `task_name` only labels the spawned thread and does NOT load the
+agent definition - a spawn with `task_name` alone runs a generic subagent. Check by use,
+not by config archaeology: a named agent fails to resolve when the spawn tool's schema has
+no `agent_type` parameter or rejects the agent name - that is a stop; report it with the
+copy/install instructions from the repo README. Refuse to run only on a
 harness with no subagent mechanism at all, pointing at the one-task-at-a-time flow:
 dev:execute → dev:review-pr → dev:verify → dev:retro.
 
@@ -58,8 +62,9 @@ status transitions, tracker writes the agents cannot make, reporting. Subagents 
 implementation, review, fixes, verification evidence.
 
 **Fresh context, never forked:** every subagent starts with fresh context. Never fork or
-copy this session's history into one (Codex: no full-history fork - leave `fork_context`
-unset; the platform rejects it combined with `agent_type` anyway). Everything the agent
+copy this session's history into one (Codex: always pass `fork_turns: "none"` on
+`spawn_agent` - never omit it; the omitted-parameter default is undocumented, and only
+`"none"` guarantees a fresh child). Everything the agent
 needs is passed as text per the delegation contracts in `dev:review-pr` / `dev:verify`.
 
 **Model discipline:** spawn every subagent with NO `model` parameter - the dev agents pin
@@ -73,7 +78,8 @@ report the error as an environment problem.
 
 **Reviewer/verifier dispatch:** dispatch the `reviewer` and `verifier` agents and wait for
 the result before advancing, so the verdict or report arrives as the tool result (Claude
-Code: `run_in_background: false`; Codex: `spawn_agent` then `wait_agent`). A review
+Code: `run_in_background: false`; Codex: `spawn_agent` with `agent_type: "reviewer"` /
+`agent_type: "verifier"`, then `wait_agent`). A review
 or verify agent that errors, goes idle, or returns without a verdict/report is a stop
 condition - the orchestrator never substitutes its own inline review or verification;
 auto_merge condition 1 and `dev:verify`'s independence rule both forbid it, and the
@@ -167,7 +173,8 @@ orchestrator holds the implementer's report, so it is not independent.
    the human exactly what needs them.
 6. **Retro (record-only)** - run `dev:retro` for the task with promotions in proposal mode:
    post the retro comment including proposed rule promotions, but never write to the configured
-   `rules_dir`/`context_file` (default `.claude/rules/` and `CLAUDE.md`) unattended. Standing
+   `rules_dir`/`context_file` (safety-net fallback when both fields are absent:
+   `.claude/rules/` and `CLAUDE.md`) unattended. Standing
    instructions change only with a human in the loop; proposals accumulate for a later
    `dev:retro milestone N` pass.
 7. **Next** - for milestone/no-target queue mode, loop to step 1. For task-id mode, stop
