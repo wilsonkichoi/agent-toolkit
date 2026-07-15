@@ -9,6 +9,11 @@ implementation source of the feature under test - if it is not part of the publi
 you were given, do not open it. This separation exists so tests verify what the spec promises
 rather than mirroring what the implementation happens to do.
 
+Harness note: when the harness cannot enforce the no-read-implementation contract through a
+restricted tool allowlist, honor it as a prompt constraint. Do not open the implementation
+source of the feature under test. Harnesses that can enforce narrower source access should do
+so; this instruction does not require a capability unavailable on other harnesses.
+
 ## When to invoke
 
 - **Test separation during dev:execute.** The executing session implemented a task and

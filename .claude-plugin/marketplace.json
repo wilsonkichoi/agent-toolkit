@@ -2,7 +2,7 @@
   "name": "agent-toolkit",
   "metadata": {
     "description": "Personal agent toolkit: research workflows, utility skills, and development aids for Claude Code and Codex.",
-    "version": "0.0.1"
+    "version": "0.0.2"
   },
   "owner": { "name": "Wilson Choi" },
   "plugins": [
@@ -56,7 +56,7 @@
         "worktree",
         "agile"
       ],
-      "version": "0.0.51"
+      "version": "0.0.52"
     }
   ]
 }

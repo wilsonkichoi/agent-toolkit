@@ -20,7 +20,8 @@ Read first: the plugin's `docs/tracker.md` — on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` (the plugin's own `docs/` directory, two levels above
 this skill), equivalently `../../docs/tracker.md` relative to this skill's directory — before
 configuring the tracker. All `tracker.md` references below mean this plugin doc, never a file in
-the project.
+the project. Also read an existing `.agent/dev.md` (legacy fallback: `.claude/dev.md`) before
+making any repository or tracker call; setup must preserve choices the project already made.
 
 ## Harness specifics
 
@@ -60,7 +61,15 @@ Claude Code), only what cannot be inferred:
    reports, drive-by PRs) worked in place, without a primary-tracker ticket? If yes, record
    `secondary_intake: github` + `github_repo: owner/repo`. See the "Secondary intake channel"
    section in `tracker.md`. Skip the question when the primary tracker already is `github`.
-6. **Multiple harnesses?** Will this project ever be worked from more than one agent harness
+6. **Fork contributions** (offer only for `tracker: github`): does the canonical repository
+   accept pull requests from contributor forks through the dev workflow? This is a project-owner
+   policy choice, never inferred from the current clone. If yes, ask for and confirm the canonical
+   `owner/repo`, then record `github_primary_repo` and `fork_contributions: true`. Validate the
+   pair and repository topology using `tracker.md` "GitHub repository resolution". If the
+   authenticated user lacks canonical write permission, do not treat their answer as authority to
+   change repository settings; write only the selected project configuration and report the
+   maintainer-owned setup separately.
+7. **Multiple harnesses?** Will this project ever be worked from more than one agent harness
    (some teammates on Claude Code, others on Codex; or you alternating harnesses per
    task)? Default yes - the mixed-harness config below works identically on every harness,
    so it is the safe default. Answer no only for a deliberately Claude-Code-only project.
@@ -104,7 +113,19 @@ context_file: AGENTS.md        # single shared context file (default); Claude-on
 Project conventions the fields cannot capture go here as free text.
 ```
 
-**Default config (Q6 = yes, mixed-harness):** `context_file: AGENTS.md` and no `rules_dir`,
+When Q6 enables fork contributions, add both fields below. Do not add either field when the
+project owner did not opt in, and never repurpose `github_repo` for this role:
+
+```yaml
+github_primary_repo: owner/canonical-repo
+fork_contributions: true
+```
+
+Reject `fork_contributions: true` unless `tracker: github` and `github_primary_repo` are both
+present and valid. Reject `github_primary_repo` without `fork_contributions: true`; the pair is
+the explicit opt-in boundary.
+
+**Default config (Q7 = yes, mixed-harness):** `context_file: AGENTS.md` and no `rules_dir`,
 whichever harness setup runs in - a single shared file carries promoted learnings
 (`dev:retro`) and the architecture pointer (`dev:architect`). Codex reads `AGENTS.md`
 natively. Claude Code does NOT auto-load `AGENTS.md` (it loads `CLAUDE.md`), so also seed a
@@ -115,7 +136,7 @@ harnesses through one file. If the project already has promoted rules in `.claud
 clearly-marked rules section of `AGENTS.md`, then delete the migrated rule files - leaving
 both in place splits the memory between harnesses.
 
-**Claude-only config (Q6 = no):** set `rules_dir: .claude/rules/` and
+**Claude-only config (Q7 = no):** set `rules_dir: .claude/rules/` and
 `context_file: CLAUDE.md`. `dev:retro` reads these when promoting learnings and, when both
 fields are absent (legacy or hand-written configs), falls back to these same values as a
 safety net - not a recommended config; run `dev:setup` to write explicit fields.
@@ -127,8 +148,15 @@ a secondary GitHub intake channel (interview Q5), add `secondary_intake: github`
 
 Backend one-time setup:
 
-- **github:** create the label sets from `tracker.md` (`status:*`, `priority:*`, `size:*`)
-  via `gh label create`.
+- **github:** repository labels, milestones, Actions policy, rulesets, secrets, and other
+  GitHub settings are canonical-repository state, separate from committed project files. Only an
+  authenticated user with upstream write permission may create or reconcile them. Scope every
+  command to the resolved canonical repository. Without that permission, create or update local
+  files only and report the exact maintainer actions without attempting them. For the normal
+  planned queue, create the label sets from `tracker.md` (`status:*`, `priority:*`, `size:*`)
+  via `gh label create --repo "$github_primary_repo"` in fork-configured projects, or against
+  the existing same-repository target when fork fields are absent. Fork contribution intake
+  itself applies none of these labels.
 - **local:** add `.dev/tasks/.gitkeep`.
 
 ## 4. Seed the context file
@@ -165,11 +193,16 @@ Offer when the repo is GitHub-hosted and a CI workflow exists. If accepted:
    `.github/workflows/claude-review.yml`, replacing `{{CI_WORKFLOW_NAME}}` with the `name:`
    field inside the configured CI workflow (workflow_run matches by workflow name, not file
    name).
-2. Tell the user to add the API key secret: `gh secret set ANTHROPIC_API_KEY`. Warn: each
+2. Tell the user to add the API key secret: `gh secret set ANTHROPIC_API_KEY` (add
+   `--repo "$github_primary_repo"` in active fork configuration). Warn: each
    auto-review spends API tokens; the manual `dev:review-pr` path keeps working either way.
 3. Set `review_action_installed: true` in `.agent/dev.md` frontmatter.
 4. Note that the template should be sanity-checked against the current
    `anthropics/claude-code-action` docs on first run.
+
+Writing the workflow file is a local, reviewable change. Setting its secret or changing any
+repository Actions setting is canonical-repository state and requires upstream write permission;
+without it, leave those actions in the maintainer report and do not attempt them.
 
 ## 7. Report
 

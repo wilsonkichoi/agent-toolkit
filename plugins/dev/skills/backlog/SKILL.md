@@ -23,6 +23,37 @@ Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent), the
 skill's directory), and skim `docs/PRD.md` and `docs/SPEC.md` headings; triage is impossible
 without knowing current intent.
 
+Before any repository or tracker call, resolve the repository context once using
+`tracker.md` "GitHub repository resolution". In active fork routing, every issue read,
+creation, comment, edit, or close explicitly targets `github_primary_repo`. Do not substitute
+the secondary-intake `github_repo` field.
+
+## External contribution intake (`add <request>` in read-only fork mode)
+
+When primary-GitHub fork routing is active and the authenticated user lacks upstream write
+permission, `add` creates an external contribution proposal, not a maintainer-queue task. Triage
+the request against PRD/SPEC as usual, then create one packet-complete issue in the canonical
+repository with:
+
+- `## Objective`
+- `## Why`
+- `## Definition of Done`
+- `## Relevant references`
+- `## Suggested implementation`
+
+Use `gh issue create --repo "$github_primary_repo"`. Apply no `status:*`, priority, or size
+label, no milestone, no dependency relation, and no assignee. The contributor does not need
+assignment, queue promotion, milestone placement, or maintainer approval before running
+`dev:execute #<n>`. Report the canonical issue URL and stop. If goal or spec triage requires a
+document change, the contributor may make that local change through `dev:discover` or
+`dev:architect` and submit it through the fork PR path, but must not mutate the maintainer queue.
+
+Existing queue triage, reprioritization, `promote`, `wont-do`, and `split` are maintainer
+operations in fork-configured projects. If upstream write permission is absent, stop before the
+first mutation and provide a maintainer handoff containing the requested operation and evidence.
+Read-only users may still read and comment on canonical contribution issues when GitHub permits;
+they never apply queue metadata or terminal state.
+
 ## Intake (`add <request>`, or a batch of requests)
 
 For each request:
@@ -75,6 +106,9 @@ above and route to exactly one of three fates:
 
 Promotion is the *only* path that pulls a GitHub issue into `discover`/`architect`/`plan`; an
 in-place item never runs them.
+
+This secondary-channel path is unchanged by primary-GitHub fork support. Its repository is
+`github_repo`, not `github_primary_repo`; the two fields have distinct ownership semantics.
 
 ## Promote (`promote <id>`)
 

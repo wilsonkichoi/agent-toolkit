@@ -21,6 +21,13 @@ Read first: `.agent/dev.md` (config; legacy fallback: `.claude/dev.md` when abse
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
 skill's directory.
 
+Before any repository or tracker call, resolve repository context once using `tracker.md`
+"GitHub repository resolution". In active fork routing, the PR, linked issue, CI checks,
+review, and REST API target are all `github_primary_repo`; every `gh pr`, `gh issue`, and
+`gh run` command uses `--repo "$github_primary_repo"`, and every `gh api` path starts with
+`repos/$github_primary_repo/`. Fixes push to the contributor branch on `origin`, never to
+`upstream`. Existing non-opt-in routing remains unchanged.
+
 ## Independence rule
 
 The reviewer must not share context with the implementer. If this session implemented the PR
@@ -33,7 +40,10 @@ and has no tracker access, so on Linear/custom backends it cannot self-fetch the
 packet text verbatim. The dispatch message must also embed the review contract itself,
 because the agent cannot reliably read this skill's file on every harness: the step 3 body
 format verbatim, the solo-repo `gh pr review --comment` fallback, and the requirement to
-fill `Commit:` with the current PR HEAD. Pass nothing else: no implementation rationale, no
+fill `Commit:` with the current PR HEAD. In active fork routing, also pass the resolved
+`github_primary_repo`, linked issue number if any, origin branch push destination, and the
+requirement that every GitHub call explicitly target the canonical repository. Pass nothing
+else: no implementation rationale, no
 opinions about the diff. A fresh session
 (one that did not implement the PR and contains no implementation context) reviews inline;
 delegate only when the independence rule forces it.
@@ -99,26 +109,36 @@ delegate only when the independence rule forces it.
 **No GitHub remote** (local-only projects): review `git diff main...task/<id>-<slug>` with the
 same rubric and post the full review as a task comment instead of a PR review.
 
-**No primary task** (a secondary-channel in-place `#N` PR, or a drive-by PR with no issue at
-all - `docs/tracker.md` "Secondary intake channel"): there is no packet. Gather instead the PR diff +
+**No planned queue task** (a primary-GitHub external contribution, a secondary-channel
+in-place `#N` PR, or a drive-by PR with no issue at all - `docs/tracker.md` repository
+resolution and "Secondary intake channel"): there is no queue packet. Gather instead the PR diff +
 CI, the linked GitHub issue's body and acceptance criteria when one exists (`gh issue view
 <n>`), and `docs/SPEC.md` / `docs/PRD.md`. Run the same rubric with "DoD compliance" reading
 against the issue's stated acceptance criteria (or, absent an issue, the PR description);
 `Verdict:` line unchanged; add a line `Reviewed against: issue #<n> + spec` (or
-`PR description + spec`) so the reader knows no packet existed. Record the verdict as a comment
-on the issue when there is one, else the PR review is the record. Do **not** transition any
-primary-tracker status.
+`PR description + spec`) so the reader knows no packet existed. Record the verdict as a
+comment on the resolved GitHub issue when there is one, else the PR review is the record. Do
+**not** claim, assign, label, milestone, count WIP, or transition any primary-tracker status.
+The review remains a full independent review, not a reduced pre-review.
 
 ## Fix mode (`fix` argument)
 
 Runs in the task's worktree, on the same branch. This mode may share context with the
 implementation; independence applies to reviewing, not fixing.
 
+For an external cross-repository PR, compare the PR head repository and branch with the
+validated local `origin`. Apply fixes only when `origin` is that contributor fork and the
+authenticated user can push the head branch. A maintainer reviewing from a canonical clone does
+not rewrite or push a contributor-owned branch; return the findings to the contributor instead.
+
 1. Read the PR's review threads (`gh pr view <n> --comments` and review bodies).
 2. Address every BLOCKER, and each SUGGESTION unless the user (or the finding thread) says
    otherwise. To dispute a finding, reply on the thread with reasoning and leave it for the
    human; never silently skip or resolve a finding without either a fix or a reply.
-3. Run the `test_command`, push to the same branch, let CI run.
+3. Run the `test_command`, push to the same branch when it has a remote, and let CI run. In
+   fork routing, that push remote is `origin`; never push a fix to `upstream`, and keep all
+   PR/check operations scoped to `github_primary_repo`. Preserve local-only behavior when no
+   GitHub remote exists.
 4. Reply per finding: what changed, or why not. Then re-request review (`gh pr edit
    --add-reviewer` or re-run `dev:review-pr` fresh) and stop. The fix author never declares
    the findings resolved; the next review pass does.

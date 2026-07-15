@@ -78,6 +78,23 @@ backend mappings: [docs/tracker.md](docs/tracker.md).
 | `local` | `.dev/tasks/T-NNN-slug.md`, one file per task, YAML frontmatter |
 | `custom` | Bring your own (Jira, etc.) via the "Adding a backend" recipe in `docs/tracker.md` |
 
+**Primary GitHub fork contributions.** GitHub-primary projects can opt into canonical
+repository routing for external contributors:
+
+```yaml
+tracker: github
+github_primary_repo: owner/canonical-repo
+fork_contributions: true
+```
+
+The canonical repository owns issues and PRs, `upstream/main` supplies the base, and `origin`
+receives contributor branches. Authenticated upstream permission, not remote topology, controls
+merge and queue authority. Read-only contributors can create packet-complete canonical issues,
+execute from a fork, post independent review and SHA-bound verification evidence, and then stop
+for a maintainer decision. Existing projects without both fields behave exactly as before. See
+[the manual](docs/manual.md#primary-github-fork-contributions) and
+[repository resolution contract](docs/tracker.md#github-repository-resolution).
+
 **Secondary intake channel.** A non-`github`-primary project can accept isolated GitHub issues
 and drive-by PRs as a second channel (`secondary_intake: github`): promote them into the
 primary tracker, or work them in place (`/dev:execute #N` → `/dev:review-pr #PR` →

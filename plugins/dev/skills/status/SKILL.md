@@ -20,6 +20,11 @@ Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent) and 
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
 skill's directory. Scope: the given milestone, else the active one.
 
+Before any repository or tracker read, resolve repository context once using `tracker.md`
+"GitHub repository resolution". This skill remains strictly read-only. In active fork
+routing, every GitHub read explicitly targets `github_primary_repo`; missing or inconsistent
+remote topology produces the documented stop reason and no mutation.
+
 ## Gather
 
 1. **Tracker:** `list <milestone>` - counts by status, plus per-task id/title/status.
@@ -28,6 +33,11 @@ skill's directory. Scope: the given milestone, else the active one.
    `secondary_intake: github` is set (`docs/tracker.md`), a `task/*` PR that links a `#N` issue but
    matches no primary task is legitimate in-place work - list it separately as github-native,
    not as a violation.
+   In primary-GitHub fork mode, also list open contribution issues with no `status:*` queue
+   label, including issues not yet linked to a PR, plus open cross-repository contribution PRs,
+   in a separate **External contributions** section. Do not count them as planned-queue WIP,
+   include them in milestone progress, or select them as next tasks. A maintainer working from
+   a fork sees the same separation; permission does not turn external PRs into queue tasks.
 3. **Next up:** apply the next-task algorithm; show the top 3 claimable tasks with priority
    and estimate.
 4. **WIP:** In Progress + In Review count vs `work_in_progress_limit`.
@@ -47,6 +57,9 @@ WIP: <n>/<work_in_progress_limit>  <"(gate closed - review/verify to unblock)" w
 - <task> Blocked: <one-line diagnostic>                -> human
 ## In flight
 - <task> In Progress (PR #<n>: CI running | no PR yet)
+## External contributions (excluded from queue WIP)
+- Issue #<n> <title>, no PR | PR #<n>
+- PR #<n> from <fork-owner>:<branch>, issue #<n>, CI <state>, review <state>
 ## Next up
 1. <id> <title> (priority, estimate)
 ```

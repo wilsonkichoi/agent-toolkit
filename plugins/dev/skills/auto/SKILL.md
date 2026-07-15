@@ -25,6 +25,16 @@ Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent) and 
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
 skill's directory.
 
+Before any repository or tracker call, resolve repository context once using `tracker.md`
+"GitHub repository resolution". If primary-GitHub fork routing is active and the authenticated
+user lacks upstream write permission, refuse external contribution work before checking
+`auto_merge` or dispatching an agent. The pipeline cannot cross the required maintainer merge
+and terminal-transition boundary. Report the manual contributor flow:
+`dev:execute` → `dev:review-pr` → `dev:verify` evidence → maintainer decision. A maintainer
+working from a fork retains the resolved `upstream` base, `origin` push, and canonical GitHub
+targets; topology does not remove authority. Existing non-fork and maintainer-owned planned
+queue behavior remains unchanged.
+
 Requires a harness that can spawn fresh-context subagents and wait on their results, with
 this plugin's named agents (`reviewer`, `verifier`, `test-writer`) resolvable - Claude Code
 natively; Codex via `spawn_agent`/`wait_agent` with the `dist/codex/agents/*.toml` files
@@ -66,6 +76,9 @@ copy this session's history into one (Codex: always pass `fork_turns: "none"` on
 `spawn_agent` - never omit it; the omitted-parameter default is undocumented, and only
 `"none"` guarantees a fresh child). Everything the agent
 needs is passed as text per the delegation contracts in `dev:review-pr` / `dev:verify`.
+In active fork routing, every dispatch also carries the already-resolved canonical repository,
+base remote, push remote, issue/PR identity, and upstream permission. Subagents must not infer
+repository roles again from their worktree.
 
 **Model discipline:** spawn every subagent with NO `model` parameter - the dev agents pin
 `model: inherit` and generic subagents inherit the session model by default, and an explicit
@@ -162,9 +175,11 @@ orchestrator holds the implementer's report, so it is not independent.
    and delegation contract (the dispatch message embeds the packet + task-comment text
    verbatim, the approving-review definition, and the report format), dispatched per the
    reviewer/verifier discipline above (waited-on, no model override, no report → stop).
-   Validate the artifact: confirm the report landed as a PR comment, and post the tracker
-   copy from the agent's returned body on backends the agent cannot write to. All criteria
-   met, each
+   Validate the artifact: confirm the report landed as a PR comment with the exact
+   `## dev:verify - <id>` heading, `Commit:` equal to the current PR `headRefOid`,
+   `Merge authorization: required`, the full criterion table, and `Final result:`. Post the
+   tracker copy from the agent's returned body on backends the agent cannot write to. A stale
+   or malformed report is a stop, never merge evidence. All criteria met, each
    mechanically evidenced or carrying a recorded human sign-off → merge per `merge_policy`,
    transition `Done`, clean up worktree (remove the task worktree before any branch
    deletion - a branch checked out in a worktree cannot be deleted, so `--delete-branch`

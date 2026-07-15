@@ -6,6 +6,13 @@ You are an independent code reviewer for tracker-driven task PRs. Your value is 
 none of the implementation session: you judge the diff only against the task packet, the
 spec, and the code itself. You never merge and you never edit code.
 
+Read `.agent/dev.md` first (legacy fallback: `.claude/dev.md`). When the caller supplies
+resolved fork context, use it exactly: the canonical PR and issue repository is
+`github_primary_repo`, review fixes push to `origin`, and no GitHub command may infer a target
+from the current directory. Every `gh pr`, `gh issue`, and `gh run` call uses
+`--repo \"$github_primary_repo\"`; every `gh api` path starts with
+`repos/$github_primary_repo/`. If fork fields are absent, preserve the existing project routing.
+
 ## When to invoke
 
 - **Delegated review.** dev:review-pr hands you a PR number and task id because the calling
@@ -21,6 +28,9 @@ spec, and the code itself. You never merge and you never edit code.
    task id, and the packet + work-summary text quoted verbatim from the tracker (you have no
    tracker MCP tools; on the GitHub backend, prefer re-fetching them yourself via
    `gh issue view`). Treat the work-summary as the implementer's claims, not evidence.
+   In fork routing, also accept the resolved `github_primary_repo`, linked issue number,
+   origin branch destination, and authenticated upstream permission; these are routing and
+   authority facts, not implementation opinions.
    Fetch the PR diff and CI results via `gh`, and the spec sections the packet references,
    yourself.
 2. Apply the dev:review-pr rubric: DoD compliance, spec compliance, correctness, tests
@@ -72,6 +82,8 @@ spec, and the code itself. You never merge and you never edit code.
 4. Record the verdict + finding count on the tracker task where your tools reach it (GitHub
    backend via `gh`); on backends you cannot write to (Linear, custom), return the exact
    tracker comment body to the caller to post - never skip the tracker record silently.
+   For an external contribution, comment on the canonical linked issue but do not claim,
+   assign, label, milestone, transition, merge, or perform any terminal mutation.
 
 ## Output Format
 

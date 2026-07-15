@@ -20,6 +20,12 @@ Read first: `.agent/dev.md` (config; legacy fallback: `.claude/dev.md` when abse
 backend mapping, next-task algorithm) — on Claude Code `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`,
 equivalently `../../docs/tracker.md` relative to this skill's directory.
 
+Before any repository or tracker call, resolve the repository context once using
+`tracker.md` "GitHub repository resolution". Carry the canonical issue/PR repository, base
+remote, push remote, origin fork owner, and authenticated upstream permission through every
+step and every delegated worker. Never let a delegated agent re-infer those roles from its
+working directory.
+
 ## 1. Claim
 
 - No argument: run `next-task`. It enforces the WIP gate (`work_in_progress_limit`) and dependency rules.
@@ -30,6 +36,10 @@ equivalently `../../docs/tracker.md` relative to this skill's directory.
 - With a `#N` GitHub issue (secondary intake channel, primary tracker not github): this is
   isolated work GitHub owns - skip the primary-queue gates and see **In-place GitHub item**
   below.
+- With a `#N` issue in active primary-GitHub fork routing: a user without upstream write
+  permission always follows **External fork contribution** below. A maintainer determines
+  whether the target is a planned queue issue (`status:*` lifecycle) or an external
+  contribution issue and follows the matching path; topology does not decide authority.
 - `claim` the task and confirm the claim won (re-read; see `docs/tracker.md` race guard).
 
 **Packet validation.** A claimable packet has at minimum an Objective and a Definition of
@@ -41,6 +51,24 @@ implement:
 - Interactive: ask the user to confirm the drafted packet, then proceed.
 - Unattended: release the claim (transition back to `Todo`), comment why it was skipped, and
   claim the next valid task instead.
+
+**External fork contribution (`#N`, primary GitHub).** This is GitHub-native intake and audit,
+not a planned queue task. It requires active fork routing. Before any write:
+
+1. Read the issue with `gh issue view <n> --repo "$github_primary_repo"`. Require a complete
+   Objective and Definition of Done; if either is absent, report the missing sections and stop.
+   Do not claim, assign, label, milestone, or otherwise repair the issue as a queue task.
+2. Inspect the canonical issue timeline and cross-references through
+   `gh api "repos/$github_primary_repo/issues/<n>/timeline"`, then re-read any referenced PR
+   in `github_primary_repo`. If an active linked PR exists, refuse duplicate work and report
+   it. Proceed only if the user explicitly overrides that collision with knowledge that the
+   work is duplicated.
+3. Skip WIP, dependency, `Todo`, assignment, milestone, and every `status:*` transition. The
+   open issue, linked PR, review artifacts, and verification report are the lifecycle record.
+
+All issue comments use `gh issue comment <n> --repo "$github_primary_repo"`. Step 4 creates a
+cross-repository PR in `github_primary_repo` with `Closes #<n>`. Step 7 posts the work summary
+to the canonical issue and stops without an `In Review` transition.
 
 **In-place GitHub item (`#N`, secondary intake channel).** When the argument is a GitHub issue
 number and `secondary_intake: github` is set with a non-github primary tracker, GitHub owns
@@ -62,6 +90,20 @@ A drive-by PR with no issue behind it does not go through `dev:execute` at all -
 verify it directly (`dev:review-pr <pr>`, `dev:verify <pr>`).
 
 ## 2. Isolate
+
+For active fork routing, fetch `upstream` and branch directly from the canonical base, not
+local or fork `main`:
+
+```
+git fetch upstream
+git worktree add -b task/<id>-<slug> ../<repo>-worktrees/<id>-<slug> upstream/main
+```
+
+The branch push destination remains `origin`. For external contribution work, do not merge
+the task branch into the fork's `main`; the contribution is the cross-repository PR from the
+feature branch to canonical `main`.
+
+For normal same-repository and non-fork modes, preserve the existing path below.
 
 Bring `main` up to date first: `git fetch origin`, and if local `main` has commits origin
 lacks (approved gate artifacts, applied retro promotions), push them before branching -
@@ -108,13 +150,26 @@ Push the branch and open a PR:
   bypass verification). For Linear, the `task/<id>-` branch prefix auto-links the issue.
 - Record the PR URL on the task (comment, or `pr:` field on the local backend).
 
+In active fork routing, push with `git push -u origin task/<id>-<slug>` and create the PR
+explicitly in the canonical repository:
+
+```
+gh pr create --repo "$github_primary_repo" --base main \
+  --head "<origin-owner>:task/<id>-<slug>" --title "<task-id>: <task title>" --body-file <file>
+```
+
+Resolve `<origin-owner>` from the validated origin repository. Every later `gh pr view`,
+`gh pr edit`, `gh pr checks`, and review request for this PR uses
+`--repo "$github_primary_repo"`.
+
 **No GitHub remote:** skip the PR. Commit on the task branch and record the branch name on
 the task instead; `git diff main...task/<id>-<slug>` becomes the review surface for
 `dev:review-pr`, and `dev:verify` merges locally.
 
 ## 5. CI to green
 
-Watch checks (`gh pr checks --watch`). On failure, diagnose from the CI logs, fix, push to
+Watch checks (`gh pr checks --watch`, with `--repo "$github_primary_repo"` in active fork
+routing). On failure, diagnose from the CI logs, fix, push to
 the same branch, re-watch. Count attempts.
 
 **Comment every cycle** so the iteration is visible on the task itself, not only in PR
@@ -185,7 +240,8 @@ If no visual criteria exist in the DoD, skip to step 7.
    This comment is the primary input for `dev:review-pr` and `dev:retro` - write it for a
    reader with zero context from this session.
 
-3. Transition the task to `In Review`.
+3. Transition the task to `In Review`. Skip this for an external fork contribution; it has no
+   queue state. Post the same work summary on its canonical issue instead.
 4. Report: task, PR URL, CI status, spec gaps. Next step: `dev:review-pr`, then
    `dev:verify`. **Stop. Do not merge. Do not start another task in this session** (fresh
    context per task) - except in loop mode below.

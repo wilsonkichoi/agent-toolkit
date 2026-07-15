@@ -26,6 +26,11 @@ Read first:
    missing, stop and direct the user to `dev:architect`.
 4. `list <milestone>` on the tracker - never create duplicates of tasks that already exist.
 
+Before any repository or tracker call, resolve the repository context once using
+`tracker.md` "GitHub repository resolution". Fork mode does not reduce the local planning
+work: a contributor may read the canonical queue and produce the complete dry run below. It
+does change who may push approved packets into that queue.
+
 ## 1. Draft packets
 
 For the target milestone (argument, or the first roadmap milestone with unplanned scope),
@@ -70,6 +75,15 @@ edges (as a list or Mermaid graph), spike rationale, and any spec gaps. Iterate 
 Do not create anything until the user approves.
 
 ## 3. Push
+
+In a fork-configured project, check the resolved canonical permission before the first tracker
+write. If the authenticated user lacks upstream write permission, stop here even after dry-run
+approval. Do not create issues, apply queue labels, set milestones, wire dependencies, or promote
+tasks. Emit a maintainer handoff containing every approved packet, dependency edge, intended
+priority/estimate/milestone, the canonical `github_primary_repo`, and the read-only permission
+result. Local document changes remain normal fork-PR changes. A maintainer with upstream write
+permission continues below, with every GitHub command explicitly scoped to
+`github_primary_repo`.
 
 On approval, `create-task` each packet at status `Todo` (plan approval is the commitment
 gate), with dependencies, priority, estimate, and milestone mapped per the backend section of

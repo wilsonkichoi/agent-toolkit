@@ -49,6 +49,90 @@ All backends use the same algorithm:
 3. **Order:** priority (highest first), then task id ascending (plan order encodes intent).
 4. Return the first candidate.
 
+## GitHub repository resolution
+
+Every skill reads `.agent/dev.md` (legacy fallback: `.claude/dev.md`) before any tracker,
+issue, pull-request, CI, review, or REST call. Resolve repository context once per invocation
+and reuse it for every command. When configuration selects a GitHub repository, do not let
+`gh` infer a different repository from the current directory.
+
+The existing `github_repo` field remains the repository for the optional secondary GitHub
+intake channel on a non-GitHub primary tracker. Primary-GitHub fork contributions use two
+different fields:
+
+```yaml
+tracker: github
+github_primary_repo: owner/canonical-repo
+fork_contributions: true
+```
+
+The fields are opt-in and must appear together. `fork_contributions: true` is valid only with
+`tracker: github` and a non-empty `github_primary_repo` in `owner/repo` form. An invalid or
+partial combination is a hard stop before any GitHub read or write. When the fields are
+absent, preserve the configured backend and all existing same-repository, Linear, local,
+custom, and secondary-intake behavior.
+
+For a valid primary-GitHub fork configuration:
+
+1. Treat `github_primary_repo` as the canonical issue and PR repository. Never derive it by
+   replacing the owner in `origin`.
+2. Resolve `origin` with `git remote get-url origin`, normalize its GitHub `owner/repo`, then
+   inspect that repository's `parent.nameWithOwner`. Accept the normal HTTPS and SSH GitHub
+   URL forms, strip a trailing `.git`, and reject a non-GitHub remote instead of guessing. Use:
+
+   ```bash
+   gh repo view "$origin_repo" --json nameWithOwner,parent \
+     --jq '{nameWithOwner, parent: .parent.nameWithOwner}'
+   ```
+
+   Also resolve the authenticated user's canonical permission with:
+
+   ```bash
+   gh repo view "$github_primary_repo" --json viewerPermission --jq .viewerPermission
+   ```
+
+   `ADMIN`, `MAINTAIN`, and `WRITE` count as upstream write permission. `TRIAGE`, `READ`, and
+   `NONE` do not. Remote topology never grants authority.
+3. If `origin` is `github_primary_repo`, the base and push remote are `origin`; an `upstream`
+   remote is optional. With upstream write permission, use normal maintainer queue behavior.
+   Without it, stop before mutation: this clone has no contributor-owned push destination,
+   so the user must fork and configure the topology in step 4. Still pass
+   `--repo "$github_primary_repo"` (or use `repos/$github_primary_repo/...` for `gh api`) on
+   every GitHub operation.
+4. If `origin` is a fork whose parent is `github_primary_repo`, fork routing is active. Require
+   `upstream` to resolve exactly to `github_primary_repo`; the repository roles are:
+   canonical issues and PRs = `github_primary_repo`, base branch = `upstream/main`, branch
+   push = `origin`. A missing `upstream` stops before mutation and reports these exact repair
+   commands:
+
+   ```bash
+   git remote add upstream https://github.com/<github_primary_repo>.git
+   git fetch upstream
+   ```
+
+   A present but incorrect `upstream` stops and reports:
+
+   ```bash
+   git remote set-url upstream https://github.com/<github_primary_repo>.git
+   git fetch upstream
+   ```
+
+   Replace `<github_primary_repo>` with the configured value in the reported commands.
+5. If `origin` is neither the canonical repository nor a fork whose parent matches
+   `github_primary_repo`, refuse fork routing and perform no mutation. Report the configured
+   canonical repository, resolved origin repository, and resolved fork parent so the mismatch
+   is actionable.
+
+In active fork routing, every `gh issue`, `gh pr`, and `gh run` command names
+`--repo "$github_primary_repo"`; every `gh api` path starts with
+`repos/$github_primary_repo/`. Fetch base commits from `upstream`, push task branches only to
+`origin`, and create cross-repository PRs in the canonical repository. For a user without
+upstream write permission, the issue/PR and its SHA-bound review and verification comments
+are the audit trail. Do not claim or assign the issue, apply queue labels, set milestones,
+count it against WIP, mutate dependencies, or make terminal transitions. A maintainer working
+from a fork uses the same three repository destinations, but upstream permission allows the
+maintainer-only queue, merge, and terminal-transition operations defined by each skill.
+
 ## Backend: Linear (`tracker: linear`)
 
 Uses the official Linear MCP server (`mcp.linear.app`). Discover exact tool names from the MCP

@@ -18,6 +18,11 @@ packet `dev:plan` writes. Docs only: produce no product code, no scaffolding.
 Skill references like `dev:plan` mean this plugin's `plan` skill; when telling the user to run
 one, render your harness's invocation for it (Claude Code: `/dev:plan`; Codex: `$plan`).
 
+Read `.agent/dev.md` first (legacy fallback: `.claude/dev.md`). Fork configuration does not
+change this skill: it authors local `docs/SPEC.md`, `docs/ROADMAP.md`, ADRs, and the configured
+context file, and makes no tracker or GitHub call. A contributor submits the resulting file
+changes through the normal fork PR path.
+
 Preconditions: `docs/PRD.md` exists and is approved (else stop, direct to `dev:discover`).
 Brownfield: read the current-state SPEC.md from setup archaeology; the spec being written
 here extends or replaces it, and must say which.

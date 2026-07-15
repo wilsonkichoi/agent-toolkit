@@ -24,6 +24,14 @@ Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent) and 
 skill's directory. Scope: one task (`task <id>`) or all `Done`/`Wont Do`/`Blocked` tasks in a
 milestone (`milestone <n>`).
 
+Before any repository or tracker call, resolve repository context once using `tracker.md`
+"GitHub repository resolution". For an external contribution, read the canonical PR, linked
+issue, review threads, CI, and comments explicitly from `github_primary_repo`; post the retro
+comment there when GitHub permits. Local rule or context-file promotions remain ordinary file
+changes submitted through the contributor's fork PR. Retro gains no merge, issue-closure,
+queue-label, dependency, milestone, or other terminal-transition authority, regardless of the
+authenticated permission.
+
 If the target task is not yet terminal (e.g. `In Review` awaiting merge), do not close it
 out yourself - merging and `Done` belong to `dev:verify`, even if the user approves the
 merge in this session. Direct them to run `dev:verify`, then retro after it finishes.
@@ -36,7 +44,8 @@ Per task, in this order of value:
    diagnostics, verification report, Wont Do rationales.
 2. **PR review threads:** every finding is a signal - what did the reviewer catch that the
    executor should have known up front?
-3. **CI history:** failure runs on the task branch (`gh run list --branch task/<id>-*`);
+3. **CI history:** failure runs on the task branch (`gh run list --branch task/<id>-*`, with
+   `--repo "$github_primary_repo"` in active fork routing);
    recurring failure classes (env setup, flaky test, missing migration) matter more than
    one-offs.
 4. **Session transcripts** (best effort, current harness only): grep this harness's own

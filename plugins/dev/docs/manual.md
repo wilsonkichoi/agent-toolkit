@@ -32,6 +32,9 @@ Four rules explain every skill's behavior:
   `dev:execute` branches from `main`, so an empty repo gains its root commit at `dev:setup`.
 - **`github` backend:** `gh auth status` must succeed and the repo needs a GitHub remote.
   `dev:setup` creates the `status:*` / `priority:*` / `size:*` labels once.
+  Fork contributions additionally require the committed canonical repository configuration
+  and a validated fork `origin` plus canonical `upstream`; see Primary GitHub fork
+  contributions below.
 - **`linear` backend:** the official Linear MCP server — Claude Code:
   `claude mcp add --scope local --transport http linear https://mcp.linear.app/mcp` (browser OAuth on first
   call); Codex: `codex mcp add linear --url https://mcp.linear.app/mcp`, then
@@ -66,6 +69,8 @@ first and falls back to it, and `dev:setup` offers a `git mv` migration on exist
 | `rules_dir` | `.claude/rules/` | `retro` | Directory for promoted rule files; only set on the Claude-only config - the default mixed-harness config omits it and rules land in `context_file` |
 | `context_file` | `CLAUDE.md` | `retro`, `architect` | Project context file for promotions and the architecture pointer; `AGENTS.md` on the default mixed-harness config (with a one-line `CLAUDE.md` = `@AGENTS.md` import) |
 | `memory_target` | `files` | `retro` | Where promotions land: the configured `rules_dir`/`context_file` files, or a memory MCP system (see adoption.md §5) |
+| `github_primary_repo` | - | every skill in fork-configured projects | Canonical `owner/repo` that owns primary GitHub issues and PRs; only valid with `tracker: github` and `fork_contributions: true` |
+| `fork_contributions` | `false` | every skill | Explicit project-owner opt-in to primary-GitHub fork routing; must be `true` with `github_primary_repo`, otherwise omit both fields |
 | `secondary_intake` | - | `execute`, `review-pr`, `verify`, `backlog`, `status` | Opt into GitHub as an isolated-work channel on a non-github-primary project (`github`); see Secondary intake channel below |
 | `github_repo` | - | secondary-channel skills | `owner/repo` the secondary issues/PRs live in; only with `secondary_intake: github` |
 | `audit_trail` | `link` | secondary-channel skills | `link`: the PR/issue is the record. `mirror` (per-merge primary ticket) is reserved, not built |
@@ -181,6 +186,51 @@ What is safe to run simultaneously, and why:
 The rule that makes all of this safe: no skill ever checks out a task branch in the main
 working copy. Branch-file operations (tests, reading beyond the diff) happen in that task's
 worktree; the main checkout's HEAD only moves at merge time.
+
+## Primary GitHub fork contributions
+
+Fork support is opt-in and applies only to a GitHub primary tracker:
+
+```yaml
+tracker: github
+github_primary_repo: owner/canonical-repo
+fork_contributions: true
+```
+
+Do not use `github_repo` here. That field remains the secondary GitHub intake repository for
+projects whose primary tracker is Linear, local, or custom.
+
+The resolver separates three destinations: canonical issues and PRs live in
+`github_primary_repo`, branches start from `upstream/main`, and contributor branches push to
+`origin`. `origin` must be a GitHub fork whose parent is the configured canonical repository;
+`upstream` must resolve to that canonical repository. A canonical clone uses its existing
+same-repository behavior and does not require `upstream`. Every GitHub operation names the
+canonical repository explicitly, so the current working directory cannot redirect a call to
+the fork.
+
+Authority is a separate check. `ADMIN`, `MAINTAIN`, or `WRITE` on the canonical repository
+allows maintainer queue and terminal operations. Read-only contributors get the external path:
+no assignment, queue label, milestone, dependency gate, WIP accounting, terminal issue mutation,
+or merge. The canonical issue, cross-repository PR, structured review, and SHA-bound verification
+report form the audit trail. A maintainer working from a fork keeps the same upstream/origin/
+canonical destinations but retains maintainer authority.
+
+| Skill | Fork-mode behavior |
+|---|---|
+| `dev:setup` | Writes and validates the opt-in fields only after a project-owner choice; local files are separate from maintainer-owned labels, milestones, Actions policy, secrets, and rulesets. |
+| `dev:discover` | Unchanged local PRD authoring; no tracker or GitHub mutation. |
+| `dev:architect` | Unchanged local spec, roadmap, ADR, and context-file authoring; no tracker or GitHub mutation. |
+| `dev:plan` | Produces the full local dry run; a read-only contributor stops before pushing packets or queue metadata and hands the approved plan to a maintainer. |
+| `dev:backlog` | Read-only `add` creates a packet-complete canonical contribution issue with no queue metadata; triage, promotion, reprioritization, split, and `Wont Do` remain maintainer-only. |
+| `dev:execute` | Rejects incomplete intake or an active linked PR unless explicitly overridden; branches from `upstream/main`, pushes to `origin`, and opens the canonical cross-repository PR without queue transitions. |
+| `dev:review-pr` | Reviews and comments on the canonical PR and issue; fixes push to `origin`; the structured review remains bound to the reviewed HEAD SHA. |
+| `dev:verify` | A read-only contributor posts complete SHA-bound evidence and stops at `ready for maintainer decision`; a maintainer reuses current evidence, rechecks gates, then merges and cleans up canonical state. |
+| `dev:status` | Reads the canonical repository and lists external contributions separately from planned queue progress, WIP, and next-task selection. |
+| `dev:auto` | Refuses external contribution work without upstream write permission because it cannot cross the maintainer merge boundary. |
+| `dev:retro` | Reads and comments on canonical artifacts; promotions are local fork-PR changes and retro gains no merge or terminal authority. |
+
+The exact validation, repair commands, and command-targeting contract are in
+[tracker.md](tracker.md#github-repository-resolution).
 
 ## Secondary intake channel (GitHub-native work)
 

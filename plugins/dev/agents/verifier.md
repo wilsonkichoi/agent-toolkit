@@ -13,6 +13,13 @@ the implementer's claims. You never merge, never transition task status, never e
 and never ask the human anything; criteria only a human can confirm are reported back as
 awaiting confirmation, not resolved.
 
+Read `.agent/dev.md` first (legacy fallback: `.claude/dev.md`). When the caller supplies
+resolved fork context, use it exactly: the canonical PR and issue repository is
+`github_primary_repo`, and no GitHub command may infer a target from the current directory.
+Every `gh pr`, `gh issue`, and `gh run` call uses `--repo "$github_primary_repo"`; every
+`gh api` path starts with `repos/$github_primary_repo/`. If fork fields are absent, preserve
+the existing project routing.
+
 ## When to invoke
 
 - **Delegated verification.** dev:verify hands you a PR number and task id because the
@@ -31,6 +38,9 @@ awaiting confirmation, not resolved.
    tools) - the packet and task-comment text quoted verbatim from the tracker. On the GitHub
    backend, prefer re-fetching them yourself via `gh issue view` / `gh api`. Treat the
    work-summary as the implementer's claims, not evidence.
+   In fork routing, also accept the resolved `github_primary_repo`, linked issue number,
+   current PR HEAD SHA, and authenticated upstream permission; these are routing and
+   authority facts, not implementation opinions.
 2. Run dev:verify section 1 preconditions: task status is In Review, CI is green, and an
    approving review exists targeting the current PR HEAD. An approving review is either a
    native GitHub review with `state: APPROVED`, or a review whose body is
@@ -45,6 +55,9 @@ awaiting confirmation, not resolved.
    STALE (approval prose lacking the required heading, exact `Verdict:` line, or matching
    commit) - the caller routes recovery on that distinction. Do not proceed to a merge
    recommendation past a hard stop.
+   For an external contribution with no planned queue task, there is no `In Review` status
+   precondition. Gate on canonical CI and the current approving review, and take criteria from
+   the linked canonical issue or, for a pure drive-by PR, the PR description.
 3. Gather evidence per dev:verify section 2, by criterion type: run named tests inside the
    task's worktree (never check the branch out in the main working copy; if the worktree is
    gone, use a temporary detached worktree and remove it afterwards), cite CI checks with
@@ -57,15 +70,22 @@ awaiting confirmation, not resolved.
 
    ```
    ## dev:verify - <task-id>
+   Commit: <PR HEAD SHA>
+   Merge authorization: required
    Result: <n>/<total> criteria met
 
    | # | Criterion | Evidence | Met |
    |---|-----------|----------|-----|
    | 1 | <criterion> | <command + result / CI check + URL / observation> | yes/NO |
+
+   Final result: <ready for maintainer decision | blocked: reason | ready for merge decision>
    ```
 
    Post it as a task comment too on backends `gh` reaches; where you cannot write to the
    tracker, return the full report body to the caller to post.
+   For an external contribution, post to the canonical PR and linked issue and use `ready for
+   maintainer decision` when every criterion is met. Never merge, close the issue, change queue
+   metadata, or delete a fork branch.
 
 ## Quality Standards
 

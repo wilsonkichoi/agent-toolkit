@@ -27,6 +27,11 @@ Read first: `.agent/dev.md` (config; legacy fallback: `.claude/dev.md` when abse
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
 skill's directory.
 
+Before any repository or tracker call, resolve repository context once using `tracker.md`
+"GitHub repository resolution". In active fork routing, every PR, issue, CI, review, and REST
+call explicitly targets `github_primary_repo`. Preserve the resolved upstream permission and
+whether the PR head belongs to a fork; those facts control the merge boundary and branch cleanup.
+
 ## Independence rule
 
 The verifier must not share context with the implementer - the session that wrote the code
@@ -53,6 +58,11 @@ transition, and cleanup all stay in the calling session - the agent cannot ask t
 and holds no merge approval. It reports which criteria are unmet or awaiting human
 confirmation; the calling session takes it from there. On backends the agent cannot write
 to, the calling session also posts the task-comment copy of the report the agent returns.
+
+In active fork routing, the dispatch also includes `github_primary_repo`, the linked issue
+number if any, the current PR HEAD SHA, and the requirement that every GitHub call target the
+canonical repository explicitly. The verifier receives no merge or terminal-transition
+authority.
 
 ## 1. Preconditions
 
@@ -85,14 +95,23 @@ task branch head.
 **No GitHub remote:** the task records a branch instead of a PR, the approving review is the
 `dev:review-pr` comment on the task, and the local `test_command` run stands in for CI.
 
-**No primary task** (a secondary-channel in-place `#N` PR, or a drive-by PR with no issue -
-`docs/tracker.md` "Secondary intake channel"): there is no primary-tracker task and no `In Review`
+**No planned queue task** (a primary-GitHub external contribution, a secondary-channel
+in-place `#N` PR, or a drive-by PR with no issue - `docs/tracker.md` repository resolution and
+"Secondary intake channel"): there is no primary-tracker task and no `In Review`
 status to check. Gate on CI green + an approving review only. The DoD criteria to verify come
 from the linked issue's acceptance criteria (`gh issue view <n>`) when one exists, else the PR
 description. Section 4 skips the `Done` transition and status-label strip (there is no primary
 task and in-place items carry no `status:*` label); `Closes #N` auto-closes the issue on
 merge. Post no primary-tracker comment; the verification report on the PR (and the issue, if
 any) is the record.
+
+**Maintainer evidence reuse.** Before gathering evidence, a user with upstream write permission
+checks canonical PR comments for an existing `dev:verify` report. Reuse it instead of rerunning
+the contributor's evidence loop when its `Commit:` equals the current PR HEAD, every criterion
+is present and met, and its evidence is still valid. Recheck current HEAD, required canonical CI,
+the current approving review, and every DoD criterion. A missing, malformed, stale, or unmet
+report returns the PR to the contributor; it is not merge evidence. When the report is current,
+skip sections 2-3 and continue only with the merge-decision portion of section 4.
 
 ## 2. Evidence per DoD criterion
 
@@ -135,11 +154,15 @@ Post the verification report as a PR comment and a task comment:
 
 ```
 ## dev:verify - <task-id>
+Commit: <PR HEAD SHA>
+Merge authorization: required
 Result: <n>/<total> criteria met
 
 | # | Criterion | Evidence | Met |
 |---|-----------|----------|-----|
 | 1 | <criterion> | <command + result / CI check + URL / observation> | yes/NO |
+
+Final result: <ready for maintainer decision | blocked: reason | ready for merge decision>
 ```
 
 **Any criterion unmet:** stop. Do not merge; the task stays `In Review`. Route the gap:
@@ -147,6 +170,16 @@ implementation gap → `dev:review-pr <n> fix` or a fresh `dev:execute <id>` pas
 untestable criterion → the packet is the problem, send it through `dev:backlog` triage.
 
 ## 4. Human gate and merge
+
+In an external fork contribution, a user without upstream write permission stops after posting
+the complete SHA-bound report to the canonical PR and linked issue. Report `Final result: ready
+for maintainer decision`. Do not ask for or attempt merge, issue closure, queue-label removal,
+milestone or dependency mutation, upstream branch deletion, or any other terminal write. This is
+a successful contributor verification outcome, not a failed verify.
+
+A user with upstream write permission may continue. For an external contribution, first enforce
+the evidence-reuse rule in section 1; current contributor evidence is the input to this merge
+decision, not work to repeat.
 
 All criteria met: present the report and ask the human to approve the merge. Approval
 authorizes the merge; it never waives the record. If approval arrives before the record is
@@ -159,10 +192,13 @@ last write before cleanup. On approval:
 
 0. Check mergeability first, not just CI: `gh pr view <n> --json mergeable,mergeStateStatus`.
    Sibling PRs that branched before an earlier one merged conflict exactly here (green CI,
-   unmergeable). If conflicting or behind: rebase the task branch onto `origin/main` in its
+   unmergeable). If conflicting or behind: rebase the task branch onto the resolved base
+   (`upstream/main` in active fork routing, otherwise `origin/main`) in its
    worktree, push, let CI re-run to green - and if resolving conflicts changed hunks the
    review already read, get a re-review before merging.
-1. Merge per `merge_policy`: `gh pr merge <n> --squash` (or `--merge`). Do NOT pass
+1. Merge per `merge_policy`: `gh pr merge <n> --repo "$github_primary_repo" --squash` (or
+   `--merge`) in active fork routing, with the existing unscoped target only in non-opt-in
+   modes. Do NOT pass
    `--delete-branch`: the task branch is always still checked out in its worktree at this
    point (`dev:execute` created it; cleanup is step 4), so the local delete fails and the
    remote delete is skipped with it - the merge succeeds but the remote branch silently
@@ -173,7 +209,9 @@ last write before cleanup. On approval:
    completed, close it explicitly if not, and remove the now-stale `status:*` label -
    `gh issue edit <n> --remove-label status:in-review` - since `Closes #N` auto-close does
    not touch labels and a closed issue must carry none).
-3. Comment the merge commit / PR URL on the task.
+   For an external contribution there is no queue transition: confirm or perform canonical
+   issue closure only, and never add or remove queue labels.
+3. Comment the merge commit / PR URL on the task or canonical contribution issue.
 4. Clean up, in order: `git worktree remove` the task worktree (this frees the branch),
    then `rmdir ../<repo>-worktrees 2>/dev/null || true` (removes the container dir when
    this was the last worktree in it; `rmdir` refuses non-empty dirs, so it is safe while
@@ -181,7 +219,10 @@ last write before cleanup. On approval:
    plus, with a remote, `git push origin --delete task/<id>-<slug>` - then update local
    `main`. Confirm the remote branch is actually gone
    (`git ls-remote --heads origin task/<id>-<slug>` prints nothing): this leak is silent
-   and easy to miss.
+   and easy to miss. Exception: for an external cross-repository PR, the fork branch belongs
+   to the contributor. A maintainer may remove a local verification worktree or temporary
+   local ref, but must not delete the contributor-owned remote branch; fork branch cleanup
+   remains the contributor's responsibility.
 
 Declined or deferred: leave everything as-is and report what the human decided.
 

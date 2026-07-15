@@ -270,6 +270,59 @@ a comprehensive guide at `plugins/dev/docs/adoption.md` covering:
    that system's own injection/recall for session start. The guide documents the tradeoff:
    file-based is git-shared and zero-latency; MCP-based memory is cross-tool and cross-machine.
 
+## Primary GitHub fork contribution routing
+
+Fork contribution support is an additive repository-resolution capability for projects whose
+primary tracker is GitHub. It activates only from committed, project-owner-selected config:
+
+```yaml
+tracker: github
+github_primary_repo: owner/canonical-repo
+fork_contributions: true
+```
+
+`github_primary_repo` is stable across forks because contributors inherit it from the canonical
+repository. It is never derived by rewriting the owner in `origin`. The existing `github_repo`
+field is unchanged and continues to mean secondary GitHub intake on a non-GitHub primary.
+
+**Repository roles are independent.** In validated fork routing, issues and PRs belong to
+`github_primary_repo`, branches start from `upstream/main`, and feature branches push to
+`origin`. Every GitHub command explicitly targets the canonical repository. This prevents a
+bare `gh issue`, `gh pr`, or `gh api` call from silently resolving to the contributor fork.
+`origin` must be a fork whose GitHub parent matches the configured canonical repository and
+`upstream` must resolve to that canonical repository. A canonical clone retains normal
+same-repository behavior.
+
+**Permission is independent of topology.** After repository roles resolve, the plugin reads the
+authenticated user's canonical permission. `ADMIN`, `MAINTAIN`, and `WRITE` grant maintainer
+authority; `TRIAGE`, `READ`, and `NONE` do not. A maintainer working from a fork therefore keeps
+fork base/push routing but may perform maintainer queue and terminal operations. A read-only
+contributor cannot claim or assign canonical issues, mutate queue labels, milestones or
+dependencies, count external work against WIP, merge, close the issue, or perform terminal
+tracker transitions.
+
+**External audit record.** External contributions use the packet-complete canonical issue, linked
+cross-repository PR, structured review bound to PR HEAD, and verification report bound to the same
+SHA. Contributor verify stops after posting `ready for maintainer decision`. Maintainer verify
+reuses a current contributor report, rechecks HEAD, canonical required CI, current approving
+review, and every DoD criterion, then performs only the merge and canonical terminal cleanup after
+human approval. It does not rerun valid evidence and never attempts to delete a contributor-owned
+fork branch.
+
+**Skill ownership.** `setup` owns opt-in config and separates committed files from repository
+settings; `discover` and `architect` remain local-only; `plan` can draft but not push queue tasks
+without upstream write; `backlog` provides metadata-free contribution issue intake while keeping
+queue triage maintainer-only; `execute`, `review-pr`, and `verify` implement the cross-repository
+quality loop; `status` separates external PRs from queue WIP; `auto` refuses when a read-only user
+cannot cross the merge boundary; `retro` may read/comment canonically and promote local files but
+gains no terminal authority.
+
+**Non-goals.** Installing or upgrading `dev` never enables fork mode. This design does not change
+same-repository GitHub, Linear, local, custom, secondary-intake, or project-specific cross-repo
+execution behavior. It does not grant contributors merge authority, impose the internal queue on
+external work, define contributor policy for every consuming repository, or make fork branch
+cleanup a canonical maintainer responsibility.
+
 ## Secondary intake channel (GitHub-native work on a non-GitHub-primary project)
 
 Added after Milestone 2 dogfooding surfaced a real gap: a project whose primary tracker is
