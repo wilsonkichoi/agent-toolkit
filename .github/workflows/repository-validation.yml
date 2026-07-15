@@ -1,0 +1,29 @@
+name: Repository validation
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  repository-validation:
+    name: repository-validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244
+        with:
+          version: "0.10.7"
+          enable-cache: false
+
+      - name: Check generated Codex agents
+        run: uv run tools/generate_codex_agents.py --check
+
+      - name: Validate repository
+        run: uv run tools/check_repo.py

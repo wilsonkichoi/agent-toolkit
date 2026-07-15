@@ -1,0 +1,46 @@
+name: External contribution proposal
+description: Propose a contribution without entering the maintainer's planned queue.
+title: ""
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: State the concrete outcome this contribution will deliver.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: Explain the problem, user value, or reason for the change.
+    validations:
+      required: true
+
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: List objective, verifiable completion criteria.
+      placeholder: |
+        - [ ] Criterion one
+        - [ ] Criterion two
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: Relevant references
+      description: Link related issues, specifications, documentation, or prior discussion.
+    validations:
+      required: false
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Suggested implementation
+      description: Describe the proposed approach, affected files, constraints, or known risks.
+    validations:
+      required: false

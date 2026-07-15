@@ -1,0 +1,48 @@
+name: Maintainer-planned task
+description: Create a packet-complete task in the maintainer's planned queue.
+title: ""
+labels:
+  - status:backlog
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: State one concrete outcome for this task.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: Explain the problem and user or project value.
+    validations:
+      required: true
+
+  - type: textarea
+    id: definition-of-done
+    attributes:
+      label: Definition of Done
+      description: List objective, verifiable completion criteria.
+      placeholder: |
+        - [ ] Criterion one
+        - [ ] Criterion two
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: Spec references
+      description: Link the governing PRD, specification, roadmap milestone, ADRs, or related tasks.
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Suggested implementation
+      description: Record expected files, interfaces, constraints, dependencies, and test commands.
+    validations:
+      required: false

@@ -16,10 +16,14 @@ All version fields use semver (`major.minor.patch`). Always use the minimum incr
 While in pre-release (`0.0.x`), use patch for everything including new features. Save
 minor/major bumps for after the plugin has real consumers.
 
-Version fields live in, and must stay in lockstep:
-- `.claude-plugin/marketplace.json` (marketplace version + per-plugin version entries)
+Each plugin's release version lives in exactly three fields, which must stay in lockstep:
+- the plugin entry in `.claude-plugin/marketplace.json`
 - `plugins/<name>/.claude-plugin/plugin.json`
-- `plugins/<name>/.codex-plugin/plugin.json` (mirror of the Claude manifest version)
+- `plugins/<name>/.codex-plugin/plugin.json`
+
+The marketplace-level `.claude-plugin/marketplace.json` `metadata.version` is an independent
+semver catalog version. It is not required to match any plugin release version. The
+Codex-native `.agents/plugins/marketplace.json` has no version field.
 
 ## Structure
 
@@ -31,6 +35,7 @@ CLAUDE.md               # one-line @AGENTS.md import (Claude Code entry point)
 bootstrap/              # Standalone setup script + config (Claude-only; not a plugin)
 dist/                   # generated / copy-me artifacts, not plugin-installable
   codex/agents/         #   Codex agent TOMLs (copy to ~/.codex/agents/ or project .codex/agents/)
+.codex/agents/          # generated project-scoped Codex agents
 plugins/<name>/         # Each plugin
   .claude-plugin/       #   Claude plugin manifest (plugin.json)
   .codex-plugin/        #   Codex plugin manifest (plugin.json)
@@ -54,6 +59,26 @@ harnesses (Claude Code: Agent tool; Codex: `spawn_agent`/`wait_agent` with `agen
 selecting a copied agent TOML, default nesting depth 1) - express orchestration as
 "dispatch and wait", not in one harness's parameters.
 
+## Repository tools
+
+Agent Markdown files under `plugins/*/agents/` are authoritative. Regenerate both the
+project-scoped `.codex/agents/` files and distributable `dist/codex/agents/` files with:
+
+```bash
+uv run tools/generate_codex_agents.py
+```
+
+Check generated-file drift without writing, then validate manifests, marketplaces, versions,
+skill frontmatter, agent sources, and shared authoring invariants with:
+
+```bash
+uv run tools/generate_codex_agents.py --check
+uv run tools/check_repo.py
+```
+
+Both tools are dependency-free PEP 723 scripts. Do not add a project `pyproject.toml`,
+`.python-version`, `uv.lock`, or script lockfile for them.
+
 ## Pre-commit checklist
 
 Before any commit that adds, removes, or modifies files under `skills/` or `agents/`:
@@ -62,7 +87,7 @@ Before any commit that adds, removes, or modifies files under `skills/` or `agen
 2. Same version mirrored in `plugins/<plugin>/.codex-plugin/plugin.json`
 3. Version bumped in `.claude-plugin/marketplace.json` (matching entry)
 4. `plugins/<plugin>/README.md` updated
-5. Agent sources changed? Regenerate `dist/codex/agents/*.toml`
+5. Agent sources changed? Regenerate `.codex/agents/*.toml` and `dist/codex/agents/*.toml`
 6. `.claude-plugin/marketplace.json` description/keywords updated if needed
 7. `README.md` (repo root) and `AGENTS.md` updated if plugin behavior/description changed
 
