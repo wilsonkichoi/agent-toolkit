@@ -1,40 +1,12 @@
 # agent-toolkit
 
-Personal agent plugin marketplace with research workflows and development utilities. Primary
-target is Claude Code; the `utils` and `dev` plugins also install on **Codex**
-(see the per-harness install sections and the [harness support matrix](#harness-support) below).
+Installable agent workflows for research, knowledge management, security review, and a
+tracker-backed software-development lifecycle. The `utils` and `dev` plugins support Claude Code
+and Codex.
 
-## Quick Setup (Claude Code)
+## Install with Claude Code
 
-```bash
-# Private repo - clone first
-gh repo clone wilsonkichoi/agent-toolkit /tmp/agent-toolkit && bash /tmp/agent-toolkit/bootstrap/install.sh
-
-# Public repo (future)
-# curl -fsSL https://raw.githubusercontent.com/wilsonkichoi/agent-toolkit/main/bootstrap/install.sh | bash
-```
-
-The bootstrap script walks through three steps, prompting for each item individually (skip any you don't want):
-
-1. **Register repos** - adds plugin sources (marketplaces) so Claude Code can discover plugins from them
-2. **Install plugins** - installs individual plugins from registered repos (AWS tools, Playwright, draw.io, etc.)
-3. **Apply settings** - configures Claude Code settings (permissions, MCP servers, preferences)
-
-Everything is opt-in per item. Re-run anytime to add things you skipped.
-
-All installed plugins are **disabled globally by default**. Enable them where needed:
-
-```bash
-# Enable for the current project only (writes to project's .claude/settings.local.json)
-claude plugin enable --scope local <name>@<marketplace>
-
-# Or enable globally for all projects
-claude plugin enable --scope user <name>@<marketplace>
-```
-
-> **Do not use the `/plugins` command inside Claude Code to enable a plugin for one project.** It enables globally (user scope), not locally. For per-project enablement, use `claude plugin enable --scope local` from the project directory.
-
-## Manual Install (Claude Code)
+Register the marketplace, then install the plugins you want:
 
 ```bash
 claude plugin marketplace add wilsonkichoi/agent-toolkit
@@ -42,78 +14,99 @@ claude plugin install utils@agent-toolkit
 claude plugin install dev@agent-toolkit
 ```
 
-## Install on Codex
-
-Skills install via the plugin marketplace; agents are copied files.
+Plugins install at user scope and can be enabled only where they are needed:
 
 ```bash
-# Register the marketplace and install the plugins
+cd /path/to/project
+claude plugin enable --scope local utils@agent-toolkit
+claude plugin enable --scope local dev@agent-toolkit
+```
+
+Invoke Claude Code skills with their plugin namespace, for example `/utils:research` or
+`/dev:execute`.
+
+## Install with Codex
+
+Codex installs plugin skills from the marketplace. The `dev` subagent definitions are separate
+files and must be available in the user or project agent directory.
+
+```bash
 codex plugin marketplace add wilsonkichoi/agent-toolkit
 codex plugin add utils@agent-toolkit
 codex plugin add dev@agent-toolkit
 
-# Copy the dev agents (reviewer / test-writer / verifier) into Codex
+gh repo clone wilsonkichoi/agent-toolkit /tmp/agent-toolkit
 mkdir -p ~/.codex/agents
-cp dist/codex/agents/*.toml ~/.codex/agents/        # or a project ./.codex/agents/
+cp /tmp/agent-toolkit/dist/codex/agents/*.toml ~/.codex/agents/
 ```
 
-Invoke skills explicitly with `$<name>` (e.g. `$research`, `$execute`). The project context
-file is `AGENTS.md` (`dev:setup`'s default config on every harness). Known degradations on Codex:
+Use `./.codex/agents/` instead of `~/.codex/agents/` for project-scoped agent definitions. This
+repository already commits its project-scoped `.codex/agents/*.toml` files. Invoke Codex skills
+explicitly with `$<name>`, for example `$research` or `$execute`.
 
-- **Subagents work via `spawn_agent`/`wait_agent`** once the TOMLs above are copied
-  (select the agent with `agent_type: "<name>"`; `task_name` alone runs a generic subagent):
-  `review-pr` / `verify` independence delegates to the named reviewer/verifier agents, and
-  `dev:auto` runs the full unattended pipeline for one target (`$auto DOG-14`) or a
-  milestone (`$auto milestone 2 max 1 tasks`). Codex's default `agents.max_depth = 1`
-  blocks nested spawns, so under `dev:auto` the orchestrator dispatches the implementation
-  worker and `test-writer` as siblings (specified in the skill; no configuration needed).
-  Standalone `execute` is unaffected: its session is the root, so `test-writer` is a direct
-  child.
-- **`execute` loop/batch mode is unavailable** (needs a loop primitive); run one task per
-  session, or use `dev:auto` to complete one named task or drain a milestone unattended.
-- **`research` / `retro` do not fire implicitly** (guarded by `agents/openai.yaml`); invoke
-  them explicitly.
+Codex installed plugins are cached. Plugin authors testing working-tree changes must reinstall the
+plugin and open a new thread. See [CONTRIBUTING.md](CONTRIBUTING.md#test-codex-working-tree-changes)
+for the complete local-marketplace workflow.
+
+## Plugins
+
+| Plugin | Description |
+|---|---|
+| `utils` | Research, knowledge synthesis, LLM Wiki maintenance, retrospectives, and security scanning |
+| `dev` | Product discovery, architecture, tracker-backed planning, implementation, review, verification, status, and retrospectives |
+
+Plugin-specific documentation is in [plugins/utils/README.md](plugins/utils/README.md) and
+[plugins/dev/README.md](plugins/dev/README.md).
 
 ## Harness support
 
 | Feature | Claude Code | Codex |
 |---|---|---|
-| utils + dev skills (explicit invoke) | `/utils:research`, `/dev:execute` | `$research`, `$execute` |
-| `research` / `retro` implicit-fire guard | description guard | `openai.yaml` policy (verified) |
-| dev interactive lifecycle (setup→plan→execute→review→verify→retro) | ✅ | ✅ |
-| tracker doc reachable from dev skills | `$CLAUDE_PLUGIN_ROOT` env | relative path |
-| retro / architect promotion target (default config) | `AGENTS.md` via the `CLAUDE.md` = `@AGENTS.md` import | `AGENTS.md` natively |
-| bundled agents (reviewer/test-writer/verifier) | native (auto-delegated) | copy TOML, spawn with `agent_type` (verified: loads `developer_instructions`) |
-| subagent delegation | ✅ Agent tool | ✅ `spawn_agent`/`wait_agent` |
-| `dev:auto` unattended pipeline | ✅ | ✅ (sibling test-writer orchestration) |
-| `execute` loop/batch mode | ✅ | ❌ (no loop primitive; deferred) |
-| `回顧` CJK skill name | ✅ as-is | ✅ as-is |
+| `utils` and `dev` skills | Namespaced slash commands | Explicit `$<name>` invocation |
+| `dev` interactive lifecycle | Supported | Supported |
+| `dev:auto` | Supported | Supported through sibling-agent orchestration |
+| `dev:execute` loop mode | Supported through Claude Code's loop primitive | Not available; run one task or use `dev:auto` |
+| Bundled `dev` agents | Loaded from the plugin | Copy TOML files and select them with `agent_type` |
+| Implicit `research` and `retro` routing | Description guard | Disabled; invoke explicitly |
 
-`bootstrap/` is Claude Code only. Codex uses the manual steps above.
+Codex's default `agents.max_depth = 1` prevents nested subagent spawning. The `dev:auto` Codex path
+therefore dispatches its implementation worker and `test-writer` as siblings. Standalone
+`dev:execute` dispatches `test-writer` directly from the root session.
 
-Kiro support was explored and dropped (2026-07-09): Kiro cannot invoke custom agents, has no
-headless verification channel, and the committed export tree was a per-commit maintenance tax.
-The mechanical exporter and generated tree live in git history (`de7d72c`) if Kiro matures.
+## Project development
 
-## Plugins
+Contributions use the standard GitHub fork and cross-repository pull-request workflow. The
+[contributor playbook](CONTRIBUTING.md) covers repository setup, adding or extending plugins,
+versioning, generated artifacts, working-tree testing in both harnesses, the `dev` lifecycle, CI,
+and the maintainer handoff.
 
-| Plugin | Description |
-|--------|-------------|
-| utils | Research, investigation, knowledge synthesis, and session retrospectives |
-| dev | AI-assisted product development lifecycle: tracker-backed task packets (Linear / GitHub Issues / local) with PR-native execution. All skills implemented (setup, discover, architect, plan, backlog, execute, auto, review, verify, retro, status); dogfooding in progress, see plugins/dev/DESIGN.md |
+Repository authoring rules and required checks are in [AGENTS.md](AGENTS.md).
 
-## Structure
+## Repository layout
 
-```
-.claude-plugin/     # Claude marketplace manifest
-.agents/            # Codex-native marketplace manifest
-AGENTS.md           # authoring conventions SSOT (Claude Code imports it via CLAUDE.md = @AGENTS.md)
-bootstrap/          # Standalone setup script + config (Claude Code only; not a plugin)
-dist/codex/agents/  # Codex agent TOMLs (copy-me)
-plugins/utils/      # Utility skills (research, etc.)
-plugins/dev/        # Dev plugin
+```text
+.agent/dev.md            # shared dev-plugin project configuration
+.claude-plugin/          # Claude Code marketplace manifest
+.agents/plugins/         # Codex marketplace manifest
+.codex/agents/           # generated project-scoped Codex agents
+bootstrap/               # optional Claude Code environment bootstrapper
+dist/codex/agents/       # generated copy-me Codex agents for other projects
+plugins/utils/           # utility plugin sources
+plugins/dev/             # development-lifecycle plugin sources
+tools/                   # agent generator and repository validator
 ```
 
-## Customizing Bootstrap
+## Optional Claude Code bootstrap
 
-Edit yaml files in `bootstrap/config/` to add/remove repos, plugins, or settings, then re-run the install script.
+The primary installation paths are the marketplace commands above. The script under `bootstrap/`
+is optional tooling for users who also want the additional marketplaces, plugins, and Claude Code
+settings declared under `bootstrap/config/`. It prompts for each item and leaves every installed
+plugin disabled globally unless the user enables it.
+
+```bash
+gh repo clone wilsonkichoi/agent-toolkit /tmp/agent-toolkit
+bash /tmp/agent-toolkit/bootstrap/install.sh
+```
+
+Edit the YAML files under `bootstrap/config/` to change the offered marketplaces, plugins, or
+settings, then rerun the script.

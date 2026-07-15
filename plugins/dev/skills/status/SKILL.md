@@ -25,6 +25,13 @@ Before any repository or tracker read, resolve repository context once using `tr
 routing, every GitHub read explicitly targets `github_primary_repo`; missing or inconsistent
 remote topology produces the documented stop reason and no mutation.
 
+The fork fields enable a project capability; they do not require every checkout to be a fork.
+When `origin` is `github_primary_repo` and the authenticated user has upstream write permission,
+the checkout is valid maintainer mode: `origin` supplies both the base and push destination, an
+`upstream` remote is optional, and normal planned-queue behavior applies. Do not describe this
+topology as misconfigured or recommend removing the fork fields. Their committed canonical value
+must remain available to contributors who inherit the configuration in their forks.
+
 ## Gather
 
 1. **Tracker:** `list <milestone>` - counts by status, plus per-task id/title/status.

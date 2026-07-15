@@ -91,7 +91,9 @@ The canonical repository owns issues and PRs, `upstream/main` supplies the base,
 receives contributor branches. Authenticated upstream permission, not remote topology, controls
 merge and queue authority. Read-only contributors can create packet-complete canonical issues,
 execute from a fork, post independent review and SHA-bound verification evidence, and then stop
-for a maintainer decision. Existing projects without both fields behave exactly as before. See
+for a maintainer decision. A maintainer's canonical clone remains valid with the fork fields
+committed: `origin` supplies both base and push, and `upstream` is optional. Existing projects
+without both fields behave exactly as before. See
 [the manual](docs/manual.md#primary-github-fork-contributions) and
 [repository resolution contract](docs/tracker.md#github-repository-resolution).
 
