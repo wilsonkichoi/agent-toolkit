@@ -79,6 +79,23 @@ uv run tools/check_repo.py
 Both tools are dependency-free PEP 723 scripts. Do not add a project `pyproject.toml`,
 `.python-version`, `uv.lock`, or script lockfile for them.
 
+## Git workflow
+
+Never commit or push directly to `main`, on any harness, even with admin rights. The canonical
+repository's `main pull request gate` ruleset blocks direct pushes for everyone (its `bypass_actors`
+list is empty), so a direct push is rejected and any commit landed on a local `main` has to be
+unwound. Always:
+
+1. Branch from an up-to-date `main` (`git checkout -b <type>/<slug>`, e.g. `docs/...`, `feat/...`).
+2. Commit on the branch, push it, open a pull request against `main`.
+3. Let the `repository-validation` check pass and keep the branch current; the ruleset requires a
+   strict, non-stale branch, so merge or rebase `origin/main` in whenever GitHub reports the branch
+   out of date.
+
+Merging is a human decision. An AI agent may prepare the branch, PR, and green checks, but must not
+merge to `main` unless the human explicitly asks. Full ruleset behavior and the one-time maintainer
+setup live in `CONTRIBUTING.md`.
+
 ## Pre-commit checklist
 
 Before any commit that adds, removes, or modifies files under `skills/` or `agents/`:
