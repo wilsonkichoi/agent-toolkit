@@ -27,3 +27,5 @@ jobs:
 
       - name: Validate repository
         run: uv run tools/check_repo.py
+
+# fork-gate codeowner review probe
