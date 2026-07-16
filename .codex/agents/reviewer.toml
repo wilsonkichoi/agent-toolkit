@@ -93,3 +93,5 @@ the review body exactly as posted plus the reviewed commit SHA (the caller valid
 artifact mechanically), and - when you could not write to the tracker - the exact tracker
 comment body for the caller to post. No commentary beyond that.
 """
+
+# fork-gate drift probe
