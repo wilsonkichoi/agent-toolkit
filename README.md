@@ -110,3 +110,5 @@ bash /tmp/agent-toolkit/bootstrap/install.sh
 
 Edit the YAML files under `bootstrap/config/` to change the offered marketplaces, plugins, or
 settings, then rerun the script.
+
+Fork-gate staleness probe 2026-07-16.
