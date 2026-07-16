@@ -318,9 +318,121 @@ Maintainer-only actions are:
 - Promoting external work into the planned queue.
 - Authorizing and performing the upstream merge and terminal canonical issue cleanup.
 
-The intended `main` ruleset requires a pull request, zero approving reviews, the current
-`repository-validation` status check, and an up-to-date branch. `CODEOWNERS` routes changes under
+The active `main pull request gate` ruleset requires a pull request, zero approving reviews, the
+current `repository-validation` status check, and an up-to-date branch. `CODEOWNERS` routes changes
+under
 `.github/workflows/` to `@wilsonkichoi` for scrutiny, but code-owner approval is not a merge
 requirement. Before merge, the maintainer also reviews workflow, dependency, secret-exposure, and
 security-scan risk. Privileged automation must never execute or trust fork code, caches, or
 artifacts.
+
+## Maintainer repository setup
+
+One-time configuration of the canonical repository so the fork-contribution gates described above
+are actually enforced. Run as a maintainer with `ADMIN` on `wilsonkichoi/agent-toolkit`. Every step
+is idempotent; re-running reconciles rather than duplicates.
+
+```bash
+REPO=wilsonkichoi/agent-toolkit
+```
+
+### Internal queue labels
+
+Five `status:*`, three `priority:*`, three `size:*`. Do not attach any of them to the external
+contribution issue template; they are internal-queue only.
+
+```bash
+gh label create status:backlog     --repo "$REPO" --force --color ededed --description "Captured, not committed"
+gh label create status:todo        --repo "$REPO" --force --color c2e0c6 --description "Committed, unclaimed"
+gh label create status:in-progress --repo "$REPO" --force --color fbca04 --description "Claimed, being worked"
+gh label create status:in-review   --repo "$REPO" --force --color 0e8a16 --description "PR up, CI green"
+gh label create status:blocked     --repo "$REPO" --force --color d93f0b --description "Stuck, needs human"
+gh label create priority:high      --repo "$REPO" --force --color b60205 --description "High priority"
+gh label create priority:medium    --repo "$REPO" --force --color fbca04 --description "Medium priority"
+gh label create priority:low       --repo "$REPO" --force --color 0e8a16 --description "Low priority"
+gh label create size:S             --repo "$REPO" --force --color c5def5 --description "Small estimate"
+gh label create size:M             --repo "$REPO" --force --color bfd4f2 --description "Medium estimate"
+gh label create size:L             --repo "$REPO" --force --color a2c4c9 --description "Large estimate"
+```
+
+### Dogfood milestone
+
+```bash
+gh api --method POST "repos/$REPO/milestones" -f title=Dogfood || \
+  gh api "repos/$REPO/milestones?state=all&per_page=100" \
+    --jq '.[] | select(.title=="Dogfood") | {number,title,state}'
+```
+
+### Fork pull-request workflow approval
+
+Choose an approval policy for fork-PR workflow runs. `first_time_contributors` is the GitHub default
+and the standing choice here: a contributor's first PR needs a maintainer to press **Approve
+workflows to run** before CI executes, then their runs proceed automatically once they have a merged
+PR. Because `repository-validation` carries no secrets and read-only contents (see above), the
+stricter `all_external_contributors` (approval on *every* fork push, forever) is rarely worth its
+friction; use it only during a hardening window.
+
+```bash
+gh api --method PUT "repos/$REPO/actions/permissions/fork-pr-contributor-approval" \
+  -f approval_policy=first_time_contributors
+gh api "repos/$REPO/actions/permissions/fork-pr-contributor-approval"
+#   expect: {"approval_policy":"first_time_contributors"}
+```
+
+### `main pull request gate` ruleset
+
+Requires a PR, zero approving reviews, a strict (up-to-date) `repository-validation` status check,
+and no bypass actors. `CODEOWNERS` already routes `.github/workflows/` to `@wilsonkichoi`, but
+code-owner approval is deliberately not required to merge.
+
+> **Target format warning.** The `conditions.ref_name.include` value must be exactly
+> `refs/heads/main`. Entering `refs/heads/main` into the UI's branch-target box (which prepends its
+> own `refs/heads/`) can store the doubled value `refs/heads/refs/heads/main`, which silently targets
+> a nonexistent branch and disables the gate. Always verify the stored value after creating or
+> editing the ruleset.
+
+Create via API with the correct target (`integration_id` 15368 is GitHub Actions):
+
+```bash
+gh api --method POST "repos/$REPO/rulesets" --input - <<'JSON'
+{
+  "name": "main pull request gate",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } },
+  "bypass_actors": [],
+  "rules": [
+    { "type": "pull_request", "parameters": {
+        "required_approving_review_count": 0,
+        "require_code_owner_review": false,
+        "dismiss_stale_reviews_on_push": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false,
+        "allowed_merge_methods": ["merge", "squash", "rebase"] } },
+    { "type": "required_status_checks", "parameters": {
+        "strict_required_status_checks_policy": true,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [ { "context": "repository-validation", "integration_id": 15368 } ] } }
+  ]
+}
+JSON
+```
+
+Verify the stored target and the required check:
+
+```bash
+gh api "repos/$REPO/rulesets" --jq '.[] | select(.name=="main pull request gate") | .id'
+RULESET_ID=$(gh api "repos/$REPO/rulesets" --jq '.[] | select(.name=="main pull request gate") | .id')
+gh api "repos/$REPO/rulesets/$RULESET_ID" --jq '{
+  enforcement,
+  include: .conditions.ref_name.include,
+  strict: (.rules[] | select(.type=="required_status_checks").parameters.strict_required_status_checks_policy),
+  checks: [.rules[] | select(.type=="required_status_checks").parameters.required_status_checks[].context],
+  approvals: (.rules[] | select(.type=="pull_request").parameters.required_approving_review_count)
+}'
+#   expect: include ["refs/heads/main"], enforcement active, strict true,
+#           checks ["repository-validation"], approvals 0
+```
+
+Create the ruleset only after `repository-validation.yml` is on `main` and has produced at least one
+check run, so the required-status-check context resolves.
