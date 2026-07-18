@@ -4,6 +4,12 @@ AI-assisted product development lifecycle for Claude Code. Replaces
 [agentic_development_workflow](https://github.com/wilsonkichoi/agentic_development_workflow) (ADW).
 This document is the implementation plan; delete or archive it once the plugin is built and dogfooded.
 
+> **Historical layout note (2026-07-18, dev 0.0.54).** Sections written before the
+> encapsulation redesign describe the original `.claude/dev.md` + `.claude/rules/` +
+> CLAUDE.md layout as current. That layout is now the legacy fallback; the operating
+> contract is `docs/manual.md`, and the design decision is recorded in "Encapsulated
+> plugin state" below. The older sections are kept unrevised as build history.
+
 ## Why ADW is being replaced
 
 Diagnosis from building novascan with ADW:
@@ -269,6 +275,36 @@ a comprehensive guide at `plugins/dev/docs/adoption.md` covering:
    promotion step at their memory MCP tool instead (config field `memory_target`), and rely on
    that system's own injection/recall for session start. The guide documents the tradeoff:
    file-based is git-shared and zero-latency; MCP-based memory is cross-tool and cross-machine.
+
+## Encapsulated plugin state (`.agent-toolkit/`, dev 0.0.54, 2026-07-18)
+
+The Codex port (0.0.37-0.0.53) first moved config to a harness-neutral `.agent/dev.md` and
+defaulted memory promotions into `AGENTS.md` (with `CLAUDE.md` as a one-line `@AGENTS.md`
+import). Real consumers broke that default: in sekai-kb/lagunabeach-md, `AGENTS.md` and
+`CLAUDE.md` carry project-level meaning (template-vs-instance ownership, an existing pointer
+direction), and a plugin that rewrites them collides with the project. The generalized rule:
+
+**The project owns its context files; the plugin owns `.agent-toolkit/` and nothing else.**
+
+- All plugin state lives in `.agent-toolkit/`: `dev.md` (config frontmatter, free-text
+  conventions, the architecture pointer, and a `## Rules` section importing rule files) and
+  `rules/` (promoted learnings, one file per rule). Generic names (`.agent/`, `AGENTS.md`)
+  are project-owned; plugin state always needs the plugin-branded namespace.
+- The plugin touches the project's designated `context_file` exactly once: a single
+  `@.agent-toolkit/dev.md` reference line (Claude Code inlines it via the import chain;
+  other harnesses follow it as a prose pointer). Setup never inverts an existing
+  `AGENTS.md`/`CLAUDE.md` convention, never consolidates rules, never rewrites content.
+- `rules_dir` is explicit and defaults to `.agent-toolkit/rules/`; a project with an
+  existing convention (e.g. `.claude/rules/`, natively auto-loaded by Claude Code) points
+  the field there instead. An unregistered rule file is invisible, so retro registers every
+  promotion as an import in `dev.md`; on the 0.0.42-0.0.53 mixed config (no import chain
+  yet) retro holds promotions as proposals until `dev:setup` migrates the config.
+- De-adoption is mechanical: delete `.agent-toolkit/`, remove the reference line. Template
+  and framework repos must strip exactly that from what consumers receive; adopting the
+  plugin is each project's decision, never inherited.
+- Legacy fallback chain everywhere: `.agent-toolkit/dev.md` → `.agent/dev.md` →
+  `.claude/dev.md`; both-fields-absent configs keep the pre-port `.claude/rules/` +
+  CLAUDE.md safety net. Consumer migration guide: `docs/adoption.md` §6.
 
 ## Primary GitHub fork contribution routing
 

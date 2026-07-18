@@ -13,12 +13,12 @@ Workflow diagram: [docs/dev-workflow.drawio](docs/dev-workflow.drawio).
 
 ## Status
 
-All skills implemented. Dogfooding (Phase E in DESIGN.md) is underway: the full lifecycle
-passed end-to-end on the local backend, `dev:auto` on a dependency chain, and the GitHub
-Issues backend on a real repo (all 2026-07-06). The Linear backend run - which also folds in
-the `dev:backlog` flows and unattended `/loop` safeguards - is in progress and has already
-fed a steady stream of fixes back into the skills. Brownfield adoption is untested - expect
-rough edges there.
+All skills implemented on both harnesses. Dogfooding (Phase E in DESIGN.md): the full
+lifecycle passed end-to-end on the local, GitHub Issues, and Linear backends (2026-07-06,
+Linear milestone runs through 2026-07-14), `dev:auto` completed real tasks on Claude Code
+and Codex, and the 0.0.54 encapsulated-config migration is dogfooded in this repository
+(`.agent-toolkit/dev.md` drives its own contribution workflow). Brownfield adoption is
+untested - expect rough edges there.
 
 Adopting into an existing project (partial adoption, Jira/custom trackers, Mem0/OB1/MemSearch
 memory): see [docs/adoption.md](docs/adoption.md).
