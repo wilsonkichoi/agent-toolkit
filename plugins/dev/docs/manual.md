@@ -23,8 +23,9 @@ Four rules explain every skill's behavior:
 3. **The quality loop is PR-native.** PR + CI + PR review comments are the review medium; no
    custom review files. `dev:execute` never merges; `dev:verify` is the only merger.
 4. **The memory loop is closed.** Execution produces evidence (PR threads, CI history,
-   work-summary comments); `dev:retro` distills it; approved learnings land in
-   `.claude/rules/` or CLAUDE.md and load automatically in every future session.
+   work-summary comments); `dev:retro` distills it; approved learnings land as rule files
+   under `rules_dir` (default `.agent-toolkit/rules/`), imported from `dev.md` and loaded
+   in every future session through the context file's reference line.
 
 ## Prerequisites
 
@@ -46,13 +47,19 @@ Four rules explain every skill's behavior:
   (`gh secret set ANTHROPIC_API_KEY`); each auto-review spends API tokens. The manual
   `dev:review-pr` path works without it.
 
-## Configuration: `.agent/dev.md`
+## Configuration: `.agent-toolkit/dev.md`
 
 Written by `dev:setup`, committed and team-shared. Structured fields live in YAML
 frontmatter; the markdown body holds free-text conventions skills cannot parse (e.g. "all API
-changes need a migration note in the PR body"). `.agent/dev.local.md` (gitignored) overrides
-fields per developer. Legacy location: `.claude/dev.md` - every skill reads `.agent/dev.md`
-first and falls back to it, and `dev:setup` offers a `git mv` migration on existing projects.
+changes need a migration note in the PR body") plus a `## Rules` section importing the
+promoted rule files under `rules_dir`. `.agent-toolkit/dev.local.md` (gitignored) overrides
+fields per developer. Everything the plugin owns lives under `.agent-toolkit/`; the project's
+context file carries a single reference line to `dev.md` and is otherwise never touched.
+Legacy locations: `.agent/dev.md`, then `.claude/dev.md` - every skill reads
+`.agent-toolkit/dev.md` first and falls back to them, and `dev:setup` offers a `git mv`
+migration on existing projects. The `.local.md` override is read next to whichever config
+location resolves: a legacy `.agent/dev.local.md` or `.claude/dev.local.md` keeps applying
+until its config file migrates.
 
 | Field | Default | Read by | Meaning |
 |---|---|---|---|
@@ -66,9 +73,9 @@ first and falls back to it, and `dev:setup` offers a `git mv` migration on exist
 | `max_fix_attempts` | `3` | `execute`, `auto` | CI-fix or review-fix cycles before the task goes `Blocked` with a diagnostic comment |
 | `max_tasks_per_run` | `5` | `execute` loop mode, `auto` | Batch cap per unattended run |
 | `auto_merge` | `false` | `auto`, `verify` | Standing merge approval for `dev:auto`; see Unattended operation |
-| `rules_dir` | `.claude/rules/` | `retro` | Directory for promoted rule files; only set on the Claude-only config - the default mixed-harness config omits it and rules land in `context_file` |
-| `context_file` | `CLAUDE.md` | `retro`, `architect` | Project context file for promotions and the architecture pointer; `AGENTS.md` on the default mixed-harness config (with a one-line `CLAUDE.md` = `@AGENTS.md` import) |
-| `memory_target` | `files` | `retro` | Where promotions land: the configured `rules_dir`/`context_file` files, or a memory MCP system (see adoption.md §5) |
+| `rules_dir` | `.agent-toolkit/rules/` | `retro`, `status` | Directory of promoted rule files, one per rule, each registered as an import line in the `dev.md` `## Rules` section; point it at an existing convention (e.g. `.claude/rules/`) when the project already has one |
+| `context_file` | `AGENTS.md` | `setup`, `status` (legacy fallbacks: `retro`, `architect`) | Project-owned context file carrying the single `@.agent-toolkit/dev.md` reference line (`CLAUDE.md` on Claude-only projects); the plugin writes nothing else there |
+| `memory_target` | `files` | `retro` | Where promotions land: the configured `rules_dir` files, or a memory MCP system (see adoption.md §5) |
 | `github_primary_repo` | - | every skill in fork-configured projects | Canonical `owner/repo` that owns primary GitHub issues and PRs; only valid with `tracker: github` and `fork_contributions: true` |
 | `fork_contributions` | `false` | every skill | Explicit project-owner opt-in to primary-GitHub fork routing; must be `true` with `github_primary_repo`, otherwise omit both fields |
 | `secondary_intake` | - | `execute`, `review-pr`, `verify`, `backlog`, `status` | Opt into GitHub as an isolated-work channel on a non-github-primary project (`github`); see Secondary intake channel below |
@@ -117,7 +124,7 @@ which branches from `main`).
 | Spec + roadmap review | `architect` | `dev:plan` |
 | Plan dry run | `plan` | Packets pushed to the tracker at `Todo` |
 | Merge | `verify` | Merge per policy, task → `Done`, cleanup (carve-out: `auto_merge`, below) |
-| Rule promotion | `retro` | Learnings written to the configured `rules_dir` / `context_file` (safety-net fallback when both fields are absent: `.claude/rules/` / CLAUDE.md) |
+| Rule promotion | `retro` | Learnings written to the configured `rules_dir` and registered in `dev.md` (legacy safety-net fallback when both memory fields are absent: `.claude/rules/` / CLAUDE.md) |
 | `Backlog → Todo`, `Wont Do` | `backlog` | Task enters or leaves the committed queue |
 
 ## Unattended operation
@@ -237,7 +244,7 @@ The exact validation, repair commands, and command-targeting contract are in
 When your primary tracker is Linear (or local) but the project still gets GitHub issues and
 drive-by PRs that are isolated - not part of a milestone, not in the backlog - forcing each
 into the primary tracker recreates dual state and pollutes its metrics. Set
-`secondary_intake: github` + `github_repo: owner/repo` in `.agent/dev.md` to accept them as a
+`secondary_intake: github` + `github_repo: owner/repo` in `.agent-toolkit/dev.md` to accept them as a
 second channel. Every incoming GitHub issue or PR gets exactly one fate:
 
 ```
@@ -300,16 +307,17 @@ the Linear and GitHub backends do not have it, since their packets live outside 
 
 ```
 project/
-├── CLAUDE.md              # lean; links to docs/; updated by dev:architect and dev:retro
+├── AGENTS.md              # project-owned context file; carries the @.agent-toolkit/dev.md reference line
+├── CLAUDE.md              # Claude Code entry: @AGENTS.md import (or itself the context file on Claude-only projects)
 ├── research/raw/          # human research dumps consumed by dev:discover
 ├── docs/
 │   ├── PRD.md             # dev:discover output
 │   ├── SPEC.md            # dev:architect output
 │   ├── ROADMAP.md         # milestones with outcomes
 │   └── adr/               # decision records (spikes, architecture choices)
-├── .claude/
-│   ├── dev.md             # plugin config (committed)
+├── .agent-toolkit/
+│   ├── dev.md             # plugin config + conventions + architecture pointer + rule imports (committed)
 │   ├── dev.local.md       # personal overrides (gitignored)
-│   └── rules/             # promoted retro learnings
+│   └── rules/             # promoted retro learnings, one file per rule
 └── .dev/tasks/            # only with tracker: local
 ```

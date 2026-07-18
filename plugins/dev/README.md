@@ -6,7 +6,7 @@ PR-native (worktree → PR → CI → review → verified merge), and every task
 packet a fresh session can execute without prior context.
 
 Replaces [agentic_development_workflow](https://github.com/wilsonkichoi/agentic_development_workflow).
-This README is the index; the operating guide (prerequisites, `.agent/dev.md` config
+This README is the index; the operating guide (prerequisites, `.agent-toolkit/dev.md` config
 reference, lifecycle and ownership rules, human gates, unattended operation) is
 [docs/manual.md](docs/manual.md). Design rationale and build history: [DESIGN.md](DESIGN.md).
 Workflow diagram: [docs/dev-workflow.drawio](docs/dev-workflow.drawio).
@@ -32,11 +32,13 @@ Skill names below are written Claude-Code style (`/dev:execute`). Render your ha
 | Claude Code | `/dev:execute` | full feature set (agents auto-delegate, `dev:auto` + loop mode) |
 | Codex | `$execute` | agents copied from `dist/codex/agents/`, selected via `spawn_agent`'s `agent_type` parameter; `dev:auto` supported (sibling test-writer orchestration); no `execute` loop mode |
 
-Install per harness: see the repo-root [README](../../README.md). Config lives in
-`.agent/dev.md` (legacy `.claude/dev.md` still read). `dev:setup` defaults to the shared
-memory config - promotions and the architecture pointer target `AGENTS.md`, which Claude
-Code imports via a one-line `CLAUDE.md`; a Claude-only config (`.claude/rules/` +
-`CLAUDE.md`) remains available.
+Install per harness: see the repo-root [README](../../README.md). All plugin state is
+encapsulated in `.agent-toolkit/` (legacy `.agent/dev.md` and `.claude/dev.md` still read):
+`dev.md` holds the config frontmatter, free-text conventions, and the architecture pointer;
+`rules/` holds promoted learnings, one file per rule, each imported from `dev.md`. The
+project's own context file (`AGENTS.md` or `CLAUDE.md` - the project's choice) carries a
+single reference line to `dev.md` and is never otherwise touched: installing, using, or
+removing the plugin does not change how a project's context files work.
 
 ## Skills
 
@@ -44,14 +46,14 @@ Code imports via a one-line `CLAUDE.md`; a Claude-only config (`.claude/rules/` 
 |---|---|
 | `/dev:discover` | Ingest `research/raw/`, interview the user to close gaps, produce `docs/PRD.md`: problem, customer, value, north star, non-goals. Business clarity only; delta mode for goal-impacting changes. |
 | `/dev:architect` | Approved PRD → `docs/SPEC.md` (architecture, contracts, NFRs, negative requirements, Mermaid diagrams), `docs/ROADMAP.md` (risk-ordered milestones), ADRs for contested choices. Docs only; delta mode for spec-impacting changes. |
-| `/dev:setup` | Initialize a project (greenfield or brownfield): scaffold `docs/`, pick tracker backend, write `.agent/dev.md`. Brownfield mode offers architecture archaeology into a current-state SPEC.md. Optional installer for the auto-review GitHub Action. |
+| `/dev:setup` | Initialize a project (greenfield or brownfield): scaffold `docs/`, pick tracker backend, write `.agent-toolkit/dev.md`. Brownfield mode offers architecture archaeology into a current-state SPEC.md. Optional installer for the auto-review GitHub Action. |
 | `/dev:plan` | Decompose one roadmap milestone into self-contained task packets (objective, why, DoD, dependencies, inlined spec excerpts) and push them to the tracker after a human-approved dry run. |
 | `/dev:backlog` | Mid-flight change management: intake requests as full packets with impact triage (backlog-only vs spec vs product goal) and dependency wiring as native tracker relations (both directions against existing tickets), promote `Backlog → Todo`, split tasks, close as `Wont Do` with rationale, periodic triage sweep. |
 | `/dev:execute` | Claim one task → git worktree → implement → tests (via the `test-writer` agent, contract-only context) → PR → CI to green → visual self-check + local preview instructions (when DoD has visual criteria; the executor inspects touched pages against the comparison target before hand-off) → work-summary comment → `In Review`. Never merges. Safeguards: `work_in_progress_limit`, `max_fix_attempts`, packet validation for hand-written tickets. |
 | `/dev:auto` | Unattended per-task pipeline: target one task (`/dev:auto DOG-14`) or drain a milestone (`/dev:auto milestone 2 [max N tasks]`) through execute → independent review → bounded fix loop → verify → merge → record-only retro. A task target is strictly single-task and never falls through. Requires `auto_merge: true` (standing approval); merges only review-approved work whose criteria are mechanically evidenced or carry a recorded human sign-off; a manual DoD criterion with neither stops for a human. |
 | `/dev:review-pr` | Independent review of a task PR against its packet and spec: severity-ranked findings, verdict posted via `gh pr review`. Fix mode applies findings on the same branch and replies per finding. Delegates to the `reviewer` agent when the session implemented the PR. |
 | `/dev:verify` | The merge gate: evidence per DoD criterion (run tests, cite CI, perform manual steps), verification report on the PR, then human-approved merge, task → `Done`, worktree cleanup. Only thing allowed to merge. Human-gate (manual/visual) criteria pass only on a recorded sign-off (a comment authored by the human) or live confirmation - PR-body checkboxes are display only, checked solely by verify. Rejects stale approvals: the approving review must target the current PR HEAD, so a post-review fix push forces a fresh review before merge. Delegates evidence gathering to the `verifier` agent when the session implemented the PR; the human gate and merge stay in the session. Approval never waives the record: the report and checkbox updates land on the PR before the merge. |
-| `/dev:retro` | Mines PR review threads, CI history, tracker comments, session transcripts, and lifecycle-contract compliance (did each step produce what its skill mandates, including steps run in the current session) for completed tasks, then closes the memory loop: evidence-cited learnings promoted into the configured memory (`AGENTS.md` by default, or `rules_dir`/`context_file`, or a `memory_target` MCP system), applied on approval. Defects or follow-up work the retro uncovers route to the tracker via `/dev:backlog`, never to memory notes; the retro comment posts before the promotion gate so the record survives an abandoned session. |
+| `/dev:retro` | Mines PR review threads, CI history, tracker comments, session transcripts, and lifecycle-contract compliance (did each step produce what its skill mandates, including steps run in the current session) for completed tasks, then closes the memory loop: evidence-cited learnings promoted into the configured memory (`rules_dir` files, `.agent-toolkit/rules/` by default, or a `memory_target` MCP system), applied on approval. Defects or follow-up work the retro uncovers route to the tracker via `/dev:backlog`, never to memory notes; the retro comment posts before the promotion gate so the record survives an abandoned session. |
 | `/dev:status` | Read-only dashboard: milestone progress, open PRs + CI state, WIP vs limit, blocked tasks, next claimable tasks, plus consistency checks (state lies, abandoned claims, missed cleanups). |
 
 ## Agents
@@ -68,7 +70,7 @@ the pipeline; it is never routed around by downgrading to a smaller model.
 
 ## Tracker backends
 
-Configured per project in `.agent/dev.md` frontmatter (`tracker:` field). Contract and
+Configured per project in `.agent-toolkit/dev.md` frontmatter (`tracker:` field). Contract and
 backend mappings: [docs/tracker.md](docs/tracker.md).
 
 | Backend | Mechanism |
@@ -116,7 +118,7 @@ primary tracker, or work them in place (`/dev:execute #N` → `/dev:review-pr #P
 /dev:verify       # DoD evidence → human-approved merge → Done
 /dev:backlog      # anytime: new requests, promotions, wont-do, triage
 /dev:status       # anytime: where are we, what needs human action
-/dev:retro        # per task or milestone: learnings → AGENTS.md (configured memory)
+/dev:retro        # per task or milestone: learnings → .agent-toolkit/rules/ (configured memory)
 /dev:auto DOG-14  # unattended: complete exactly this task; never fall through
 /dev:auto milestone 2 max 1 tasks  # unattended milestone drain, capped at one task
 ```

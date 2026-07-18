@@ -18,7 +18,7 @@ packet `dev:plan` writes. Docs only: produce no product code, no scaffolding.
 Skill references like `dev:plan` mean this plugin's `plan` skill; when telling the user to run
 one, render your harness's invocation for it (Claude Code: `/dev:plan`; Codex: `$plan`).
 
-Read `.agent/dev.md` first (legacy fallback: `.claude/dev.md`). Fork configuration does not
+Read `.agent-toolkit/dev.md` first (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md`). Fork configuration does not
 change this skill: it authors local `docs/SPEC.md`, `docs/ROADMAP.md`, ADRs, and the configured
 context file, and makes no tracker or GitHub call. A contributor submits the resulting file
 changes through the normal fork PR path.
@@ -82,15 +82,17 @@ verifiable), scope (which spec components/contracts), success criteria, explicit
 out-of-scope. Order by risk: the milestone that retires the biggest unknown ships first.
 2-5 milestones; a 10-milestone roadmap at this stage is fiction.
 
-## 5. Update the context file and gate
+## 5. Update the dev config and gate
 
-Add or refresh the architecture pointer in the project context file named by `context_file`
-in `.agent/dev.md` (legacy fallback: `.claude/dev.md`; safety-net fallback `CLAUDE.md` when the field is absent,
-for legacy or hand-written configs, uniform across harnesses): 5-10 lines summarizing the architecture
-and linking to SPEC/ROADMAP/ADRs; keep the context file lean. Then the human gate: present
+Add or refresh the architecture pointer in the `.agent-toolkit/dev.md` conventions body:
+5-10 lines summarizing the architecture and linking to SPEC/ROADMAP/ADRs. Every session
+reaches it through the context file's reference line; never write the pointer into
+`AGENTS.md`/`CLAUDE.md` directly - those files are project-owned. Legacy configs without an
+`.agent-toolkit/dev.md`: write to the file named by `context_file` (safety-net fallback
+`CLAUDE.md` when the field is absent, uniform across harnesses). Then the human gate: present
 the architecture summary, the contested ADRs, and the milestone order. This gate deserves a
 line-by-line review; say so. Record approval date in SPEC.md, then commit the approved docs
-(SPEC, ROADMAP, ADRs, context-file update) with the user's consent before ending.
+(SPEC, ROADMAP, ADRs, `dev.md` update) with the user's consent before ending.
 Next step: `dev:plan` for milestone 1.
 
 ## Delta mode (`delta <change summary>`)

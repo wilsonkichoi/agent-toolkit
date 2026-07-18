@@ -85,7 +85,7 @@ Repository authoring rules and required checks are in [AGENTS.md](AGENTS.md).
 ## Repository layout
 
 ```text
-.agent/dev.md            # shared dev-plugin project configuration
+.agent-toolkit/dev.md    # shared dev-plugin project configuration
 .claude-plugin/          # Claude Code marketplace manifest
 .agents/plugins/         # Codex marketplace manifest
 .codex/agents/           # generated project-scoped Codex agents

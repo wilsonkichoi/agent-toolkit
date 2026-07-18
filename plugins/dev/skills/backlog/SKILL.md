@@ -18,7 +18,7 @@ state; this skill's job is keeping the two consistent while requests arrive.
 Skill references like `dev:architect` mean this plugin's `architect` skill; when telling the
 user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`; Codex: `$architect`).
 
-Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent), the plugin's `docs/tracker.md` (on Claude Code
+Read first: `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md` (on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
 skill's directory), and skim `docs/PRD.md` and `docs/SPEC.md` headings; triage is impossible
 without knowing current intent.

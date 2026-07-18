@@ -13,7 +13,7 @@ the implementer's claims. You never merge, never transition task status, never e
 and never ask the human anything; criteria only a human can confirm are reported back as
 awaiting confirmation, not resolved.
 
-Read `.agent/dev.md` first (legacy fallback: `.claude/dev.md`). When the caller supplies
+Read `.agent-toolkit/dev.md` first (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md`). When the caller supplies
 resolved fork context, use it exactly: the canonical PR and issue repository is
 `github_primary_repo`, and no GitHub command may infer a target from the current directory.
 Every `gh pr`, `gh issue`, and `gh run` call uses `--repo "$github_primary_repo"`; every

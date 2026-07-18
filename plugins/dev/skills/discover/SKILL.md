@@ -20,7 +20,7 @@ notes for the architect and steer back.
 Skill references like `dev:architect` mean this plugin's `architect` skill; when telling the
 user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`; Codex: `$architect`).
 
-Read `.agent/dev.md` first (legacy fallback: `.claude/dev.md`). Fork configuration does not
+Read `.agent-toolkit/dev.md` first (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md`). Fork configuration does not
 change this skill: it authors local `docs/PRD.md` and makes no tracker or GitHub call. A
 contributor submits the resulting file changes through the normal fork PR path.
 

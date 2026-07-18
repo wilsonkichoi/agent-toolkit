@@ -4,7 +4,7 @@ description: >
   This skill should be used when the user asks to "set up the dev workflow", "initialize this
   project for dev", "run dev setup", "adopt the dev plugin", "configure the tracker", or
   invokes /dev:setup. Initializes a project (greenfield or existing/brownfield) for the dev
-  plugin: scaffolds the docs layout, selects the tracker backend, and writes .agent/dev.md.
+  plugin: scaffolds the docs layout, selects the tracker backend, and writes .agent-toolkit/dev.md.
 argument-hint: "[project-dir]"
 ---
 
@@ -20,20 +20,20 @@ Read first: the plugin's `docs/tracker.md` — on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` (the plugin's own `docs/` directory, two levels above
 this skill), equivalently `../../docs/tracker.md` relative to this skill's directory — before
 configuring the tracker. All `tracker.md` references below mean this plugin doc, never a file in
-the project. Also read an existing `.agent/dev.md` (legacy fallback: `.claude/dev.md`) before
+the project. Also read an existing `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md`) before
 making any repository or tracker call; setup must preserve choices the project already made.
 
 ## Harness specifics
 
 Setup knows which harness it is running in; use the matching column below (referenced from
-steps 2 and 7). Step 6 (claude-review.yml) is unchanged across harnesses — the GitHub Action
+steps 2, 4, and 7). Step 6 (claude-review.yml) is unchanged across harnesses — the GitHub Action
 runs server-side and only needs `ANTHROPIC_API_KEY`, regardless of the local harness.
 
 | Concern | Claude Code | Codex |
 |---|---|---|
 | Linear MCP config | `claude mcp add` / plugin MCP | `codex mcp add` (writes `[mcp_servers]` in `~/.codex/config.toml`) |
 | Pre-approve commands for unattended runs | `.claude/settings.json` permissions | approvals config + `.rules` command policy |
-| Context file seeded in step 4 | `AGENTS.md` default (+ `CLAUDE.md` import); `CLAUDE.md` on Claude-only config | `AGENTS.md` |
+| Context file receiving the step 4 reference line | `AGENTS.md` default (+ `CLAUDE.md` import shim); `CLAUDE.md` on Claude-only projects | `AGENTS.md` |
 
 ## 1. Detect mode
 
@@ -69,33 +69,41 @@ Claude Code), only what cannot be inferred:
    authenticated user lacks canonical write permission, do not treat their answer as authority to
    change repository settings; write only the selected project configuration and report the
    maintainer-owned setup separately.
-7. **Multiple harnesses?** Will this project ever be worked from more than one agent harness
-   (some teammates on Claude Code, others on Codex; or you alternating harnesses per
-   task)? Default yes - the mixed-harness config below works identically on every harness,
-   so it is the safe default. Answer no only for a deliberately Claude-Code-only project.
-   This decides the memory target in step 3.
+7. **Context file:** which file is the project's agent-context entry point? Default
+   `AGENTS.md` (Codex reads it natively; Claude Code reaches it through a one-line
+   `CLAUDE.md` import - step 4). Choose `CLAUDE.md` for a deliberately Claude-Code-only
+   project. A project that already has its own convention (e.g. an `AGENTS.md` that points
+   at `CLAUDE.md`, or the reverse) keeps it: set `context_file` to the file every harness
+   ultimately reaches, and never invert an existing direction. This decides only where the
+   step 4 reference line goes - the plugin's own state always lives in `.agent-toolkit/`.
 
 ## 3. Scaffold
 
 Create only what is missing:
 
 ```
-docs/            # PRD.md, SPEC.md, ROADMAP.md arrive via dev:discover / dev:architect
+docs/                  # PRD.md, SPEC.md, ROADMAP.md arrive via dev:discover / dev:architect
 docs/adr/
 research/raw/
-.claude/rules/   # only with the Claude-only config (Q6 = no); the default config has no rules_dir
-.dev/tasks/      # only when tracker: local
+.agent-toolkit/rules/  # promoted learnings (dev:retro), one file per rule
+.dev/tasks/            # only when tracker: local
 ```
 
-Create the configured `rules_dir` only when the interview chose the Claude-only config; the
-default (mixed-harness) config omits `rules_dir` entirely.
+Everything the plugin owns lives under `.agent-toolkit/`; the project owns everything else,
+its context files included. Add a `.gitkeep` in `.agent-toolkit/rules/` so git tracks the
+directory before the first promotion. Removing the plugin from a project is: delete
+`.agent-toolkit/` and the step 4 reference line.
 
-**Existing projects:** when a legacy `.claude/dev.md` (or `.claude/dev.local.md`) exists,
-offer to `git mv` it to `.agent/dev.md` (and `.agent/dev.local.md`, updating the
-`.gitignore` entry). Every dev skill reads `.agent/dev.md` first and falls back to the
-legacy path, so the migration is safe but optional.
+**Existing projects:** when a legacy config exists (`.agent/dev.md` or `.claude/dev.md`, or
+their `.local.md` variants), offer to `git mv` it to `.agent-toolkit/dev.md` (and
+`.agent-toolkit/dev.local.md`, updating the `.gitignore` entry), then grep the repo for the
+old path and update operative references (docs that tell agents to read the config) in the
+same commit - historical records (changelogs, completed-work logs) stay as they are. Every
+dev skill reads `.agent-toolkit/dev.md` first and falls back to the legacy paths, so the
+migration is safe but optional. Full consumer-migration steps: "Migrating an existing
+consumer" in the plugin's `docs/adoption.md`.
 
-Write `.agent/dev.md` with YAML frontmatter:
+Write `.agent-toolkit/dev.md` with YAML frontmatter:
 
 ```markdown
 ---
@@ -108,9 +116,14 @@ work_in_progress_limit: 3      # max tasks simultaneously In Progress + In Revie
 max_fix_attempts: 3            # CI-fix or review-fix cycles before a task goes Blocked
 max_tasks_per_run: 5           # batch cap for dev:auto and execute loop/batch mode
 auto_merge: false              # standing merge approval for dev:auto (see that skill)
-context_file: AGENTS.md        # single shared context file (default); Claude-only config uses CLAUDE.md + rules_dir
+context_file: AGENTS.md        # project file carrying the step 4 reference line; CLAUDE.md on Claude-only projects
+rules_dir: .agent-toolkit/rules/  # promoted learnings, one file per rule
 ---
 Project conventions the fields cannot capture go here as free text.
+
+## Rules
+
+<!-- managed by dev:retro: one `@.agent-toolkit/rules/<slug>.md` import line per promoted rule -->
 ```
 
 When Q6 enables fork contributions, add both fields below. Do not add either field when the
@@ -125,26 +138,20 @@ Reject `fork_contributions: true` unless `tracker: github` and `github_primary_r
 present and valid. Reject `github_primary_repo` without `fork_contributions: true`; the pair is
 the explicit opt-in boundary.
 
-**Default config (Q7 = yes, mixed-harness):** `context_file: AGENTS.md` and no `rules_dir`,
-whichever harness setup runs in - a single shared file carries promoted learnings
-(`dev:retro`) and the architecture pointer (`dev:architect`). Codex reads `AGENTS.md`
-natively. Claude Code does NOT auto-load `AGENTS.md` (it loads `CLAUDE.md`), so also seed a
-one-line `CLAUDE.md` whose entire body is the import `@AGENTS.md` - Claude Code then pulls
-the shared file into context through its native import, and the memory loop closes for both
-harnesses through one file. If the project already has promoted rules in `.claude/rules/`
-(or another legacy `rules_dir`), offer a one-time migration: move each rule's content into a
-clearly-marked rules section of `AGENTS.md`, then delete the migrated rule files - leaving
-both in place splits the memory between harnesses.
-
-**Claude-only config (Q7 = no):** set `rules_dir: .claude/rules/` and
-`context_file: CLAUDE.md`. `dev:retro` reads these when promoting learnings and, when both
-fields are absent (legacy or hand-written configs), falls back to these same values as a
-safety net - not a recommended config; run `dev:setup` to write explicit fields.
+**Ownership rule (uniform across configs):** the project owns `AGENTS.md` and `CLAUDE.md`;
+setup adds at most the single step 4 reference line there and never moves, consolidates, or
+rewrites project rules or context-file content. `rules_dir` defaults to
+`.agent-toolkit/rules/`; a project with an existing rules convention may point the field
+elsewhere instead (e.g. `.claude/rules/`, which Claude Code auto-loads natively) - respect
+the project's choice, and never migrate rule files between locations uninvited. When both
+`rules_dir` and `context_file` are absent (legacy or hand-written configs), skills fall
+back to `.claude/rules/` + `CLAUDE.md` as a safety net - not a recommended config; run
+`dev:setup` to write explicit fields.
 
 Add Linear fields (`linear_team`, `linear_project`) when applicable. When the user opted into
 a secondary GitHub intake channel (interview Q5), add `secondary_intake: github`,
 `github_repo: owner/repo`, and `audit_trail: link`. Do not create
-`.agent/dev.local.md`; mention it exists for personal overrides (gitignored).
+`.agent-toolkit/dev.local.md`; mention it exists for personal overrides (gitignored).
 
 Backend one-time setup:
 
@@ -159,17 +166,26 @@ Backend one-time setup:
   itself applies none of these labels.
 - **local:** add `.dev/tasks/.gitkeep`.
 
-## 4. Seed the context file
+## 4. Add the reference line
 
-Seed the `context_file` chosen in step 3 (`AGENTS.md` by default; `CLAUDE.md` on the
-Claude-only config). Greenfield: create a lean context file (< 50 lines) stating the project
-name, pointing to `docs/PRD.md`, `docs/SPEC.md`, `docs/ROADMAP.md`, `docs/adr/`, the
-configured `rules_dir` when one exists, and naming the tracker backend. Brownfield: append
-the pointers section to the existing context file instead; touch nothing else in it.
+Add one line to the configured `context_file` so every session loads the dev config:
 
-Default config (`context_file: AGENTS.md`): also seed a `CLAUDE.md` whose entire body is
-`@AGENTS.md` so Claude Code imports the shared file; if a `CLAUDE.md` already exists, add
-the `@AGENTS.md` import line rather than replacing it.
+```
+Dev workflow (agent-toolkit dev plugin): @.agent-toolkit/dev.md
+```
+
+On Claude Code the `@` import inlines `dev.md` (config frontmatter, conventions body, and
+the rule imports its `## Rules` section carries) at session start; on other harnesses the
+same line reads as an instruction with a path to follow. This line is the only edit setup
+makes to a project context file. Brownfield: append it; touch nothing else. Greenfield (no
+context file at all): create a lean one (< 50 lines) stating the project name, pointing to
+`docs/PRD.md`, `docs/SPEC.md`, `docs/ROADMAP.md`, `docs/adr/`, and naming the tracker
+backend, with the reference line at the end.
+
+When `context_file: AGENTS.md` and Claude Code is (or may be) in use: Claude Code does not
+auto-load `AGENTS.md`, so also ensure `CLAUDE.md` contains an `@AGENTS.md` import line -
+seed a one-line `CLAUDE.md` when none exists, append the line when one exists, and never
+replace an existing body.
 
 ## 5. Brownfield: architecture archaeology
 
@@ -196,7 +212,7 @@ Offer when the repo is GitHub-hosted and a CI workflow exists. If accepted:
 2. Tell the user to add the API key secret: `gh secret set ANTHROPIC_API_KEY` (add
    `--repo "$github_primary_repo"` in active fork configuration). Warn: each
    auto-review spends API tokens; the manual `dev:review-pr` path keeps working either way.
-3. Set `review_action_installed: true` in `.agent/dev.md` frontmatter.
+3. Set `review_action_installed: true` in `.agent-toolkit/dev.md` frontmatter.
 4. Note that the template should be sanity-checked against the current
    `anthropics/claude-code-action` docs on first run.
 
