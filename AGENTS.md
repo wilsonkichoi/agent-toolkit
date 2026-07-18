@@ -6,6 +6,8 @@ import that is `CLAUDE.md`'s entire body (Claude Code does not auto-load `AGENTS
 directly). Do not add content to `CLAUDE.md`; it belongs here. Install and invocation
 details live in the repo `README.md`.
 
+Dev workflow (agent-toolkit dev plugin): @.agent-toolkit/dev.md
+
 ## Versioning
 
 All version fields use semver (`major.minor.patch`). Always use the minimum increment:
@@ -28,6 +30,7 @@ Codex-native `.agents/plugins/marketplace.json` has no version field.
 ## Structure
 
 ```
+.agent-toolkit/         # this project's dev-plugin state (dev.md config + rules/)
 .claude-plugin/         # Claude marketplace manifest
 .agents/                # Codex-native marketplace manifest (plugins/marketplace.json)
 AGENTS.md               # this file - conventions SSOT for all harnesses

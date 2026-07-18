@@ -11,6 +11,7 @@ max_fix_attempts: 3
 max_tasks_per_run: 5
 auto_merge: false
 context_file: AGENTS.md
+rules_dir: .agent-toolkit/rules/
 ---
 
 # Project development conventions
@@ -27,3 +28,7 @@ context_file: AGENTS.md
   issue and merge state.
 - Run both commands in `test_command` before handoff. Agent-source changes must regenerate both
   `.codex/agents/` and `dist/codex/agents/` before the checks run.
+
+## Rules
+
+<!-- managed by dev:retro: one `@.agent-toolkit/rules/<slug>.md` import line per promoted rule -->
