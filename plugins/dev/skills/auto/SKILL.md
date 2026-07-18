@@ -21,7 +21,7 @@ use `dev:auto` to complete one named task or drain a milestone.
 Skill references like `dev:execute` mean this plugin's `execute` skill; when telling the user
 to run one, render your harness's invocation for it (Claude Code: `/dev:execute`; Codex: `$execute`).
 
-Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
+Read first: `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
 skill's directory.
 
@@ -50,7 +50,7 @@ dev:execute → dev:review-pr → dev:verify → dev:retro.
 
 ## Standing authorization (`auto_merge`)
 
-Unattended merging requires `auto_merge: true` in `.agent/dev.md` frontmatter. That flag is
+Unattended merging requires `auto_merge: true` in `.agent-toolkit/dev.md` frontmatter. That flag is
 the human's standing, revocable approval for merges meeting ALL of:
 
 1. Independent review verdict is approve (from the `reviewer` agent, never self-review).
@@ -187,9 +187,9 @@ orchestrator holds the implementer's report, so it is not independent.
    a recorded sign-off → post the verification report, leave `In Review`, stop and tell
    the human exactly what needs them.
 6. **Retro (record-only)** - run `dev:retro` for the task with promotions in proposal mode:
-   post the retro comment including proposed rule promotions, but never write to the configured
-   `rules_dir`/`context_file` (safety-net fallback when both fields are absent:
-   `.claude/rules/` and `CLAUDE.md`) unattended. Standing
+   post the retro comment including proposed rule promotions, but never write to the
+   configured `rules_dir` or `.agent-toolkit/dev.md` (legacy safety-net fallback when both
+   memory fields are absent: `.claude/rules/` and `CLAUDE.md`) unattended. Standing
    instructions change only with a human in the loop; proposals accumulate for a later
    `dev:retro milestone N` pass.
 7. **Next** - for milestone/no-target queue mode, loop to step 1. For task-id mode, stop

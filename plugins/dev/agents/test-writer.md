@@ -41,7 +41,7 @@ so; this instruction does not require a capability unavailable on other harnesse
 
 1. Read the task packet and spec excerpts you were given. List the checkable promises.
 2. Inspect only: the tests directory (conventions), the public interface files named in your
-   briefing, and `.agent/dev.md` (legacy fallback: `.claude/dev.md`) for the `test_command`.
+   briefing, and `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md`) for the `test_command`.
 3. Write the tests. Each test name states the promise it checks.
 4. Run the test command. Report results honestly - do not weaken an assertion to make it
    pass. A failing test against the stated contract is a finding, not a defect in your work.

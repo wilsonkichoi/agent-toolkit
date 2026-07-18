@@ -5,8 +5,8 @@ description: >
   <id>", "retro the milestone", "what did we learn", "update the rules from what happened",
   or invokes /dev:retro. Mines the evidence trail of completed tasks (PR review threads, CI
   history, tracker comments, session transcripts) and closes the memory loop: distilled
-  learnings are promoted into the project's configured memory files (AGENTS.md by default,
-  or rules_dir/context_file) so future sessions start smarter.
+  learnings are promoted into the project's configured rules directory
+  (.agent-toolkit/rules/ by default) so future sessions start smarter.
 argument-hint: "[task <id> | milestone <n>]"
 ---
 
@@ -19,7 +19,7 @@ instructions, applied on approval, that change how the next session behaves.
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
-Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
+Read first: `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
 skill's directory. Scope: one task (`task <id>`) or all `Done`/`Wont Do`/`Blocked` tasks in a
 milestone (`milestone <n>`).
@@ -81,7 +81,7 @@ Classify each learning:
 - **Project rule** - generalizable constraint or convention ("integration tests need
   `docker compose up db` first", "API errors follow shape X"): candidate for promotion.
 - **Packet-quality lesson** - the packet was wrong/thin (untestable DoD, missing dependency):
-  candidate for the planning conventions in the `.agent/dev.md` body.
+  candidate for the planning conventions in the `.agent-toolkit/dev.md` body.
 - **Process tuning** - config change (`work_in_progress_limit`, `max_fix_attempts`, test command).
 - **One-off** - bad luck, no generalization: record in the retro comment, promote nothing.
 - **Follow-up work** - a defect or gap in already-merged work, or new work the evidence
@@ -95,29 +95,33 @@ Classify each learning:
   already exists in the skill; promoting a rule that restates it creates a second source
   of truth that drifts, and masks the real defect - the skill let the step be skipped.
   Record the violation in the retro comment and route the defect upstream to the dev
-  plugin (fix or file against the skill), not into `.claude/rules/`. Only project-specific
-  knowledge the skill cannot know belongs in a rule.
+  plugin (fix or file against the skill), not into the rules directory. Only
+  project-specific knowledge the skill cannot know belongs in a rule.
 
 ## 3. Promote (the point of this skill)
 
-Promotion targets, by `memory_target` in `.agent/dev.md` (default `files`):
+Promotion targets, by `memory_target` in `.agent-toolkit/dev.md` (default `files`):
 
-- **`files`:** promote to the rules directory and context file named by `rules_dir` and
-  `context_file` in `.agent/dev.md`; when those fields are absent, fall back to `.claude/rules/`
-  and `CLAUDE.md` - the pre-port behavior, kept as a safety net for legacy or hand-written
-  configs, not the recommended target (a fresh `dev:setup` writes explicit fields and defaults
-  to `AGENTS.md`). Write one
-  atomic rule per file in `<rules_dir>/<slug>.md` (a rule future sessions must obey), or a
-  line in the relevant `context_file` section for pointers/summaries. Only when `.agent/dev.md`
-  sets `context_file` but omits `rules_dir` (the Codex and mixed-harness configs - no
-  auto-loaded rules directory there) do full rules go into a clearly-marked rules section of
-  the configured `context_file` instead of separate rule files; when both fields are absent,
-  the safety-net fallback above applies. Check existing rules first -
-  update or strengthen rather than duplicate; delete rules the evidence now contradicts.
+- **`files`:** write one atomic rule per file in `<rules_dir>/<slug>.md` (a rule future
+  sessions must obey; `rules_dir` from `.agent-toolkit/dev.md`, default
+  `.agent-toolkit/rules/` when the field is absent), then register it: append an
+  `@<rules_dir><slug>.md` import line to the `## Rules` section of `.agent-toolkit/dev.md`.
+  Every session reaches the rules through the context file's single reference line to
+  `dev.md`; an unregistered rule file is invisible. Pointers and summaries that are not
+  rules go in the `dev.md` conventions body. Never write rules or summaries into
+  `AGENTS.md`/`CLAUDE.md` themselves - those files are project-owned, and the plugin's only
+  line there is the `dev:setup` reference line. Legacy configs: when the config still lives
+  at `.agent/dev.md` or `.claude/dev.md` with both memory fields absent, fall back to
+  `.claude/rules/` + `CLAUDE.md` (the pre-port behavior, kept as a safety net); when it
+  sets `context_file` but omits `rules_dir` (the 0.0.42-0.0.53 mixed config that
+  consolidated rules inside the context file), leave existing consolidated rules where they
+  are, write new promotions to `.agent-toolkit/rules/`, and suggest re-running `dev:setup`.
+  Check existing rules first - update or strengthen rather than duplicate; delete rules the
+  evidence now contradicts.
 - **MCP memory** (`mem0`, `openbrain`, `memsearch`, …): store each learning via that system's
   MCP tool; recall is that system's job. Still write rules that gate correctness to the file
-  target (`rules_dir`/`context_file`, fallback `.claude/rules/`) - files are the only target
-  every future session is guaranteed to load.
+  target (`rules_dir`, legacy fallback `.claude/rules/`) - files are the only target every
+  future session is guaranteed to load.
 
 Standards for a promotable learning: evidence-cited (link the PR finding / CI run / comment),
 generalizable beyond the one task, and actionable as an instruction ("run X before Y"), never
@@ -127,7 +131,7 @@ applied" - stopping the turn to ask is how a drafted retro ends up existing only
 Apply on approval, then append the follow-up comment per section 4.
 
 **Commit applied promotions immediately** (with the user's consent, as with every gate): one
-dedicated commit on `main` for the rule/CLAUDE.md changes, before any next task starts -
+dedicated commit on `main` for the rule and `dev.md` changes, before any next task starts -
 and with a remote, push it: task worktrees branch from local `main`, so an unpushed
 promotion commit silently rides into the next task's PR diff. Task
 worktrees check out `main`'s committed HEAD, so an uncommitted rule is invisible to the next

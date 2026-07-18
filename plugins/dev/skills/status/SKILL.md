@@ -16,7 +16,7 @@ transitions, no comments, no fixes - flag problems, point at the skill that fixe
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
-Read first: `.agent/dev.md` (legacy fallback: `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
+Read first: `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
 skill's directory. Scope: the given milestone, else the active one.
 
@@ -96,9 +96,15 @@ Flag, do not fix:
   unique commits.
 - Dependency cycles or a `Todo` task depending on a `Wont Do` task → planning error; route
   to `dev:backlog`.
-- Both `.agent/dev.md` and legacy `.claude/dev.md` exist → duplicate config that will drift;
-  suggest deleting the legacy file after confirming `.agent/dev.md` is the maintained one.
-- Memory-target drift: config sets `context_file: AGENTS.md` with no `rules_dir`, but
-  promoted rules exist in `.claude/rules/` (or `CLAUDE.md` holds content beyond its
-  `@AGENTS.md` import line) → memory is split across harness-specific files; suggest the
-  one-time migration into the `AGENTS.md` rules section (see `dev:setup`).
+- More than one of `.agent-toolkit/dev.md`, legacy `.agent/dev.md`, legacy `.claude/dev.md`
+  exists → duplicate config that will drift; suggest deleting the legacy file(s) after
+  confirming `.agent-toolkit/dev.md` is the maintained one.
+- Missing reference line: the configured `context_file` contains no reference to
+  `.agent-toolkit/dev.md` → sessions start without the dev config and rules; suggest
+  re-running `dev:setup` (it adds the single line and touches nothing else).
+- Unregistered rules: files exist in `rules_dir` that the `## Rules` section of
+  `.agent-toolkit/dev.md` does not import → invisible to future sessions; suggest adding
+  the missing import lines.
+- Legacy memory config: `context_file` set with no `rules_dir` (the 0.0.42-0.0.53 mixed
+  config, rules consolidated inside the context file) → still works, but new promotions
+  target `.agent-toolkit/rules/`; suggest re-running `dev:setup` to write explicit fields.

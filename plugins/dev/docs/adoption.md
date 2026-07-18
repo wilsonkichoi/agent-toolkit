@@ -17,7 +17,7 @@ so any subset of skills works alone.
 | You want | Adopt | Skip | Notes |
 |---|---|---|---|
 | Only the execution loop | `setup`, `execute`, `review-pr`, `verify` | `discover`, `architect`, `plan` | Your existing backlog feeds `execute` directly. Tickets must survive packet validation (Objective + DoD); `execute` drafts missing fields from whatever docs exist and asks. The thinner your docs, the more it asks. |
-| Planning discipline, own review process | `setup`, `plan`, `backlog`, `execute` | `review-pr`, `verify` | You lose the `Done`-means-verified guarantee. Decide who sets `Done` and record it in `.agent/dev.md` body, or `In Review` tasks pile up forever. |
+| Planning discipline, own review process | `setup`, `plan`, `backlog`, `execute` | `review-pr`, `verify` | You lose the `Done`-means-verified guarantee. Decide who sets `Done` and record it in `.agent-toolkit/dev.md` body, or `In Review` tasks pile up forever. |
 | Product docs only | `discover`, `architect` | everything tracker-side | PRD/SPEC/ADRs are useful standalone. `tracker: local` in config satisfies setup without adopting task flow. |
 | Everything | all | - | Run `setup` in brownfield mode first; see below. |
 
@@ -67,7 +67,7 @@ a triage, not a copy-paste.
 
 The plugin ships Linear, GitHub Issues, and local-file backends. Anything else follows the
 "Adding a backend" recipe at the end of [tracker.md](tracker.md): map the seven verbs and the
-status lifecycle, write both tables into the `.agent/dev.md` body, set `tracker: custom`.
+status lifecycle, write both tables into the `.agent-toolkit/dev.md` body, set `tracker: custom`.
 Skills read that file before every tracker call; the body mapping is the implementation.
 
 ### Worked example: Jira via the Atlassian MCP server
@@ -78,7 +78,7 @@ Skills read that file before every tracker call; the body mapping is the impleme
 > lifecycle check below) before any unattended use.
 
 Connect the official Atlassian Remote MCP server, then discover exact tool names from the
-runtime tool list (they change; typical names shown). `.agent/dev.md` body:
+runtime tool list (they change; typical names shown). `.agent-toolkit/dev.md` body:
 
 ```markdown
 ## Tracker mapping (Jira)
@@ -113,15 +113,17 @@ comment. The same shape covers Asana, Shortcut, Notion databases, etc.
 ## 5. Third-party memory systems (`memory_target`)
 
 The plugin's only memory integration point is `dev:retro`'s promotion step. Default
-(`memory_target: files`, or field absent): learnings become `.claude/rules/<slug>.md` files
-and CLAUDE.md lines - git-shared, zero latency, loaded by every session.
+(`memory_target: files`, or field absent): learnings become `<rules_dir>/<slug>.md` files
+(default `.agent-toolkit/rules/`), each registered as an import line in
+`.agent-toolkit/dev.md` and reached by every session through the context file's single
+reference line - git-shared, zero latency.
 
-Teams already running a memory system set `memory_target` in `.agent/dev.md` frontmatter
+Teams already running a memory system set `memory_target` in `.agent-toolkit/dev.md` frontmatter
 and retro stores learnings through that system's MCP tools instead:
 
 | `memory_target` | System | Storage | Recall path | Tradeoff vs files |
 |---|---|---|---|---|
-| `files` (default) | plain markdown | `.claude/rules/`, CLAUDE.md | loaded every session start | in git, zero latency, project-scoped only |
+| `files` (default) | plain markdown | `rules_dir` (default `.agent-toolkit/rules/`) | context-file reference line loads `dev.md` + its rule imports each session | in git, zero latency, project-scoped only |
 | `mem0` | Mem0 managed API | Mem0 cloud | Mem0 plugin injection / MCP search | cross-tool + cross-machine; data off-machine; managed service |
 | `openbrain` | OB1 / OpenBrain | self-owned Supabase pgvector | MCP search from any connected tool | cross-tool, self-owned; setup cost, query latency |
 | `memsearch` | MemSearch (Zilliz) | local markdown + Milvus shadow index | hook-injected semantic matches per prompt | local + cross-CLI-tool; machine-local only |
@@ -134,8 +136,46 @@ and retro stores learnings through that system's MCP tools instead:
 
 Two rules regardless of target:
 
-1. **Correctness-gating rules always also go to `.claude/rules/`.** Files are the only
+1. **Correctness-gating rules always also go to the `rules_dir` files.** Files are the only
    target every future session is guaranteed to load; semantic recall is probabilistic, and
    a rule that must never be missed cannot depend on it.
 2. Recall is the memory system's job, not the plugin's: rely on that system's own hooks or
    MCP injection at session start. The plugin only writes.
+
+## 6. Migrating an existing consumer to the encapsulated layout
+
+Projects configured by dev 0.0.53 or earlier use one of two legacy shapes: the pre-port
+config (`.claude/dev.md`, rules in `.claude/rules/`, promotions into `CLAUDE.md`) or the
+0.0.42-0.0.53 mixed config (`.agent/dev.md`, `context_file: AGENTS.md`, rules consolidated
+inside `AGENTS.md`). Both keep working unchanged - every skill falls back to the legacy
+paths, and retro keeps its safety net. Migrating gets you the encapsulated layout: all
+plugin state under `.agent-toolkit/`, the project's context files untouched beyond one
+reference line.
+
+Run `dev:setup` (idempotent) and it walks the migration; the steps, for review or a manual
+pass:
+
+1. `git mv` the config to `.agent-toolkit/dev.md` (and the `.local.md` variant, updating
+   its `.gitignore` entry).
+2. Grep the repo for the old path. Update operative references (docs that tell agents to
+   read the config) in the same commit; leave historical records (changelogs,
+   completed-work logs) as they are.
+3. Set `rules_dir` explicitly. Default `.agent-toolkit/rules/`; keep an existing location
+   (e.g. `.claude/rules/`) as the value instead when the project - or anything downstream
+   of it, such as a template it ships - already depends on that path. Moving rule files is
+   optional; registering them is not.
+4. Register every rule file as an import line in the `## Rules` section of
+   `.agent-toolkit/dev.md`.
+5. Ensure the configured `context_file` carries the single reference line
+   (`@.agent-toolkit/dev.md`). Rules previously consolidated into `AGENTS.md` may stay
+   there (the project owns that file and its content) or move back out to `rules_dir`
+   files - the project's call, never the plugin's.
+6. Verify with `dev:status`: its consistency checks cover duplicate configs, a missing
+   reference line, unregistered rules, and the legacy mixed config.
+
+**Template and framework repos:** a repo that others clone or instantiate (a project
+template, a framework with a "use this template" flow) must not ship its own dev-plugin
+state to consumers - adopting this plugin is each project's decision, never inherited. Keep
+the plugin's footprint to `.agent-toolkit/` plus the one reference line, and have the
+template's init/clone path strip both. The encapsulated layout makes that strip exactly one
+directory and one line.

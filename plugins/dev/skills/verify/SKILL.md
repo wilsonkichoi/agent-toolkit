@@ -13,7 +13,7 @@ argument-hint: "[task-id | pr-number]"
 The merge gate. `Done` means every DoD criterion has evidence and the human approved the
 merge. This skill is the only thing in the lifecycle allowed to merge or to set `Done`.
 Without explicit human approval in this session, do not merge - with one carve-out: when
-invoked by `dev:auto` with `auto_merge: true` in `.agent/dev.md`, that flag is the human's
+invoked by `dev:auto` with `auto_merge: true` in `.agent-toolkit/dev.md`, that flag is the human's
 standing approval, valid only when the review is approved AND every criterion is met AND
 every criterion is either mechanically evidenced (test or CI) or carries a recorded human
 sign-off (section 2). A manual criterion always requires a human - a recorded sign-off or a
@@ -23,7 +23,7 @@ for it.
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
-Read first: `.agent/dev.md` (config; legacy fallback: `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
+Read first: `.agent-toolkit/dev.md` (config; legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
 `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
 skill's directory.
 
