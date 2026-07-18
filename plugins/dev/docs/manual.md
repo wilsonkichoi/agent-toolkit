@@ -57,7 +57,9 @@ fields per developer. Everything the plugin owns lives under `.agent-toolkit/`; 
 context file carries a single reference line to `dev.md` and is otherwise never touched.
 Legacy locations: `.agent/dev.md`, then `.claude/dev.md` - every skill reads
 `.agent-toolkit/dev.md` first and falls back to them, and `dev:setup` offers a `git mv`
-migration on existing projects.
+migration on existing projects. The `.local.md` override is read next to whichever config
+location resolves: a legacy `.agent/dev.local.md` or `.claude/dev.local.md` keeps applying
+until its config file migrates.
 
 | Field | Default | Read by | Meaning |
 |---|---|---|---|
@@ -305,16 +307,17 @@ the Linear and GitHub backends do not have it, since their packets live outside 
 
 ```
 project/
-├── CLAUDE.md              # lean; links to docs/; updated by dev:architect and dev:retro
+├── AGENTS.md              # project-owned context file; carries the @.agent-toolkit/dev.md reference line
+├── CLAUDE.md              # Claude Code entry: @AGENTS.md import (or itself the context file on Claude-only projects)
 ├── research/raw/          # human research dumps consumed by dev:discover
 ├── docs/
 │   ├── PRD.md             # dev:discover output
 │   ├── SPEC.md            # dev:architect output
 │   ├── ROADMAP.md         # milestones with outcomes
 │   └── adr/               # decision records (spikes, architecture choices)
-├── .claude/
-│   ├── dev.md             # plugin config (committed)
+├── .agent-toolkit/
+│   ├── dev.md             # plugin config + conventions + architecture pointer + rule imports (committed)
 │   ├── dev.local.md       # personal overrides (gitignored)
-│   └── rules/             # promoted retro learnings
+│   └── rules/             # promoted retro learnings, one file per rule
 └── .dev/tasks/            # only with tracker: local
 ```

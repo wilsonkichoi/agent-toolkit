@@ -90,8 +90,9 @@ research/raw/
 ```
 
 Everything the plugin owns lives under `.agent-toolkit/`; the project owns everything else,
-its context files included. Removing the plugin from a project is: delete `.agent-toolkit/`
-and the step 4 reference line.
+its context files included. Add a `.gitkeep` in `.agent-toolkit/rules/` so git tracks the
+directory before the first promotion. Removing the plugin from a project is: delete
+`.agent-toolkit/` and the step 4 reference line.
 
 **Existing projects:** when a legacy config exists (`.agent/dev.md` or `.claude/dev.md`, or
 their `.local.md` variants), offer to `git mv` it to `.agent-toolkit/dev.md` (and

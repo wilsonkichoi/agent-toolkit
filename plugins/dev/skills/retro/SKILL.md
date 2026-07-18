@@ -114,8 +114,12 @@ Promotion targets, by `memory_target` in `.agent-toolkit/dev.md` (default `files
   at `.agent/dev.md` or `.claude/dev.md` with both memory fields absent, fall back to
   `.claude/rules/` + `CLAUDE.md` (the pre-port behavior, kept as a safety net); when it
   sets `context_file` but omits `rules_dir` (the 0.0.42-0.0.53 mixed config that
-  consolidated rules inside the context file), leave existing consolidated rules where they
-  are, write new promotions to `.agent-toolkit/rules/`, and suggest re-running `dev:setup`.
+  consolidated rules inside the context file), do NOT write rule files: no
+  `.agent-toolkit/dev.md` or reference line exists there, so a new rule file would be
+  unregistered and invisible to every future session. Leave existing consolidated rules
+  where they are, list the promotions in the retro comment as "proposed, blocked on config
+  migration", and tell the user to run `dev:setup` (it performs the migration); apply the
+  promotions only once the migrated config exists.
   Check existing rules first - update or strengthen rather than duplicate; delete rules the
   evidence now contradicts.
 - **MCP memory** (`mem0`, `openbrain`, `memsearch`, …): store each learning via that system's

@@ -147,10 +147,12 @@ Two rules regardless of target:
 Projects configured by dev 0.0.53 or earlier use one of two legacy shapes: the pre-port
 config (`.claude/dev.md`, rules in `.claude/rules/`, promotions into `CLAUDE.md`) or the
 0.0.42-0.0.53 mixed config (`.agent/dev.md`, `context_file: AGENTS.md`, rules consolidated
-inside `AGENTS.md`). Both keep working unchanged - every skill falls back to the legacy
-paths, and retro keeps its safety net. Migrating gets you the encapsulated layout: all
-plugin state under `.agent-toolkit/`, the project's context files untouched beyond one
-reference line.
+inside `AGENTS.md`). Both keep reading correctly - every skill falls back to the legacy
+paths, and the pre-port safety net still applies. One promotion caveat: on the mixed
+config, `dev:retro` holds new promotions as proposals until the migration runs, because a
+rule file written before `.agent-toolkit/dev.md` exists would have no import chain and no
+session would load it. Migrating gets you the encapsulated layout: all plugin state under
+`.agent-toolkit/`, the project's context files untouched beyond one reference line.
 
 Run `dev:setup` (idempotent) and it walks the migration; the steps, for review or a manual
 pass:

@@ -106,5 +106,6 @@ Flag, do not fix:
   `.agent-toolkit/dev.md` does not import → invisible to future sessions; suggest adding
   the missing import lines.
 - Legacy memory config: `context_file` set with no `rules_dir` (the 0.0.42-0.0.53 mixed
-  config, rules consolidated inside the context file) → still works, but new promotions
-  target `.agent-toolkit/rules/`; suggest re-running `dev:setup` to write explicit fields.
+  config, rules consolidated inside the context file) → reads keep working, but `dev:retro`
+  holds new promotions as proposals until the config migrates (no import chain exists for
+  rule files); suggest running `dev:setup` to migrate and write explicit fields.
