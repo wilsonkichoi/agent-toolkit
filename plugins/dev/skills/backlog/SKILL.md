@@ -33,8 +33,9 @@ For operations on an existing task (`#N`, `promote`, `wont-do`, `split`, or `tri
 only enough task identity to resolve its execution repository, then follow
 `docs/project-bootstrap.md` before reading project intent or making a triage decision. Changed
 paths are empty unless a linked PR supplies them. Read every reported project instruction and
-loaded rule, and include the exact execution repository and `Rules loaded:` list in the triage
-diagnostic or task comment. New ticketless `add` requests have no execution repository yet and
+loaded rule, and include the exact `Execution repository:`, `Execution revision:`, and
+`Rules loaded:` entries in the triage diagnostic or task comment. New ticketless `add` requests
+have no execution repository yet and
 continue to use the current project's instructions. After that resolution, skim the applicable
 repository's `docs/PRD.md` and `docs/SPEC.md` headings; triage is impossible without knowing
 current intent.

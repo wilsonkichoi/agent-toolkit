@@ -68,9 +68,10 @@ to, the calling session also posts the task-comment copy of the report the agent
 
 In active fork routing, the dispatch also includes `github_primary_repo`, the linked issue
 number if any, the current PR HEAD SHA, and the requirement that every GitHub call target the
-canonical repository explicitly. It also includes the resolved execution repository, changed
-paths, and exact project-instruction / loaded-rule paths from the bootstrap; the verifier reads
-those files itself. The verifier receives no merge or terminal-transition authority.
+canonical repository explicitly. It also includes the resolved execution repository and
+revision, changed paths, and exact project-instruction / loaded-rule paths from the bootstrap;
+the verifier reads those files itself. The verifier receives no merge or terminal-transition
+authority.
 
 ## 1. Preconditions
 
@@ -165,6 +166,7 @@ Post the verification report as a PR comment and a task comment:
 Commit: <PR HEAD SHA>
 Merge authorization: required
 Execution repository: <resolved repository>
+Execution revision: <resolved commit>
 Rules loaded: <exact resolver paths, or "none">
 Result: <n>/<total> criteria met
 

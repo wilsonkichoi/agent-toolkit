@@ -416,7 +416,11 @@ def check_project_bootstrap_adoption() -> None:
     for name in task_scoped_skills:
         path = ROOT / "plugins/dev/skills" / name / "SKILL.md"
         content = path.read_text(encoding="utf-8")
-        for required in ("docs/project-bootstrap.md", "Rules loaded:"):
+        for required in (
+            "docs/project-bootstrap.md",
+            "Execution revision:",
+            "Rules loaded:",
+        ):
             if required not in content:
                 raise fail(path, f"task-scoped skill must contain {required!r}")
 

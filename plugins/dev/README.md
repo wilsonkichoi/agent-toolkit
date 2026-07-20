@@ -42,9 +42,10 @@ removing the plugin does not change how a project's context files work.
 
 Task-scoped lifecycle skills do not rely on that import chain expanding automatically. They
 resolve the task's execution repository first, run the bundled deterministic
-[project bootstrap](docs/project-bootstrap.md), read its context/config files, load every
-doctrine rule, select gotcha rules from declared path/objective/DoD triggers, and record the
-exact `Rules loaded:` list in lifecycle artifacts.
+[project bootstrap](docs/project-bootstrap.md), require that checkout's `HEAD` to match the
+expected task or PR revision, read its context/config files, load every doctrine rule, select
+gotcha rules from declared path/objective/DoD triggers, and record the exact execution revision
+and `Rules loaded:` list in lifecycle artifacts.
 
 ## Skills
 

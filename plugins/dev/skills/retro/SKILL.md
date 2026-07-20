@@ -36,8 +36,8 @@ authenticated permission.
 
 For each task, fetch only enough task/PR identity to resolve its execution repository, then
 follow `docs/project-bootstrap.md` before mining evidence. Pass the completed diff's changed
-paths, read every reported project instruction and loaded rule, and record the exact execution
-repository and `Rules loaded:` list in the retro comment.
+paths, read every reported project instruction and loaded rule, and record the exact
+`Execution repository:`, `Execution revision:`, and `Rules loaded:` entries in the retro comment.
 
 If the target task is not yet terminal (e.g. `In Review` awaiting merge), do not close it
 out yourself - merging and `Done` belong to `dev:verify`, even if the user approves the
@@ -158,9 +158,9 @@ swept into an unrelated commit by whatever writes to `main` next.
 
 ## 4. Record
 
-Post a retro comment on the task (or each milestone task): execution repository, exact
-`Rules loaded:` list, what worked, what did not, root causes, learnings promoted (with rule file
-names), learnings recorded-only. Milestone scope:
+Post a retro comment on the task (or each milestone task): execution repository and revision,
+exact `Rules loaded:` list, what worked, what did not, root causes, learnings promoted (with rule
+file names), learnings recorded-only. Milestone scope:
 also summarize across tasks - estimate accuracy, review-finding density, recurring blockers -
 and recommend process tuning with the evidence.
 

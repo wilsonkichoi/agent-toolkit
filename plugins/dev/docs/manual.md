@@ -25,8 +25,9 @@ Four rules explain every skill's behavior:
 4. **The memory loop is closed.** Execution produces evidence (PR threads, CI history,
    work-summary comments); `dev:retro` distills it; approved learnings land as rule files
    under `rules_dir` (default `.agent-toolkit/rules/`). Task-scoped lifecycle skills resolve
-   the execution repository and load those rules through the deterministic
-   [project bootstrap](project-bootstrap.md), independent of harness import expansion.
+   the execution repository at the expected task or PR revision and load those rules through
+   the deterministic [project bootstrap](project-bootstrap.md), independent of harness import
+   expansion.
 
 ## Prerequisites
 

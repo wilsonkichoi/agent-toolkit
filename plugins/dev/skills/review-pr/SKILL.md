@@ -50,8 +50,9 @@ format verbatim, the solo-repo `gh pr review --comment` fallback, and the requir
 fill `Commit:` with the current PR HEAD. In active fork routing, also pass the resolved
 `github_primary_repo`, linked issue number if any, origin branch push destination, and the
 requirement that every GitHub call explicitly target the canonical repository. Pass nothing
-else except the resolved execution repository, changed paths, and exact project-instruction /
-loaded-rule paths from the bootstrap; the reviewer reads those files itself. Pass no
+else except the resolved execution repository and revision, changed paths, and exact
+project-instruction / loaded-rule paths from the bootstrap; the reviewer reads those files
+itself. Pass no
 implementation rationale and no opinions about the diff. A fresh session
 (one that did not implement the PR and contains no implementation context) reviews inline;
 delegate only when the independence rule forces it.
@@ -97,6 +98,7 @@ delegate only when the independence rule forces it.
    Verdict: request-changes | approve
    Commit: <sha of the PR HEAD this review read>
    Execution repository: <resolved repository>
+   Execution revision: <resolved commit>
    Rules loaded: <exact resolver paths, or "none">
    DoD: <n>/<total> criteria have supporting changes
 

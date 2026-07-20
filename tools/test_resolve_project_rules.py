@@ -25,6 +25,51 @@ class ResolveProjectRulesTests(unittest.TestCase):
         self.execution_repository = root / "execution-repository"
         self.tracker_repository.mkdir()
         self.execution_repository.mkdir()
+        self.run_git("init", "-b", "main")
+
+    def run_git(self, *arguments: str) -> str:
+        result = subprocess.run(
+            ["git", "-C", str(self.execution_repository), *arguments],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(
+            result.returncode,
+            0,
+            "git command failed\n"
+            f"command: git -C {self.execution_repository} {' '.join(arguments)}\n"
+            f"stdout:\n{result.stdout}\n"
+            f"stderr:\n{result.stderr}",
+        )
+        return result.stdout.strip()
+
+    def commit_execution_repository(self, message: str = "test fixture") -> str:
+        self.run_git("add", ".")
+        staged = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self.execution_repository),
+                "diff",
+                "--cached",
+                "--quiet",
+            ],
+            check=False,
+        )
+        if staged.returncode == 1:
+            self.run_git(
+                "-c",
+                "user.name=Resolver Tests",
+                "-c",
+                "user.email=resolver-tests@example.invalid",
+                "commit",
+                "-m",
+                message,
+            )
+        elif staged.returncode != 0:
+            self.fail(f"git diff --cached --quiet failed with {staged.returncode}")
+        return self.run_git("rev-parse", "HEAD")
 
     def write(self, repository: Path, relative_path: str, content: str) -> Path:
         path = repository / relative_path
@@ -55,7 +100,12 @@ class ResolveProjectRulesTests(unittest.TestCase):
             f"{import_lines}\n",
         )
 
-    def run_resolver(self, *arguments: str) -> dict[str, Any]:
+    def resolver_process(
+        self,
+        *arguments: str,
+        execution_revision: str | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        revision = execution_revision or self.commit_execution_repository()
         command = [
             "uv",
             "run",
@@ -64,22 +114,26 @@ class ResolveProjectRulesTests(unittest.TestCase):
             str(self.tracker_repository),
             "--execution-repo",
             str(self.execution_repository),
+            "--execution-revision",
+            revision,
             *arguments,
             "--format",
             "json",
         ]
-        result = subprocess.run(
+        return subprocess.run(
             command,
             cwd=REPOSITORY_ROOT,
             text=True,
             capture_output=True,
             check=False,
         )
+
+    def run_resolver(self, *arguments: str) -> dict[str, Any]:
+        result = self.resolver_process(*arguments)
         self.assertEqual(
             result.returncode,
             0,
             "resolver command failed\n"
-            f"command: {' '.join(command)}\n"
             f"stdout:\n{result.stdout}\n"
             f"stderr:\n{result.stderr}",
         )
@@ -91,6 +145,19 @@ class ResolveProjectRulesTests(unittest.TestCase):
                 f"stdout:\n{result.stdout}\n"
                 f"stderr:\n{result.stderr}"
             )
+
+    def assert_resolver_fails(
+        self,
+        expected_error: str,
+        *arguments: str,
+        execution_revision: str | None = None,
+    ) -> None:
+        result = self.resolver_process(
+            *arguments,
+            execution_revision=execution_revision,
+        )
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn(expected_error, result.stderr)
 
     def loaded_rules_by_name(self, result: dict[str, Any]) -> dict[str, dict[str, Any]]:
         return {Path(rule["path"]).name: rule for rule in result["rules_loaded"]}
@@ -197,6 +264,7 @@ class ResolveProjectRulesTests(unittest.TestCase):
         self.assertEqual(
             Path(result["execution_repository"]), self.execution_repository.resolve()
         )
+        self.assertEqual(result["execution_revision"], self.run_git("rev-parse", "HEAD"))
         instruction_paths = {
             self.execution_path(path) for path in result["project_instructions"]
         }
@@ -218,6 +286,20 @@ class ResolveProjectRulesTests(unittest.TestCase):
             for rule in result["rules_loaded"] + result["rules_skipped"]
         }
         self.assertNotIn(tracker_rule.resolve(), all_reported_paths)
+
+    def test_execution_checkout_must_match_expected_task_revision(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Main instructions.\n")
+        self.write_config(self.execution_repository, [])
+        self.commit_execution_repository("main revision")
+        self.run_git("checkout", "-b", "task/test-revision")
+        self.write(self.execution_repository, "AGENTS.md", "Task instructions.\n")
+        task_revision = self.commit_execution_repository("task revision")
+        self.run_git("checkout", "main")
+
+        self.assert_resolver_fails(
+            "does not match expected execution revision",
+            execution_revision=task_revision,
+        )
 
     def test_codex_resolves_three_import_indirections_to_terminal_rule(self) -> None:
         self.write(self.execution_repository, "AGENTS.md", "Codex instructions.\n")
@@ -325,6 +407,28 @@ class ResolveProjectRulesTests(unittest.TestCase):
         self.assertEqual(loaded[legacy_rule.name]["tier"], "doctrine")
         self.assertTrue(loaded[legacy_rule.name]["matched_by"])
 
+    def test_terminal_rule_frontmatter_requires_tier(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(
+            self.execution_repository,
+            [".agent-toolkit/rules/typo.md"],
+        )
+        self.write(
+            self.execution_repository,
+            ".agent-toolkit/rules/typo.md",
+            """
+            ---
+            teir: gotcha
+            triggers:
+              paths:
+                - scripts/**/*.sh
+            ---
+            Misspelled tier metadata.
+            """,
+        )
+
+        self.assert_resolver_fails("frontmatter must declare tier")
+
     def test_unmatched_gotcha_is_reported_as_skipped(self) -> None:
         self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
         self.write_config(
@@ -395,6 +499,19 @@ class ResolveProjectRulesTests(unittest.TestCase):
         self.assertEqual(set(loaded), {legacy_rule.name})
         self.assertEqual(loaded[legacy_rule.name]["tier"], "doctrine")
 
+    def test_missing_project_instructions_is_an_error(self) -> None:
+        self.write(
+            self.execution_repository,
+            ".agent-toolkit/dev.md",
+            "---\n"
+            "tracker: linear\n"
+            "rules_dir: .agent-toolkit/rules/\n"
+            "---\n\n"
+            "## Rules\n",
+        )
+
+        self.assert_resolver_fails("execution repository has no project instructions")
+
     def test_config_and_trigger_metadata_accept_inline_comments(self) -> None:
         self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
         self.write(
@@ -422,11 +539,16 @@ class ResolveProjectRulesTests(unittest.TestCase):
             """,
         )
 
-        result = self.run_resolver("--changed-path", "scripts/init/check-init.sh")
-
-        loaded = self.loaded_rules_by_name(result)
-        self.assertEqual(set(loaded), {shell_rule.name})
-        self.assertEqual(loaded[shell_rule.name]["tier"], "gotcha")
+        for changed_path in (
+            "scripts/release.sh",
+            "scripts/init/check-init.sh",
+            "scripts/init/deep/check-init.sh",
+        ):
+            with self.subTest(changed_path=changed_path):
+                result = self.run_resolver("--changed-path", changed_path)
+                loaded = self.loaded_rules_by_name(result)
+                self.assertEqual(set(loaded), {shell_rule.name})
+                self.assertEqual(loaded[shell_rule.name]["tier"], "gotcha")
 
 
 if __name__ == "__main__":

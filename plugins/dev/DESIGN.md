@@ -318,16 +318,21 @@ Task-scoped lifecycle skills now share `docs/project-bootstrap.md` and the depen
 `scripts/resolve_project_rules.py` resolver. The sequence intentionally has two phases: read the
 tracker config only far enough to fetch the packet and resolve repository roles, then resolve the
 packet's execution repository and load that repository's context file, dev config, and applicable
-rules before implementation or evidence gathering. Execute refreshes after the diff exists;
-review, verify, auto, and retro begin with the known changed paths. Delegated agents receive exact
-resolved paths and read the files themselves instead of re-inferring context.
+rules before implementation or evidence gathering. The caller supplies the expected execution
+revision, and the resolver rejects a checkout whose `HEAD` differs, preventing a same-repository
+`main` checkout from silently substituting for the task worktree. Execute refreshes after the diff
+exists; review, verify, auto, and retro begin with the known changed paths. Delegated agents
+receive the resolved revision and exact paths and read the files themselves instead of
+re-inferring context.
 
 Rule files have two tiers. `doctrine` is unconditional. `gotcha` requires at least one
 machine-readable path glob, Objective substring, or Definition of Done substring and loads when
-any trigger matches. Recursive rule indexes are resolved by the script with cycle and repository
-escape checks, so Codex never depends on Claude-specific import expansion. Metadata-free terminal
-rules remain doctrine for backward compatibility. Lifecycle artifacts include the execution
-repository and exact `Rules loaded:` list, making omissions auditable.
+any trigger matches. A `**` path segment matches zero or more directories. Recursive rule indexes
+are resolved by the script with cycle and repository escape checks, so Codex never depends on
+Claude-specific import expansion. Metadata-free terminal rules remain doctrine for backward
+compatibility; terminal frontmatter without `tier` is invalid. Lifecycle artifacts include the
+execution repository, execution revision, and exact `Rules loaded:` list, making omissions
+auditable.
 
 ## Primary GitHub fork contribution routing
 

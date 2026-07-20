@@ -145,8 +145,8 @@ The packet is the contract: read its inlined spec excerpts and follow the linked
 
 **Tests.** For non-trivial tasks, delegate test authoring to the `dev:test-writer` agent,
 giving it ONLY: the task packet, the spec excerpts, and the public interface (signatures,
-schemas, endpoints), plus the bootstrap's resolved execution repository and exact project
-instruction / loaded-rule paths. The agent reads those files itself. Never show it the
+schemas, endpoints), plus the bootstrap's resolved execution repository and revision and exact
+project instruction / loaded-rule paths. The agent reads those files itself. Never show it the
 implementation diff - it tests the contract, not the code. Trivial tasks (config, docs,
 one-liners) may test inline. After implementation, rerun the project bootstrap with every path
 from the branch diff, read any newly matched gotcha rules, and only then run the full
@@ -244,6 +244,7 @@ If no visual criteria exist in the DoD, skip to step 7.
    ## Work summary (dev:execute - <date>)
    - PR: <url>  Branch: task/<id>-<slug>
    - Execution repository: <resolved repository>
+   - Execution revision: <resolved commit>
    - Rules loaded: <exact resolver paths, or "none">
    - Implemented: <1-2 sentences>
    - Key decisions: <non-trivial choices, or "none">
