@@ -424,6 +424,16 @@ def check_project_bootstrap_adoption() -> None:
             if required not in content:
                 raise fail(path, f"task-scoped skill must contain {required!r}")
 
+    for name in ("auto", "execute"):
+        path = ROOT / "plugins/dev/skills" / name / "SKILL.md"
+        content = path.read_text(encoding="utf-8")
+        for required in ("resolved base commit", "new task worktree"):
+            if required not in content:
+                raise fail(
+                    path,
+                    f"pre-isolation bootstrap must contain {required!r}",
+                )
+
     for name in ("reviewer", "test-writer", "verifier"):
         path = ROOT / "plugins/dev/agents" / f"{name}.md"
         content = path.read_text(encoding="utf-8")

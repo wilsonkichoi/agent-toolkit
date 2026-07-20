@@ -321,9 +321,10 @@ packet's execution repository and load that repository's context file, dev confi
 rules before implementation or evidence gathering. The caller supplies the expected execution
 revision, and the resolver rejects a checkout whose `HEAD` differs, preventing a same-repository
 `main` checkout from silently substituting for the task worktree. Execute refreshes after the diff
-exists; review, verify, auto, and retro begin with the known changed paths. Delegated agents
-receive the resolved revision and exact paths and read the files themselves instead of
-re-inferring context.
+exists; its initial pre-isolation bootstrap uses the resolved base commit, then the new task
+worktree branch `HEAD`. Auto follows the same two-stage isolation sequence. Review, verify, and
+retro begin with the known changed paths. Delegated agents receive the resolved revision and exact
+paths and read the files themselves instead of re-inferring context.
 
 Rule files have two tiers. `doctrine` is unconditional. `gotcha` requires at least one
 machine-readable path glob, Objective substring, or Definition of Done substring and loads when

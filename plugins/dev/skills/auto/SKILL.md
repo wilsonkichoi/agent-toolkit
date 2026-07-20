@@ -83,12 +83,14 @@ base remote, push remote, issue/PR identity, and upstream permission. Subagents 
 repository roles again from their worktree.
 
 For each claimed task, fetch only enough packet/PR identity to resolve the execution repository,
-then follow `docs/project-bootstrap.md` before dispatch. Pass the resolved execution repository
-and revision, changed paths when known, and exact project-instruction / loaded-rule paths to every
-worker and named agent; each child reads those files itself. Refresh the bootstrap after
-implementation or fix edits expose the complete changed-path list. Preserve the exact
-`Execution repository:`, `Execution revision:`, and `Rules loaded:` entries in the work summary,
-review, verification report, and final task report.
+then follow `docs/project-bootstrap.md` at the resolved base commit before dispatch. The task
+worktree does not exist yet, so this initial bootstrap does not require its branch `HEAD`. The
+implementation worker reruns the bootstrap in the new task worktree before implementation, then
+refreshes it after implementation exposes the complete changed-path list. Pass the resolved
+execution repository and revision, changed paths when known, and exact project-instruction /
+loaded-rule paths to every worker and named agent; each child reads those files itself. Preserve
+the exact `Execution repository:`, `Execution revision:`, and `Rules loaded:` entries in the work
+summary, review, verification report, and final task report.
 
 **Model discipline:** spawn every subagent with NO `model` parameter - the dev agents pin
 `model: inherit` and generic subagents inherit the session model by default, and an explicit

@@ -14,11 +14,18 @@ expanding `@` imports.
    enough to determine where the work runs. An explicit `Execution repo:` packet field wins.
    Otherwise use the PR head repository when it differs from the tracker repository; otherwise
    use the tracker repository. Resolve the expected execution revision before choosing a local
-   path: the PR head OID for review, fix, verify, and PR-backed retro; otherwise the task
-   worktree's branch HEAD. Resolve the repository identity and expected revision to a local
-   checkout or task worktree whose `HEAD` is that exact commit. If no matching checkout is
-   available, stop instead of loading instructions from another revision or from the tracker
-   repository as a substitute.
+   path:
+
+   - For review, fix, verify, and PR-backed retro, use the PR head OID.
+   - For the initial `dev:execute` or `dev:auto` bootstrap before a task worktree exists, use the
+     resolved base commit from which step 2 will create the task branch.
+   - After isolation, use the task worktree's branch `HEAD`.
+   - For a read-only lifecycle with no PR or task worktree, use the selected execution checkout's
+     current `HEAD`.
+
+   Resolve the repository identity and expected revision to a local checkout or worktree whose
+   `HEAD` is that exact commit. If no matching checkout is available, stop instead of loading
+   instructions from another revision or from the tracker repository as a substitute.
 3. **Build the rule context.** Run the resolver from the installed plugin, passing the exact
    tracker and execution repository paths, the expected execution revision, task objective,
    Definition of Done, and every known changed path. The resolver verifies that the selected
@@ -30,11 +37,13 @@ expanding `@` imports.
    dev configuration are mandatory project instructions. Treat resolver failure, a missing
    configured file, invalid rule metadata, an import cycle, or a path escaping the execution
    repository as a hard stop.
-5. **Refresh when paths become known.** `dev:execute` runs the bootstrap first from Objective
-   and Definition of Done, then reruns it after implementation with the complete changed-path
-   list before tests and handoff. Review, fix, verify, and retro use the PR or branch diff and
-   therefore pass changed paths on their first run; fix mode reruns after edits. When local work
-   advances the branch, refresh the expected revision from the new branch `HEAD` before rerunning.
+5. **Refresh when context changes.** `dev:execute` runs the initial bootstrap at the resolved base
+   commit from Objective and Definition of Done, reruns it in the new task worktree before
+   implementation, then reruns it after implementation with the complete changed-path list before
+   tests and handoff. `dev:auto` follows the same sequence across its orchestrator and worker.
+   Review, fix, verify, and retro use the PR or branch diff and therefore pass changed paths on
+   their first run; fix mode reruns after edits. When local work advances the branch, refresh the
+   expected revision from the new branch `HEAD` before rerunning.
 6. **Make loading observable.** Preserve the resolver's exact `Execution repository:`,
    `Execution revision:`, and `Rules loaded:` entries in the lifecycle record: execute work
    summary, review body, verify report, auto task report, or retro comment. A delegated agent

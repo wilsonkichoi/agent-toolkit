@@ -57,9 +57,10 @@ implement:
 
 After fetching and validating the packet, follow `docs/project-bootstrap.md` before the first
 claim or implementation write. Resolve the task's execution repository, run the rule resolver
-with Objective and Definition of Done, and read every reported project-instruction and loaded-rule
-file. The tracker config read for routing is not a substitute when the execution repository
-differs.
+at the resolved base commit with Objective and Definition of Done, and read every reported
+project-instruction and loaded-rule file. The task worktree does not exist yet; do not require its
+branch `HEAD` for this initial bootstrap. The tracker config read for routing is not a substitute
+when the execution repository differs.
 
 **External fork contribution (`#N`, primary GitHub).** This is GitHub-native intake and audit,
 not a planned queue task. It requires active fork routing. Before any write:
@@ -126,6 +127,10 @@ harness's built-in worktree-isolation feature for subagents (on Claude Code: Age
 `isolation: worktree` / EnterWorktree) for this:
 it creates its own `worktree-agent-*` branch that no cleanup step knows about, leaking one
 dead branch per task.
+
+Before implementation, rerun `docs/project-bootstrap.md` in the new task worktree with its branch
+`HEAD` as the expected execution revision. Read every reported project instruction and loaded rule
+again; the branch may change the context, dev configuration, or rule graph relative to the base.
 
 ## 3. Implement
 
