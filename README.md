@@ -112,19 +112,10 @@ plugins/dev/             # development-lifecycle plugin sources
 tools/                   # agent generator and repository validator
 ```
 
-## Optional Claude Code bootstrap
+## OpenAI Build Week 2026
 
-The primary installation paths are the marketplace commands above. The script under `bootstrap/`
-is optional tooling for users who also want the additional marketplaces, plugins, and Claude Code
-settings declared under `bootstrap/config/`. It prompts for each item and leaves every installed
-plugin disabled globally unless the user enables it.
+agent-toolkit is a Developer Tools submission for OpenAI Build Week 2026. The submission details
+how Codex and GPT-5.6 were used, runtime model use, installation, supported platforms, and judge
+testing instructions.
 
-```bash
-gh repo clone wilsonkichoi/agent-toolkit /tmp/agent-toolkit
-bash /tmp/agent-toolkit/bootstrap/install.sh
-```
-
-Edit the YAML files under `bootstrap/config/` to change the offered marketplaces, plugins, or
-settings, then rerun the script.
-
-Fork-gate staleness probe 2026-07-16.
+[Read the OpenAI Build Week 2026 submission documentation](OpenAI-Build-Week-2026.md).
