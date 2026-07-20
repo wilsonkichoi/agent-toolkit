@@ -405,6 +405,9 @@ comments are not trusted by position alone: the routing record's author must be 
 PR URL and branch must match, and its execution revision must equal or precede the current PR head.
 Later untrusted or unbound comments cannot replace a valid execute record; a classification field
 with no valid bound record is a hard stop, not a legacy-routing fallback.
+Once a record validates as planned, review starts only when the canonical issue has exactly
+`status:in-review`; any other state is an incomplete execute handoff that review reports without
+repairing.
 
 The dependency-free `scripts/github_task_lifecycle.py` command is the shared write boundary for
 planned GitHub claims, handoffs, and blocked stops. It validates exactly one expected lifecycle

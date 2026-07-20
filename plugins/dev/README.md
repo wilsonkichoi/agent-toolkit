@@ -111,7 +111,8 @@ external handling requires `external #N`. Planned claim, handoff, and blocked tr
 bundled verified lifecycle command, and the execute record preserves the queue classification for
 review and verify. GitHub routing accepts that record only when its author, PR URL, branch, and
 execution revision bind it to the current PR; later comments from other issue participants cannot
-reclassify planned work.
+reclassify planned work. Planned review also requires the canonical issue to have exactly
+`status:in-review`; review never repairs an incomplete execute handoff.
 
 **Secondary intake channel.** A non-`github`-primary project can accept isolated GitHub issues
 and drive-by PRs as a second channel (`secondary_intake: github`): promote them into the

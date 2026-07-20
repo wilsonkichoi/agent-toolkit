@@ -78,7 +78,8 @@ task's execution repository with a bundled resolver. Codex does not depend on Cl
 `@` import expansion, including for cross-repository tasks.
 
 Primary-GitHub lifecycle routing binds execute work summaries to the PR author, URL, branch, and
-commit ancestry before review or verification uses their queue classification.
+commit ancestry before review or verification uses their queue classification. Planned reviews
+start only after the canonical issue verifies exactly `status:in-review`.
 
 For planned GitHub tasks, `dev:execute` validates and verifies each non-terminal `status:*`
 transition against the canonical issue. Missing or malformed queue labels stop execution instead

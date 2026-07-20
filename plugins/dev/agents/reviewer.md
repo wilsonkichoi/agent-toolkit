@@ -46,6 +46,10 @@ from the current directory. Every `gh pr`, `gh issue`, and `gh run` call uses
    execute lifecycle failure instead of switching to external review. Validated `external` and
    `secondary` records have no queue state. Never add, remove, or repair lifecycle labels during
    review.
+   Before reviewing validated planned primary-GitHub work, re-read the canonical issue and require
+   that it is open with exactly `status:in-review`. Any other lifecycle state is a failed execute
+   handoff: report it and stop without reviewing or repairing the issue. External and secondary
+   work has no queue-state precondition.
    Also accept the resolved execution repository and revision, changed paths, and exact bootstrap
    file list; these are project-context facts, not implementation opinions.
    Fetch the PR diff and CI results via `gh`, and the spec sections the packet references,

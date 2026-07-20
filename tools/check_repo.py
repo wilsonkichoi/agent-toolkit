@@ -444,6 +444,7 @@ def check_github_lifecycle_adoption() -> None:
             "Queue classification: planned",
             "Trusted GitHub work-summary routing",
             "Never pass a bare",
+            "require that it is open with exactly `status:in-review`",
             "never sets `status:in-progress`, `status:in-review`, or `status:blocked`",
         ),
         ROOT / "plugins/dev/skills/verify/SKILL.md": (
@@ -460,6 +461,7 @@ def check_github_lifecycle_adoption() -> None:
         ROOT / "plugins/dev/agents/reviewer.md": (
             "Trusted GitHub work-summary routing",
             "comment author must equal the PR author",
+            "open with exactly `status:in-review`",
             "Never add, remove, or repair lifecycle labels",
         ),
         ROOT / "plugins/dev/agents/verifier.md": (

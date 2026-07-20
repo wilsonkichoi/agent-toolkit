@@ -247,6 +247,10 @@ the same PR URL, branch, and revision binding when those fields are present. A d
 or verifier receives the validated record and its author/comment URL, not a bare classification
 copied from an arbitrary comment.
 
+After routing validates as `planned`, `dev:review-pr` requires the canonical issue to be open with
+exactly `status:in-review` before it gathers or posts a review. Every other lifecycle state is a
+failed execute handoff, never a condition for review to repair or bypass.
+
 **Terminal transitions strip the label.** For `Done` and `Wont Do` the closed state IS the
 status, so the invariant is: a closed issue carries no `status:*` label. A merged PR's
 `Closes #N` auto-closes the issue but does not touch labels - whoever performs the terminal

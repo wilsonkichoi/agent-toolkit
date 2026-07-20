@@ -40,6 +40,12 @@ records do not acquire queue state from incidental labels. Use legacy routing on
 has no classification field in any comment; never use a missing lifecycle label alone to infer
 external work.
 
+Before gathering or posting a review for a validated planned primary-GitHub task, re-read the
+canonical issue and require that it is open with exactly `status:in-review`. `status:in-progress`,
+`status:blocked`, a missing label, or multiple lifecycle labels mean `dev:execute` did not complete
+its handoff; report the exact state and stop without reviewing. No-planned-queue work has no such
+precondition.
+
 Routine lifecycle transitions are not review operations. `dev:review-pr` preserves the task's
 existing queue state and never sets `status:in-progress`, `status:in-review`, or `status:blocked`
 to compensate for a failed or omitted execute transition. Return the failure to `dev:execute` or
@@ -79,6 +85,8 @@ delegate only when the independence rule forces it.
 ## Review mode (default)
 
 1. **Gather** (the reviewer's whole world):
+   - For validated planned primary-GitHub work, the canonical issue precondition above has passed
+     with exactly `status:in-review`.
    - Task packet via `get-task`: objective, DoD, inlined spec excerpts, dependencies.
    - The work-summary comment on the task.
    - PR diff (`gh pr diff <n>`), changed-file list, and CI results (`gh pr checks <n>`).
