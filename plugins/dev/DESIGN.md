@@ -400,7 +400,11 @@ Numeric primary-GitHub ids now select planned queue handling whenever the authen
 upstream write permission. Missing, multiple, or non-`status:todo` labels are hard gate failures;
 they never infer external contribution status. A maintainer chooses that distinct path with the
 explicit `external #N` argument. Each execute work summary records `Queue classification:` so
-review and verify preserve the original routing even when later queue state is damaged.
+review and verify preserve the original routing even when later queue state is damaged. GitHub
+comments are not trusted by position alone: the routing record's author must be the PR author, its
+PR URL and branch must match, and its execution revision must equal or precede the current PR head.
+Later untrusted or unbound comments cannot replace a valid execute record; a classification field
+with no valid bound record is a hard stop, not a legacy-routing fallback.
 
 The dependency-free `scripts/github_task_lifecycle.py` command is the shared write boundary for
 planned GitHub claims, handoffs, and blocked stops. It validates exactly one expected lifecycle

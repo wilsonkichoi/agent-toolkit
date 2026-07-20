@@ -77,6 +77,9 @@ The `dev` plugin's task-scoped lifecycle resolves project instructions and tiere
 task's execution repository with a bundled resolver. Codex does not depend on Claude Code's
 `@` import expansion, including for cross-repository tasks.
 
+Primary-GitHub lifecycle routing binds execute work summaries to the PR author, URL, branch, and
+commit ancestry before review or verification uses their queue classification.
+
 For planned GitHub tasks, `dev:execute` validates and verifies each non-terminal `status:*`
 transition against the canonical issue. Missing or malformed queue labels stop execution instead
 of silently routing planned work as an external contribution.

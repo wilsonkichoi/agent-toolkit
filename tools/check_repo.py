@@ -428,6 +428,9 @@ def check_github_lifecycle_adoption() -> None:
             "transition --from-status",
             "block --from-status",
             "verification read",
+            "Trusted GitHub work-summary routing",
+            "comment author's login must equal the PR author's login",
+            "no candidate validates",
         ),
         ROOT / "plugins/dev/skills/execute/SKILL.md": (
             "validate-todo",
@@ -435,25 +438,33 @@ def check_github_lifecycle_adoption() -> None:
             "shared `block` command",
             "--to-status status:in-review",
             "Queue classification:",
+            "same authenticated account that opened the PR",
         ),
         ROOT / "plugins/dev/skills/review-pr/SKILL.md": (
             "Queue classification: planned",
+            "Trusted GitHub work-summary routing",
+            "Never pass a bare",
             "never sets `status:in-progress`, `status:in-review`, or `status:blocked`",
         ),
         ROOT / "plugins/dev/skills/verify/SKILL.md": (
             "Queue classification: planned",
+            "Trusted GitHub work-summary routing",
+            "Never pass a bare",
             "does not create `In Progress`, `In Review`,",
         ),
         ROOT / "plugins/dev/skills/auto/SKILL.md": (
             "verified `validate-todo` and `claim` commands",
+            "Trusted GitHub work-summary routing",
             "require exactly\n   `status:in-review`",
         ),
         ROOT / "plugins/dev/agents/reviewer.md": (
-            "`Queue classification:` value as the routing record",
+            "Trusted GitHub work-summary routing",
+            "comment author must equal the PR author",
             "Never add, remove, or repair lifecycle labels",
         ),
         ROOT / "plugins/dev/agents/verifier.md": (
-            "`Queue classification:` value as the routing record",
+            "Trusted GitHub work-summary routing",
+            "comment author must equal the PR author",
             "Never create or repair `In Progress`, `In",
         ),
     }

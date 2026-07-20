@@ -272,7 +272,9 @@ If no visual criteria exist in the DoD, skip to step 7.
    ```
 
    This comment is the primary input for `dev:review-pr` and `dev:retro` - write it for a
-   reader with zero context from this session.
+   reader with zero context from this session. On GitHub, post it with the same authenticated
+   account that opened the PR. The PR URL, branch, and full execution-revision SHA are routing
+   bindings validated by later lifecycle skills; do not abbreviate or omit them.
 
 3. Transition the task to `In Review`. For a planned primary-GitHub task, use the shared
    `transition` command with `--from-status status:in-progress --to-status status:in-review` and
