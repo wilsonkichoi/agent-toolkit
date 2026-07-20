@@ -404,6 +404,84 @@ def check_project_rule_resolver() -> None:
         raise CheckFailure(f"project rule resolver tests failed:\n{details}")
 
 
+def check_github_task_lifecycle() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools/test_github_task_lifecycle.py")],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        details = "\n".join(
+            part.strip() for part in (result.stdout, result.stderr) if part.strip()
+        )
+        raise CheckFailure(f"GitHub task lifecycle tests failed:\n{details}")
+
+
+def check_github_lifecycle_adoption() -> None:
+    required_by_file = {
+        ROOT / "plugins/dev/docs/tracker.md": (
+            "scripts/github_task_lifecycle.py",
+            "validate-todo",
+            "claim",
+            "transition --from-status",
+            "block --from-status",
+            "verification read",
+            "Trusted GitHub work-summary routing",
+            "comment author's login must equal the PR author's login",
+            "no candidate validates",
+        ),
+        ROOT / "plugins/dev/skills/execute/SKILL.md": (
+            "validate-todo",
+            "shared `claim` command",
+            "shared `block` command",
+            "--to-status status:in-review",
+            "Queue classification:",
+            "same authenticated account that opened the PR",
+        ),
+        ROOT / "plugins/dev/skills/review-pr/SKILL.md": (
+            "Queue classification: planned",
+            "Trusted GitHub work-summary routing",
+            "Never pass a bare",
+            "require that it is open with exactly `status:in-review`",
+            "never sets `status:in-progress`, `status:in-review`, or `status:blocked`",
+        ),
+        ROOT / "plugins/dev/skills/verify/SKILL.md": (
+            "Queue classification: planned",
+            "Trusted GitHub work-summary routing",
+            "Never pass a bare",
+            "does not create `In Progress`, `In Review`,",
+        ),
+        ROOT / "plugins/dev/skills/auto/SKILL.md": (
+            "verified `validate-todo` and `claim` commands",
+            "Trusted GitHub work-summary routing",
+            "require exactly\n   `status:in-review`",
+        ),
+        ROOT / "plugins/dev/agents/reviewer.md": (
+            "Trusted GitHub work-summary routing",
+            "comment author must equal the PR author",
+            "open with exactly `status:in-review`",
+            "Never add, remove, or repair lifecycle labels",
+        ),
+        ROOT / "plugins/dev/agents/verifier.md": (
+            "Trusted GitHub work-summary routing",
+            "comment author must equal the PR author",
+            "Never create or repair `In Progress`, `In",
+        ),
+    }
+    for path, required_fragments in required_by_file.items():
+        content = path.read_text(encoding="utf-8")
+        normalized_content = " ".join(content.split())
+        for fragment in required_fragments:
+            normalized_fragment = " ".join(fragment.split())
+            if normalized_fragment not in normalized_content:
+                raise fail(
+                    path,
+                    f"GitHub lifecycle contract must contain {fragment!r}",
+                )
+
+
 def check_project_bootstrap_adoption() -> None:
     task_scoped_skills = (
         "auto",
@@ -451,6 +529,8 @@ CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("agent-sources-and-outputs", check_agent_sources_and_outputs),
     ("generator-drift", check_generator_drift),
     ("project-rule-resolver", check_project_rule_resolver),
+    ("github-task-lifecycle", check_github_task_lifecycle),
+    ("github-lifecycle-adoption", check_github_lifecycle_adoption),
     ("project-bootstrap-adoption", check_project_bootstrap_adoption),
 )
 

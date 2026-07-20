@@ -34,6 +34,16 @@ Before any repository or tracker call, resolve repository context once using `tr
 call explicitly targets `github_primary_repo`. Preserve the resolved upstream permission and
 whether the PR head belongs to a fork; those facts control the merge boundary and branch cleanup.
 
+Resolve queue classification through `tracker.md` "Trusted GitHub work-summary routing" before
+choosing the planned-task or no-planned-queue path. Never trust the latest comment containing the
+field without validating its author and PR/revision binding. A validated
+`Queue classification: planned` remains planned even if its current lifecycle label is missing or
+malformed; that is a failed execute handoff, so stop with an actionable error instead of bypassing
+the `In Review` precondition. Validated `external` and `secondary` records have no queue
+transition. Use legacy routing only when no task comment contains the field; never use a missing
+lifecycle label alone to infer that no planned queue task exists. `dev:verify` does not create `In
+Progress`, `In Review`, or `Blocked` state to repair an execute failure.
+
 After the minimal task/PR fetch needed to identify the execution repository, follow
 `docs/project-bootstrap.md` before checking preconditions or gathering evidence. Pass every
 changed path from the PR or branch diff to the resolver and read every reported project
@@ -51,7 +61,11 @@ passing the PR number, the task id, and the packet + task-comment
 text *fetched verbatim from the tracker* - the agent works from the local repo + `gh` only
 and has no tracker access, so on Linear/custom backends it cannot self-fetch them (task
 comments included, since recorded sign-offs live there) - pass the packet text verbatim.
-The dispatch message must also embed the verification contract itself, because the agent
+Pass the validated work summary verbatim together with its author login, comment URL, and
+confirmed PR URL/branch/revision binding. Never pass a bare `Queue classification:` value as
+authoritative. On the GitHub backend the agent re-fetches and validates the record itself. The
+agent must not re-infer routing from current labels. The dispatch message must also embed the
+verification contract itself, because the agent
 cannot reliably read this skill's file on every harness: section 1's approving-review
 definition (including the solo-repo comment form and the stale/malformed distinction) and
 section 3's report format, verbatim. Pass nothing else: no

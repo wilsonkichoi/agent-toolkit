@@ -224,6 +224,16 @@ or merge. The canonical issue, cross-repository PR, structured review, and SHA-b
 report form the audit trail. A maintainer working from a fork keeps the same upstream/origin/
 canonical destinations but retains maintainer authority.
 
+For a maintainer, an explicit numeric primary-GitHub task id is planned queue work. It must have
+exactly `status:todo` before claim; a missing, duplicate, or different `status:*` label is an
+error, not an implicit external-contribution route. Use `dev:execute external #N` to select the
+external path explicitly. Planned-task claim, green handoff, and blocked writes run through the
+bundled verified lifecycle command, which targets the canonical repository, performs each label
+change, then re-reads and rejects any result that does not contain exactly the expected status.
+The execute work summary records `Queue classification: planned | external | secondary`, so
+review and verify do not reclassify a planned task from a damaged label. Neither skill repairs
+execute-owned `In Progress`, `In Review`, or `Blocked` state.
+
 | Skill | Fork-mode behavior |
 |---|---|
 | `dev:setup` | Writes and validates the opt-in fields only after a project-owner choice; local files are separate from maintainer-owned labels, milestones, Actions policy, secrets, and rulesets. |
@@ -231,7 +241,7 @@ canonical destinations but retains maintainer authority.
 | `dev:architect` | Unchanged local spec, roadmap, ADR, and context-file authoring; no tracker or GitHub mutation. |
 | `dev:plan` | Produces the full local dry run; a read-only contributor stops before pushing packets or queue metadata and hands the approved plan to a maintainer. |
 | `dev:backlog` | Read-only `add` creates a packet-complete canonical contribution issue with no queue metadata; triage, promotion, reprioritization, split, and `Wont Do` remain maintainer-only. |
-| `dev:execute` | Rejects incomplete intake or an active linked PR unless explicitly overridden; branches from `upstream/main`, pushes to `origin`, and opens the canonical cross-repository PR without queue transitions. |
+| `dev:execute` | Planned maintainer tasks require verified `status:todo → status:in-progress → status:in-review` or `status:blocked` writes. External work rejects incomplete intake or an active linked PR unless explicitly overridden, branches from `upstream/main`, pushes to `origin`, and opens the canonical cross-repository PR without queue transitions. |
 | `dev:review-pr` | Reviews and comments on the canonical PR and issue; fixes push to `origin`; the structured review remains bound to the reviewed HEAD SHA. |
 | `dev:verify` | A read-only contributor posts complete SHA-bound evidence and stops at `ready for maintainer decision`; a maintainer reuses current evidence, rechecks gates, then merges and cleans up canonical state. |
 | `dev:status` | Reads the canonical repository and lists external contributions separately from planned queue progress, WIP, and next-task selection. |

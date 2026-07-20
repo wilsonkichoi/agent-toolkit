@@ -68,6 +68,16 @@ use `tier: doctrine` for unconditional loading or `tier: gotcha` with determinis
 `objective`, and/or `definition_of_done` triggers. Codex correctness must not depend on `@`
 import expansion.
 
+GitHub work-summary classification must follow `plugins/dev/docs/tracker.md` "Trusted GitHub
+work-summary routing". Do not treat the latest comment containing `Queue classification:` as
+authoritative without its author, PR identity, branch, and revision binding. Planned review must
+also require exactly `status:in-review`; review reports other states without repairing them.
+
+Primary-GitHub planned-task lifecycle writes share
+`plugins/dev/scripts/github_task_lifecycle.py` and the contract in `plugins/dev/docs/tracker.md`.
+Do not duplicate label validation or treat a missing `status:*` label as external-contribution
+routing inside individual skills.
+
 ## Repository tools
 
 Agent Markdown files under `plugins/*/agents/` are authoritative. Regenerate both the

@@ -44,6 +44,14 @@ the existing project routing.
    In fork routing, also accept the resolved `github_primary_repo`, linked issue number,
    current PR HEAD SHA, and authenticated upstream permission; these are routing and
    authority facts, not implementation opinions.
+   On GitHub, validate the execute work summary through `docs/tracker.md` "Trusted GitHub
+   work-summary routing": the comment author must equal the PR author, its PR URL and branch must
+   match, and its execution revision must be the current head or an ancestor. Never accept a bare
+   `Queue classification:` field from the latest comment. A validated `planned` record remains a
+   planned task even when its current `status:*` label is missing or malformed; report a failed
+   execute handoff instead of dropping the `In Review` precondition. Validated `external` and
+   `secondary` records have no queue state. Never create or repair `In Progress`, `In Review`, or
+   `Blocked` state.
    Also accept the resolved execution repository and revision, changed paths, and exact bootstrap
    file list; these are project-context facts, not implementation opinions.
 2. Run dev:verify section 1 preconditions: task status is In Review, CI is green, and an

@@ -5,7 +5,7 @@ description: >
   "work on task <id>", "start the execution loop", "implement the next ticket", or invokes
   /dev:execute. Claims one task from the tracker, implements it in an isolated worktree,
   opens a PR, drives CI to green, and hands off at In Review. Never merges.
-argument-hint: "[task-id]"
+argument-hint: "[task-id | external #issue]"
 ---
 
 # dev:execute
@@ -35,15 +35,24 @@ working directory.
   If nothing is claimable, report why (WIP limit reached / no unblocked Todo tasks) and stop.
 - With a task id: `get-task`, then check the same gates by hand - status is `Todo`, all
   dependencies `Done`, WIP below `work_in_progress_limit`. Refuse (with the reason) if any gate fails; the
-  user can override explicitly.
+  user can explicitly override dependency or WIP gates, but cannot bypass the planned task's
+  `Todo` lifecycle precondition. On a primary-GitHub tracker with upstream write permission, an
+  explicit numeric id (`14` or `#14`) is always a planned-queue task. Follow `tracker.md`
+  "Verified planned-task lifecycle writes" and run `validate-todo` before any branch, worktree,
+  issue, or PR mutation. Missing, multiple, or non-`status:todo` lifecycle labels are an
+  actionable stop, never an implicit reroute to external contribution handling.
 - With a `#N` GitHub issue (secondary intake channel, primary tracker not github): this is
   isolated work GitHub owns - skip the primary-queue gates and see **In-place GitHub item**
   below.
-- With a `#N` issue in active primary-GitHub fork routing: a user without upstream write
-  permission always follows **External fork contribution** below. A maintainer determines
-  whether the target is a planned queue issue (`status:*` lifecycle) or an external
-  contribution issue and follows the matching path; topology does not decide authority.
-- `claim` the task and confirm the claim won (re-read; see `docs/tracker.md` race guard).
+- With an issue in active primary-GitHub fork routing: a user without upstream write permission
+  always follows **External fork contribution** below. A maintainer follows that path only when
+  the invocation explicitly says `external #N`; otherwise the numeric id is planned queue work.
+  Topology does not decide authority, and malformed queue state does not decide routing.
+- `claim` the task and confirm the claim won (re-read; see `docs/tracker.md` race guard). For a
+  planned primary-GitHub task, use the shared `claim` command from "Verified planned-task
+  lifecycle writes". Its verified `status:in-progress` plus assignee result is required before
+  isolation or implementation; a successful edit without a successful verification read is a
+  failed claim.
 
 **Packet validation.** A claimable packet has at minimum an Objective and a Definition of
 Done. If either is missing (typical for hand-written tickets), do not guess and do not
@@ -62,8 +71,9 @@ project-instruction and loaded-rule file. The task worktree does not exist yet; 
 branch `HEAD` for this initial bootstrap. The tracker config read for routing is not a substitute
 when the execution repository differs.
 
-**External fork contribution (`#N`, primary GitHub).** This is GitHub-native intake and audit,
-not a planned queue task. It requires active fork routing. Before any write:
+**External fork contribution (`external #N`, primary GitHub).** This is GitHub-native intake and
+audit, not a planned queue task. A maintainer selects it explicitly; a read-only contributor in
+active fork routing enters it automatically. Before any write:
 
 1. Read the issue with `gh issue view <n> --repo "$github_primary_repo"`. Require a complete
    Objective and Definition of Done; if either is absent, report the missing sections and stop.
@@ -199,9 +209,12 @@ check-runs a reader has to reconstruct. Before re-watching, `comment` on the tas
 - Fix: <what changed>  Pushed: <commit sha>
 ```
 
-After `max_fix_attempts` (config, default 3) failed cycles, stop: transition to `Blocked` and
-post a final comment with the best root-cause hypothesis and what a human needs to unblock
-(the per-attempt comments above are the diagnostic trail; do not repeat them). No CI
+After `max_fix_attempts` (config, default 3) failed cycles, stop. For a planned primary-GitHub
+task, write the final root-cause hypothesis and human unblock requirement to a comment file, then
+use the shared `block` command from `tracker.md` with the task's current lifecycle label. Stop
+only after it verifies both exactly `status:blocked` and the exact diagnostic comment. For other
+backends, transition to `Blocked` and post the same final comment. The per-attempt comments are
+the diagnostic trail; do not repeat them. No CI
 configured (`ci_workflow` empty): the local `test_command` run is the gate, and each failed
 fix cycle is commented the same way (`Failing tests:` in place of `Failing checks:`).
 
@@ -248,6 +261,7 @@ If no visual criteria exist in the DoD, skip to step 7.
    ```
    ## Work summary (dev:execute - <date>)
    - PR: <url>  Branch: task/<id>-<slug>
+   - Queue classification: <planned | external | secondary>
    - Execution repository: <resolved repository>
    - Execution revision: <resolved commit>
    - Rules loaded: <exact resolver paths, or "none">
@@ -258,10 +272,15 @@ If no visual criteria exist in the DoD, skip to step 7.
    ```
 
    This comment is the primary input for `dev:review-pr` and `dev:retro` - write it for a
-   reader with zero context from this session.
+   reader with zero context from this session. On GitHub, post it with the same authenticated
+   account that opened the PR. The PR URL, branch, and full execution-revision SHA are routing
+   bindings validated by later lifecycle skills; do not abbreviate or omit them.
 
-3. Transition the task to `In Review`. Skip this for an external fork contribution; it has no
-   queue state. Post the same work summary on its canonical issue instead.
+3. Transition the task to `In Review`. For a planned primary-GitHub task, use the shared
+   `transition` command with `--from-status status:in-progress --to-status status:in-review` and
+   stop if its canonical re-read does not verify exactly `status:in-review`. Skip the transition
+   for an external fork contribution; it has no queue state. Post the same work summary on its
+   canonical issue instead.
 4. Report: task, PR URL, CI status, spec gaps. Next step: `dev:review-pr`, then
    `dev:verify`. **Stop. Do not merge. Do not start another task in this session** (fresh
    context per task) - except in loop mode below.

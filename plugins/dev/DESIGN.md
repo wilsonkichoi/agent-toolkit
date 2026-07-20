@@ -388,6 +388,37 @@ execution behavior. It does not grant contributors merge authority, impose the i
 external work, define contributor policy for every consuming repository, or make fork branch
 cleanup a canonical maintainer responsibility.
 
+## Verified primary-GitHub lifecycle transitions (dev 0.0.57, 2026-07-19)
+
+Issue #10 exposed a routing and verification defect: a maintainer invoked `dev:execute` with an
+explicit numeric primary-GitHub task, but the issue had no lifecycle label. Execution silently
+treated it like unqueued work and completed the PR without ever recording `In Progress` or `In
+Review`. The tracker contract was correct, but prose-only, duplicated transition steps let the
+runtime skip it.
+
+Numeric primary-GitHub ids now select planned queue handling whenever the authenticated user has
+upstream write permission. Missing, multiple, or non-`status:todo` labels are hard gate failures;
+they never infer external contribution status. A maintainer chooses that distinct path with the
+explicit `external #N` argument. Each execute work summary records `Queue classification:` so
+review and verify preserve the original routing even when later queue state is damaged. GitHub
+comments are not trusted by position alone: the routing record's author must be the PR author, its
+PR URL and branch must match, and its execution revision must equal or precede the current PR head.
+Later untrusted or unbound comments cannot replace a valid execute record; a classification field
+with no valid bound record is a hard stop, not a legacy-routing fallback.
+Once a record validates as planned, review starts only when the canonical issue has exactly
+`status:in-review`; any other state is an incomplete execute handoff that review reports without
+repairing.
+
+The dependency-free `scripts/github_task_lifecycle.py` command is the shared write boundary for
+planned GitHub claims, handoffs, and blocked stops. It validates exactly one expected lifecycle
+label before mutation, scopes every issue command to the canonical repository, performs one
+remove/add edit, and re-reads the issue before reporting success. Claim also verifies assignment;
+blocked stops verify the diagnostic comment. Network-free black-box tests put a scripted `gh`
+fixture on `PATH`, assert command ordering and repository targeting, and cover rejected unlabeled
+tasks, malformed labels, successful verified transitions, and failed or unobservable mutations.
+Repository validation runs those tests and checks that execute, review, and verify retain the
+shared transition and classification contracts.
+
 ## Secondary intake channel (GitHub-native work on a non-GitHub-primary project)
 
 Added after Milestone 2 dogfooding surfaced a real gap: a project whose primary tracker is
