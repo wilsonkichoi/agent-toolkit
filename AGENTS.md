@@ -78,6 +78,11 @@ Primary-GitHub planned-task lifecycle writes share
 Do not duplicate label validation or treat a missing `status:*` label as external-contribution
 routing inside individual skills.
 
+Manual `dev:review-pr` invocations are single-pass lifecycle actions. Review mode posts one
+verdict and stops; fix mode applies one current findings batch, requests or records the need for
+re-review, and stops. Only `dev:auto` may chain separate review and fix invocations, and its loop
+must remain bounded by `max_fix_attempts`.
+
 ## Repository tools
 
 Agent Markdown files under `plugins/*/agents/` are authoritative. Regenerate both the

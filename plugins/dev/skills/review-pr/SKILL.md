@@ -4,8 +4,8 @@ description: >
   This skill should be used when the user asks to "review the PR", "review task <id>'s PR",
   "run the dev review", "apply review fixes", "address review comments", or invokes
   /dev:review-pr. Reviews a task's pull request against its packet (DoD, spec excerpts) and
-  posts a structured verdict; in fix mode, applies the review findings and pushes. Never
-  merges.
+  posts one structured verdict; in fix mode, applies one current findings batch and pushes,
+  then stops. Never merges.
 argument-hint: "[pr-number | task-id] [fix]"
 ---
 
@@ -13,6 +13,11 @@ argument-hint: "[pr-number | task-id] [fix]"
 
 Independent review of one task's PR, or (fix mode) application of an existing review's
 findings. Never merge; merging is `dev:verify`'s job.
+
+Each manual invocation performs exactly one action and stops. Review mode posts one review;
+fix mode applies one snapshot of currently recorded findings. Neither mode dispatches the next
+review or fix action. `dev:auto` alone owns automatic chaining between separate review and fix
+invocations, subject to its `max_fix_attempts` limit.
 
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
@@ -84,6 +89,9 @@ delegate only when the independence rule forces it.
 
 ## Review mode (default)
 
+Manual review mode performs exactly one review pass and stops, regardless of whether its verdict
+is approve or request-changes. It never starts fix mode within the same invocation.
+
 1. **Gather** (the reviewer's whole world):
    - For validated planned primary-GitHub work, the canonical issue precondition above has passed
      with exactly `status:in-review`.
@@ -144,6 +152,8 @@ delegate only when the independence rule forces it.
    mode on backends the agent cannot write to (Linear, custom), the calling session posts
    this comment from the tracker comment body the agent returns. Approved →
    next step is `dev:verify`. Request-changes → next step is `dev:review-pr <n> fix`.
+   Stop after recording either verdict. A request-changes verdict never starts fix mode or
+   another review without a new user command.
 
 **No GitHub remote** (local-only projects): review `git diff main...task/<id>-<slug>` with the
 same rubric and post the full review as a task comment instead of a PR review.
@@ -165,12 +175,17 @@ The review remains a full independent review, not a reduced pre-review.
 Runs in the task's worktree, on the same branch. This mode may share context with the
 implementation; independence applies to reviewing, not fixing.
 
+A manual fix invocation applies exactly one batch of findings recorded at its start, completes
+the steps below, and stops.
+
 For an external cross-repository PR, compare the PR head repository and branch with the
 validated local `origin`. Apply fixes only when `origin` is that contributor fork and the
 authenticated user can push the head branch. A maintainer reviewing from a canonical clone does
 not rewrite or push a contributor-owned branch; return the findings to the contributor instead.
 
-1. Read the PR's review threads (`gh pr view <n> --comments` and review bodies).
+1. At invocation start, snapshot the PR's currently recorded findings from its review threads
+   (`gh pr view <n> --comments` and review bodies). This snapshot is the only batch this
+   invocation addresses; findings posted after it require a new user command.
 2. Address every BLOCKER, and each SUGGESTION unless the user (or the finding thread) says
    otherwise. To dispute a finding, reply on the thread with reasoning and leave it for the
    human; never silently skip or resolve a finding without either a fix or a reply.
@@ -178,6 +193,11 @@ not rewrite or push a contributor-owned branch; return the findings to the contr
    fork routing, that push remote is `origin`; never push a fix to `upstream`, and keep all
    PR/check operations scoped to `github_primary_repo`. Preserve local-only behavior when no
    GitHub remote exists.
-4. Reply per finding: what changed, or why not. Then re-request review (`gh pr edit
-   --add-reviewer` or re-run `dev:review-pr` fresh) and stop. The fix author never declares
-   the findings resolved; the next review pass does.
+4. Reply per finding: what changed, or why not. Request re-review only as a notification, using
+   `gh pr edit --add-reviewer <eligible-reviewer>` when GitHub permits it. Never dispatch or
+   execute review mode from fix mode. If no eligible reviewer exists, including a solo
+   repository where the PR author cannot request themselves, record that re-review is still
+   needed and report that a fresh manual `dev:review-pr <n>` invocation is required. Do not run
+   that invocation. Stop after the notification or fallback report; do not read a new findings
+   batch, start another fix pass, or review the pushed commit. The fix author never declares the
+   findings resolved; a later review pass does.

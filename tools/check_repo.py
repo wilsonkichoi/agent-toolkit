@@ -482,6 +482,110 @@ def check_github_lifecycle_adoption() -> None:
                 )
 
 
+def markdown_h2_section(path: Path, content: str, heading: str) -> str:
+    marker = f"## {heading}"
+    if marker not in content:
+        raise fail(path, f"required section {marker!r} is missing")
+    section = content.split(marker, maxsplit=1)[1]
+    return section.split("\n## ", maxsplit=1)[0]
+
+
+def check_manual_review_pr_one_pass_contract() -> None:
+    review_path = ROOT / "plugins/dev/skills/review-pr/SKILL.md"
+    review_content = review_path.read_text(encoding="utf-8")
+    review_mode = markdown_h2_section(
+        review_path, review_content, "Review mode (default)"
+    )
+    fix_mode = markdown_h2_section(
+        review_path, review_content, "Fix mode (`fix` argument)"
+    )
+
+    executable_chain = re.compile(
+        r"\b(?:run|re-run|rerun|invoke(?:s)?|execute(?:s)?|start(?:s)?|begin(?:s)?|"
+        r"perform(?:s)?|repeat(?:s)?|continue(?:s)?)\s+"
+        r"(?:a\s+|an\s+|the\s+|another\s+|next\s+|new\s+|fresh\s+|second\s+|manual\s+)*"
+        r"(?:dev:review-pr\b|(?:fresh|new|next|another|second)\s+review(?:\s+pass)?\b|"
+        r"(?:another|next|second)\s+fix\s+(?:pass|cycle)\b|fix\s+(?:loop|cycle)\b)"
+    )
+    plain_fix_mode = fix_mode.lower().replace("`", "")
+    for match in executable_chain.finditer(plain_fix_mode):
+        clause_start = max(
+            plain_fix_mode.rfind(boundary, 0, match.start())
+            for boundary in (".", "!", "?", ";")
+        )
+        prefix = plain_fix_mode[clause_start + 1 : match.start()]
+        negation = r"\b(?:do|does|must|may|should|can|will)\s+not\b|\bnever\b"
+        if not re.search(negation, prefix):
+            raise fail(
+                review_path,
+                "manual fix mode authorizes inline review execution or another "
+                "fix cycle "
+                f"with {match.group(0)!r}",
+            )
+
+    normalized_review_mode = " ".join(review_mode.lower().split())
+    if not re.search(
+        r"\bexactly one review pass\b[^.]*\b(?:stop|stops)\b",
+        normalized_review_mode,
+    ):
+        raise fail(
+            review_path,
+            "manual review mode must perform exactly one review pass and stop",
+        )
+
+    required_fix_fragments = (
+        "exactly one batch",
+        "`test_command`",
+        "push",
+        "reply per finding",
+        "new user command",
+        "fresh manual `dev:review-pr <n>` invocation is required",
+        "stop",
+    )
+    normalized_fix_mode = " ".join(fix_mode.lower().split())
+    for fragment in required_fix_fragments:
+        if fragment not in normalized_fix_mode:
+            raise fail(
+                review_path,
+                f"manual fix mode must contain {fragment!r}",
+            )
+
+    required_fix_patterns = (
+        (
+            r"\bsolo (?:repository|repo)\b",
+            "manual fix mode must document the solo-repository fallback",
+        ),
+        (
+            r"\b(?:(?:do|does|must|may|should|can|will) not|never)\s+"
+            r"(?:run|re-run|rerun|invoke|execute)\s+that invocation\b",
+            "manual fix mode must prohibit executing the required manual invocation",
+        ),
+        (
+            r"\b(?:(?:do|does|must|may|should|can|will) not\b[^.;]*\b"
+            r"(?:start|begin)|never\s+(?:start|starts|begin|begins))\s+"
+            r"another fix (?:pass|cycle)\b",
+            "manual fix mode must prohibit another fix pass",
+        ),
+    )
+    for pattern, message in required_fix_patterns:
+        if not re.search(pattern, normalized_fix_mode):
+            raise fail(review_path, message)
+
+    auto_path = ROOT / "plugins/dev/skills/auto/SKILL.md"
+    auto_content = auto_path.read_text(encoding="utf-8")
+    fix_loop = markdown_h2_section(auto_path, auto_content, "Per-task pipeline")
+    normalized_fix_loop = " ".join(fix_loop.lower().split())
+    for fragment in (
+        "then a fresh review pass",
+        "at most `max_fix_attempts` review-fix cycles",
+    ):
+        if fragment not in normalized_fix_loop:
+            raise fail(
+                auto_path,
+                f"automated fix loop must contain {fragment!r}",
+            )
+
+
 def check_project_bootstrap_adoption() -> None:
     task_scoped_skills = (
         "auto",
@@ -531,6 +635,7 @@ CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("project-rule-resolver", check_project_rule_resolver),
     ("github-task-lifecycle", check_github_task_lifecycle),
     ("github-lifecycle-adoption", check_github_lifecycle_adoption),
+    ("manual-review-pr-one-pass", check_manual_review_pr_one_pass_contract),
     ("project-bootstrap-adoption", check_project_bootstrap_adoption),
 )
 

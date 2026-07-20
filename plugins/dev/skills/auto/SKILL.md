@@ -177,9 +177,12 @@ orchestrator holds the implementer's report, so it is not independent.
    embedded contract; still malformed → stop. Never conclude a different GitHub account is
    needed - the comment-form review is the designed solo-repo path (`dev:review-pr`
    step 3).
-4. **Fix loop** - on request-changes: subagent applies `dev:review-pr` fix mode, then a fresh
-   review pass. **Comment every cycle** on the task so the review iteration is visible on the
-   issue, not only in PR review threads:
+4. **Fix loop** - on request-changes, the `dev:auto` orchestrator dispatches one subagent to
+   apply the single-batch `dev:review-pr` fix mode, waits for that invocation to stop, then
+   dispatches a separate fresh review pass. Manual `dev:review-pr` review and fix invocations
+   never perform this chaining themselves. The automated sequence is one fix invocation, then a
+   fresh review pass, both dispatched by the orchestrator. **Comment every cycle** on the task so
+   the review iteration is visible on the issue, not only in PR review threads:
 
    ```
    ## Review fix cycle <n>/<max_fix_attempts> (dev:auto - <date>)
