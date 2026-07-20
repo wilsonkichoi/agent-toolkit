@@ -17,8 +17,10 @@ findings. Never merge; merging is `dev:verify`'s job.
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
-Read first: `.agent-toolkit/dev.md` (config; legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
-`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
+Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
+`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md`, and the
+plugin's `docs/project-bootstrap.md`. On Claude Code these plugin docs are under
+`${CLAUDE_PLUGIN_ROOT}/docs/`; equivalently they are under `../../docs/` relative to this
 skill's directory.
 
 Before any repository or tracker call, resolve repository context once using `tracker.md`
@@ -27,6 +29,11 @@ review, and REST API target are all `github_primary_repo`; every `gh pr`, `gh is
 `gh run` command uses `--repo "$github_primary_repo"`, and every `gh api` path starts with
 `repos/$github_primary_repo/`. Fixes push to the contributor branch on `origin`, never to
 `upstream`. Existing non-opt-in routing remains unchanged.
+
+After the minimal task/PR fetch needed to identify the execution repository, follow
+`docs/project-bootstrap.md` before gathering the diff, spec, CI, or review evidence. Pass every
+changed path from the PR or branch diff to the resolver, then read every reported project
+instruction and loaded rule. Fix mode reruns the bootstrap after edits before tests and push.
 
 ## Independence rule
 
@@ -43,8 +50,10 @@ format verbatim, the solo-repo `gh pr review --comment` fallback, and the requir
 fill `Commit:` with the current PR HEAD. In active fork routing, also pass the resolved
 `github_primary_repo`, linked issue number if any, origin branch push destination, and the
 requirement that every GitHub call explicitly target the canonical repository. Pass nothing
-else: no implementation rationale, no
-opinions about the diff. A fresh session
+else except the resolved execution repository and revision, changed paths, and exact
+project-instruction / loaded-rule paths from the bootstrap; the reviewer reads those files
+itself. Pass no
+implementation rationale and no opinions about the diff. A fresh session
 (one that did not implement the PR and contains no implementation context) reviews inline;
 delegate only when the independence rule forces it.
 
@@ -88,6 +97,9 @@ delegate only when the independence rule forces it.
    ## dev:review-pr - <task-id>
    Verdict: request-changes | approve
    Commit: <sha of the PR HEAD this review read>
+   Execution repository: <resolved repository>
+   Execution revision: <resolved commit>
+   Rules loaded: <exact resolver paths, or "none">
    DoD: <n>/<total> criteria have supporting changes
 
    ### Findings

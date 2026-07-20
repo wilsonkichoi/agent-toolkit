@@ -13,6 +13,13 @@ implementation source of the feature under test - if it is not part of the publi
 you were given, do not open it. This separation exists so tests verify what the spec promises
 rather than mirroring what the implementation happens to do.
 
+The caller also supplies the already-resolved execution repository and revision and exact
+project-instruction / loaded-rule paths from `docs/project-bootstrap.md`. Read every supplied
+file before writing tests. Do not infer the execution repository, follow `@` imports yourself,
+or substitute tracker-repository instructions; repository and rule selection belong to the
+calling lifecycle skill. If the caller omits this bootstrap context, stop and report the missing
+input instead of falling back to the current working directory.
+
 Harness note: when the harness cannot enforce the no-read-implementation contract through a
 restricted tool allowlist, honor it as a prompt constraint. Do not open the implementation
 source of the feature under test. Harnesses that can enforce narrower source access should do
@@ -41,7 +48,8 @@ so; this instruction does not require a capability unavailable on other harnesse
 
 1. Read the task packet and spec excerpts you were given. List the checkable promises.
 2. Inspect only: the tests directory (conventions), the public interface files named in your
-   briefing, and `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md`) for the `test_command`.
+   briefing, and the exact project-instruction / loaded-rule files supplied by the caller. Read
+   `test_command` from the supplied execution-repository dev configuration.
 3. Write the tests. Each test name states the promise it checks.
 4. Run the test command. Report results honestly - do not weaken an assertion to make it
    pass. A failing test against the stated contract is a finding, not a defect in your work.

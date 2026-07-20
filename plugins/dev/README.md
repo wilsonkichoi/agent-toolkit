@@ -40,6 +40,13 @@ project's own context file (`AGENTS.md` or `CLAUDE.md` - the project's choice) c
 single reference line to `dev.md` and is never otherwise touched: installing, using, or
 removing the plugin does not change how a project's context files work.
 
+Task-scoped lifecycle skills do not rely on that import chain expanding automatically. They
+resolve the task's execution repository first, run the bundled deterministic
+[project bootstrap](docs/project-bootstrap.md), require that checkout's `HEAD` to match the
+expected task or PR revision, read its context/config files, load every doctrine rule, select
+gotcha rules from declared path/objective/DoD triggers, and record the exact execution revision
+and `Rules loaded:` list in lifecycle artifacts.
+
 ## Skills
 
 | Skill | Job |

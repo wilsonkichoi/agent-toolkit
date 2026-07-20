@@ -123,7 +123,7 @@ and retro stores learnings through that system's MCP tools instead:
 
 | `memory_target` | System | Storage | Recall path | Tradeoff vs files |
 |---|---|---|---|---|
-| `files` (default) | plain markdown | `rules_dir` (default `.agent-toolkit/rules/`) | context-file reference line loads `dev.md` + its rule imports each session | in git, zero latency, project-scoped only |
+| `files` (default) | plain markdown | `rules_dir` (default `.agent-toolkit/rules/`) | task-scoped lifecycle skills run the deterministic project bootstrap against the execution repository; harness import expansion is optional | in git, zero latency, project-scoped only |
 | `mem0` | Mem0 managed API | Mem0 cloud | Mem0 plugin injection / MCP search | cross-tool + cross-machine; data off-machine; managed service |
 | `openbrain` | OB1 / OpenBrain | self-owned Supabase pgvector | MCP search from any connected tool | cross-tool, self-owned; setup cost, query latency |
 | `memsearch` | MemSearch (Zilliz) | local markdown + Milvus shadow index | hook-injected semantic matches per prompt | local + cross-CLI-tool; machine-local only |
@@ -168,6 +168,10 @@ pass:
    optional; registering them is not.
 4. Register every rule file as an import line in the `## Rules` section of
    `.agent-toolkit/dev.md`.
+   Add `tier: doctrine` frontmatter for an always-applicable rule, or `tier: gotcha` plus
+   deterministic `paths`, `objective`, and/or `definition_of_done` triggers. Legacy terminal
+   rules without metadata load as doctrine until retro next updates them. See
+   [project-bootstrap.md](project-bootstrap.md).
 5. Ensure the configured `context_file` carries the single reference line
    (`@.agent-toolkit/dev.md`). Rules previously consolidated into `AGENTS.md` may stay
    there (the project owns that file and its content) or move back out to `rules_dir`

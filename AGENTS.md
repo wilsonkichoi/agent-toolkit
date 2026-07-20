@@ -62,6 +62,12 @@ harnesses (Claude Code: Agent tool; Codex: `spawn_agent`/`wait_agent` with `agen
 selecting a copied agent TOML, default nesting depth 1) - express orchestration as
 "dispatch and wait", not in one harness's parameters.
 
+Task-scoped lifecycle skills share `plugins/dev/docs/project-bootstrap.md`. Do not duplicate its
+execution-repository or rule-selection algorithm inside individual skills. Promoted rule files
+use `tier: doctrine` for unconditional loading or `tier: gotcha` with deterministic `paths`,
+`objective`, and/or `definition_of_done` triggers. Codex correctness must not depend on `@`
+import expansion.
+
 ## Repository tools
 
 Agent Markdown files under `plugins/*/agents/` are authoritative. Regenerate both the
