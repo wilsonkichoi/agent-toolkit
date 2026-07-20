@@ -81,6 +81,10 @@ Primary-GitHub lifecycle routing binds execute work summaries to the PR author, 
 commit ancestry before review or verification uses their queue classification. Planned reviews
 start only after the canonical issue verifies exactly `status:in-review`.
 
+Manual `dev:review-pr` commands are one-pass actions. Review mode posts one verdict and stops;
+fix mode applies one current findings batch, pushes and replies, records the need for re-review,
+and stops. Only `dev:auto` chains review and fix actions, bounded by `max_fix_attempts`.
+
 For planned GitHub tasks, `dev:execute` validates and verifies each non-terminal `status:*`
 transition against the canonical issue. Missing or malformed queue labels stop execution instead
 of silently routing planned work as an external contribution.

@@ -1,7 +1,7 @@
 {
   "name": "dev",
   "description": "AI-assisted product development lifecycle with tracker-backed task packets, PR-native execution, deterministic rule loading, and verified GitHub lifecycle transitions.",
-  "version": "0.0.57",
+  "version": "0.0.58",
   "author": { "name": "Wilson Choi" },
   "repository": "https://github.com/wilsonkichoi/agent-toolkit"
 }

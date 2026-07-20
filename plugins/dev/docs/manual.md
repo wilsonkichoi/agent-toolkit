@@ -129,6 +129,22 @@ which branches from `main`).
 | Rule promotion | `retro` | Learnings written to the configured `rules_dir` and registered in `dev.md` (legacy safety-net fallback when both memory fields are absent: `.claude/rules/` / CLAUDE.md) |
 | `Backlog → Todo`, `Wont Do` | `backlog` | Task enters or leaves the committed queue |
 
+## Manual review action boundaries
+
+Manual `dev:review-pr` commands preserve one action per user command:
+
+- `dev:review-pr <pr>` gathers the current evidence, posts one verdict, records it on the
+  tracker when applicable, and stops. A `request-changes` verdict reports
+  `dev:review-pr <pr> fix` as the next manual command; it does not start fix mode.
+- `dev:review-pr <pr> fix` snapshots the currently recorded findings, applies that one batch,
+  runs tests, pushes, replies per finding, requests re-review when GitHub accepts an eligible
+  reviewer, and stops. In a solo repository, it records that re-review is needed and reports
+  that a fresh manual `dev:review-pr <pr>` command is required. It does not execute that
+  command, review the pushed commit, or begin another fix pass.
+- `dev:auto` is the only workflow that automatically dispatches a fresh review after a fix and
+  another fix after a new `request-changes` verdict. Its loop stops after
+  `max_fix_attempts`.
+
 ## Unattended operation
 
 `/loop /dev:execute` is Claude-Code-specific: it needs the `/loop` primitive (an outer
