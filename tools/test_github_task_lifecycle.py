@@ -36,18 +36,20 @@ arguments = sys.argv[1:]
 with calls_path.open("a", encoding="utf-8") as calls_file:
     calls_file.write(json.dumps(arguments) + "\n")
 
-if len(arguments) < 2 or arguments[0] != "issue":
+if len(arguments) >= 2 and arguments[0] == "issue":
+    operation = arguments[1]
+elif arguments[:2] == ["auth", "status"]:
+    operation = "auth-status"
+else:
     print(f"unexpected gh invocation: {arguments!r}", file=sys.stderr)
     raise SystemExit(97)
-
-operation = arguments[1]
 scenario = json.loads(scenario_path.read_text(encoding="utf-8"))
 responses = scenario.get("responses", {}).get(operation, [])
 indexes = scenario.setdefault("indexes", {})
 index = indexes.get(operation, 0)
 if index >= len(responses):
     print(
-        f"unexpected gh issue {operation} invocation #{index + 1}: {arguments!r}",
+        f"unexpected gh {operation} invocation #{index + 1}: {arguments!r}",
         file=sys.stderr,
     )
     raise SystemExit(98)
@@ -90,7 +92,7 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
 
     def response(
         self,
-        stdout: dict[str, Any] | None = None,
+        stdout: Any = None,
         *,
         returncode: int = 0,
         stderr: str = "",
@@ -122,6 +124,7 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
         views: tuple[dict[str, Any], ...] = (),
         edits: tuple[dict[str, Any], ...] = (),
         comments: tuple[dict[str, Any], ...] = (),
+        auth_statuses: tuple[dict[str, Any], ...] = (),
         issue_number: int = 10,
     ) -> subprocess.CompletedProcess[str]:
         scenario = {
@@ -129,6 +132,7 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
                 "view": list(views),
                 "edit": list(edits),
                 "comment": list(comments),
+                "auth-status": list(auth_statuses),
             },
             "indexes": {},
         }
@@ -182,6 +186,11 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
     def assert_explicit_repository(self, calls: list[list[str]]) -> None:
         self.assertTrue(calls, "expected at least one gh call")
         for call in calls:
+            if call[:2] == ["auth", "status"]:
+                self.assertEqual(
+                    self.option_values(call, "--hostname"), ["github.com"]
+                )
+                continue
             self.assertEqual(call[:1], ["issue"])
             self.assertEqual(
                 self.option_values(call, "--repo"),
@@ -281,13 +290,22 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
                 ),
             ),
             edits=(self.response(),),
+            auth_statuses=(self.response("test-user\n"),),
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.gh_calls()
-        self.assertEqual([call[1] for call in calls], ["view", "edit", "view"])
+        self.assertEqual(
+            [call[:2] for call in calls],
+            [
+                ["issue", "view"],
+                ["auth", "status"],
+                ["issue", "edit"],
+                ["issue", "view"],
+            ],
+        )
         self.assert_explicit_repository(calls)
-        edit = calls[1]
+        edit = calls[2]
         self.assert_issue_operation(edit, "edit")
         self.assertEqual(self.option_values(edit, "--remove-label"), ["status:todo"])
         self.assertEqual(
@@ -295,7 +313,7 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
         )
         self.assertEqual(self.option_values(edit, "--add-assignee"), ["@me"])
         self.assertEqual(
-            {"state", "labels", "assignees"} - self.json_fields(calls[2]), set()
+            {"state", "labels", "assignees"} - self.json_fields(calls[3]), set()
         )
 
     def test_claim_stops_when_edit_fails(self) -> None:
@@ -303,11 +321,56 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
             "claim",
             views=(self.response(self.issue("status:todo")),),
             edits=(self.response(returncode=43, stderr="claim edit denied"),),
+            auth_statuses=(self.response("test-user\n"),),
         )
 
         self.assert_failure_contains(result, "claim edit denied")
         calls = self.gh_calls()
-        self.assertEqual([call[1] for call in calls], ["view", "edit"])
+        self.assertEqual(
+            [call[:2] for call in calls],
+            [["issue", "view"], ["auth", "status"], ["issue", "edit"]],
+        )
+        self.assert_explicit_repository(calls)
+
+    def test_claim_stops_when_authenticated_login_is_empty(self) -> None:
+        result = self.lifecycle_process(
+            "claim",
+            views=(self.response(self.issue("status:todo")),),
+            auth_statuses=(self.response(),),
+        )
+
+        self.assert_failure_contains(result, "empty login")
+        calls = self.gh_calls()
+        self.assertEqual(
+            [call[:2] for call in calls],
+            [["issue", "view"], ["auth", "status"]],
+        )
+        self.assert_explicit_repository(calls)
+
+    def test_claim_rejects_an_existing_different_assignee(self) -> None:
+        result = self.lifecycle_process(
+            "claim",
+            views=(
+                self.response(self.issue("status:todo", assignees=("other-user",))),
+                self.response(
+                    self.issue("status:in-progress", assignees=("other-user",))
+                ),
+            ),
+            edits=(self.response(),),
+            auth_statuses=(self.response("test-user\n"),),
+        )
+
+        self.assert_failure_contains(result, "test-user")
+        calls = self.gh_calls()
+        self.assertEqual(
+            [call[:2] for call in calls],
+            [
+                ["issue", "view"],
+                ["auth", "status"],
+                ["issue", "edit"],
+                ["issue", "view"],
+            ],
+        )
         self.assert_explicit_repository(calls)
 
     def test_claim_rejects_incorrect_post_write_state(self) -> None:
@@ -324,13 +387,20 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
                         self.response(post_write),
                     ),
                     edits=(self.response(),),
+                    auth_statuses=(self.response("test-user\n"),),
                 )
 
                 self.assertNotEqual(result.returncode, 0, result.stdout)
                 self.assertTrue(result.stderr.strip(), "failure must be actionable")
                 calls = self.gh_calls()
                 self.assertEqual(
-                    [call[1] for call in calls], ["view", "edit", "view"]
+                    [call[:2] for call in calls],
+                    [
+                        ["issue", "view"],
+                        ["auth", "status"],
+                        ["issue", "edit"],
+                        ["issue", "view"],
+                    ],
                 )
                 self.assert_explicit_repository(calls)
 
@@ -427,6 +497,10 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
             "status:blocked",
             comments=(diagnostic,),
         )
+        comment_write = self.issue(
+            "status:in-progress",
+            comments=(diagnostic,),
+        )
         result = self.lifecycle_process(
             "block",
             "--from-status",
@@ -435,7 +509,8 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
             str(diagnostic_path),
             views=(
                 self.response(self.issue("status:in-progress")),
-                self.response(post_write),
+                self.response(self.issue("status:in-progress")),
+                self.response(comment_write),
                 self.response(post_write),
             ),
             edits=(self.response(),),
@@ -445,12 +520,13 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.gh_calls()
         operations = [call[1] for call in calls]
-        self.assertEqual(operations[:3], ["view", "edit", "comment"])
-        self.assertIn(len(operations), (4, 5))
-        self.assertTrue(all(operation == "view" for operation in operations[3:]))
+        self.assertEqual(
+            operations,
+            ["view", "view", "comment", "view", "edit", "view"],
+        )
         self.assert_explicit_repository(calls)
 
-        edit = calls[1]
+        edit = calls[4]
         self.assertEqual(
             self.option_values(edit, "--remove-label"), ["status:in-progress"]
         )
@@ -468,7 +544,7 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
             self.assertEqual(bodies, [diagnostic])
 
         reread_fields = set().union(
-            *(self.json_fields(call) for call in calls[3:])
+            *(self.json_fields(call) for call in calls if call[1] == "view")
         )
         self.assertEqual(
             {"state", "labels", "comments"} - reread_fields,
@@ -501,11 +577,13 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
 
         self.assert_failure_contains(result, "comment")
         calls = self.gh_calls()
-        self.assertEqual([call[1] for call in calls[:3]], ["view", "edit", "comment"])
-        self.assertTrue(any(call[1] == "view" for call in calls[3:]))
+        self.assertEqual(
+            [call[1] for call in calls],
+            ["view", "view", "comment", "view"],
+        )
         self.assert_explicit_repository(calls)
 
-    def test_block_stops_when_comment_mutation_fails(self) -> None:
+    def test_block_comment_failure_does_not_set_blocked_status(self) -> None:
         diagnostic_path = Path(self.temporary_directory.name) / "diagnostic.md"
         diagnostic_path.write_text("Blocked diagnostic\n", encoding="utf-8")
         result = self.lifecycle_process(
@@ -514,8 +592,10 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
             "status:in-progress",
             "--comment-file",
             str(diagnostic_path),
-            views=(self.response(self.issue("status:in-progress")),),
-            edits=(self.response(),),
+            views=(
+                self.response(self.issue("status:in-progress")),
+                self.response(self.issue("status:in-progress")),
+            ),
             comments=(
                 self.response(returncode=44, stderr="diagnostic comment denied"),
             ),
@@ -523,7 +603,69 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
 
         self.assert_failure_contains(result, "diagnostic comment denied")
         calls = self.gh_calls()
-        self.assertEqual([call[1] for call in calls], ["view", "edit", "comment"])
+        self.assertEqual([call[1] for call in calls], ["view", "view", "comment"])
+        self.assertNotIn("edit", [call[1] for call in calls])
+        self.assert_explicit_repository(calls)
+
+    def test_block_retry_repairs_blocked_status_without_diagnostic(self) -> None:
+        diagnostic = "Blocked diagnostic\n"
+        diagnostic_path = Path(self.temporary_directory.name) / "diagnostic.md"
+        diagnostic_path.write_text(diagnostic, encoding="utf-8")
+        repaired = self.issue("status:blocked", comments=(diagnostic,))
+        result = self.lifecycle_process(
+            "block",
+            "--from-status",
+            "status:in-progress",
+            "--comment-file",
+            str(diagnostic_path),
+            views=(
+                self.response(self.issue("status:blocked")),
+                self.response(self.issue("status:blocked")),
+                self.response(repaired),
+                self.response(repaired),
+            ),
+            comments=(self.response(),),
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.gh_calls()
+        self.assertEqual(
+            [call[1] for call in calls],
+            ["view", "view", "comment", "view", "view"],
+        )
+        self.assertNotIn("edit", [call[1] for call in calls])
+        self.assert_explicit_repository(calls)
+
+    def test_block_retry_reuses_diagnostic_after_status_edit_failure(self) -> None:
+        diagnostic = "Blocked diagnostic\n"
+        diagnostic_path = Path(self.temporary_directory.name) / "diagnostic.md"
+        diagnostic_path.write_text(diagnostic, encoding="utf-8")
+        with_diagnostic = self.issue(
+            "status:in-progress",
+            comments=(diagnostic,),
+        )
+        blocked = self.issue("status:blocked", comments=(diagnostic,))
+        result = self.lifecycle_process(
+            "block",
+            "--from-status",
+            "status:in-progress",
+            "--comment-file",
+            str(diagnostic_path),
+            views=(
+                self.response(with_diagnostic),
+                self.response(with_diagnostic),
+                self.response(blocked),
+            ),
+            edits=(self.response(),),
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.gh_calls()
+        self.assertEqual(
+            [call[1] for call in calls],
+            ["view", "view", "edit", "view"],
+        )
+        self.assertNotIn("comment", [call[1] for call in calls])
         self.assert_explicit_repository(calls)
 
 

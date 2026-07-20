@@ -202,12 +202,15 @@ read fails.
 
 Before claim, `validate-todo` requires exactly `status:todo` without mutation. Claim uses
 `claim`, which repeats that precondition, changes `status:todo` to `status:in-progress` and adds
-`@me` in one `gh issue edit`, then re-reads the canonical issue and verifies the label and
-assignee. Routine transitions use `transition --from-status <current> --to-status <target>`;
+`@me` in one `gh issue edit`, then re-reads the canonical issue and verifies the label and the
+authenticated user's assignment. Routine transitions use `transition --from-status <current>
+--to-status <target>`;
 the command validates the current label, performs one remove/add edit, then re-reads and requires
 exactly the target label. Exhausted execution attempts use `block --from-status <current>
---comment-file <path>`; it transitions to `status:blocked`, posts the diagnostic comment, and
-re-reads both the issue and comments to verify both records.
+--comment-file <path>`; it ensures the exact diagnostic comment exists before transitioning to
+`status:blocked`, then re-reads the issue to verify the resulting label. Retrying repairs either
+partial state without duplicating the comment: a diagnostic posted before a failed label edit, or
+a `status:blocked` label left without its diagnostic by an interrupted older invocation.
 
 No caller may treat a successful `gh issue edit` or `gh issue comment` exit code as proof that a
 transition completed. The helper's successful verification result is the gate before isolation,

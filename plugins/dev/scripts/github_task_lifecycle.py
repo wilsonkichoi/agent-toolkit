@@ -131,6 +131,25 @@ def read_issue(repo: str, issue: int) -> IssueSnapshot:
     )
 
 
+def authenticated_login() -> str:
+    login = run_gh(
+        (
+            "auth",
+            "status",
+            "--active",
+            "--hostname",
+            "github.com",
+            "--json",
+            "hosts",
+            "--jq",
+            '.hosts["github.com"][] | select(.active) | .login',
+        )
+    ).strip()
+    if not login:
+        fail("GitHub authenticated-user lookup returned an empty login")
+    return login
+
+
 def require_status(
     snapshot: IssueSnapshot,
     expected: str,
@@ -189,6 +208,7 @@ def validate_todo(repo: str, issue: int) -> None:
 
 def claim(repo: str, issue: int) -> None:
     require_status(read_issue(repo, issue), "status:todo", repo, issue)
+    claimant = authenticated_login()
     edit_status(
         repo,
         issue,
@@ -197,10 +217,11 @@ def claim(repo: str, issue: int) -> None:
         assign=True,
     )
     snapshot = verify_transition(repo, issue, "status:in-progress")
-    if not snapshot.assignees:
+    if claimant not in snapshot.assignees:
         fail(
             f"claim verification failed for planned task #{issue} in {repo}: "
-            "status:in-progress is present but the issue has no assignee"
+            f"status:in-progress is present but authenticated user {claimant!r} "
+            f"is not assigned; found assignees: {', '.join(snapshot.assignees) or 'none'}"
         )
     print_result(repo, issue, "status:in-progress", assignees=snapshot.assignees)
 
@@ -251,25 +272,42 @@ def block(repo: str, issue: int, from_status: str, comment_file: Path) -> None:
     if not diagnostic.strip():
         fail(f"diagnostic comment file {comment_file} is empty")
 
-    require_status(read_issue(repo, issue), from_status, repo, issue)
-    edit_status(repo, issue, from_status, "status:blocked")
-    run_gh(
-        (
-            "issue",
-            "comment",
-            str(issue),
-            "--repo",
-            repo,
-            "--body-file",
-            str(comment_file),
-        )
-    )
-    verify_transition(repo, issue, "status:blocked")
-    if diagnostic not in read_comment_bodies(repo, issue):
+    snapshot = read_issue(repo, issue)
+    if snapshot.state != "OPEN":
         fail(
-            f"blocked verification failed for planned task #{issue} in {repo}: "
-            "the exact diagnostic comment was not found after posting"
+            f"planned task #{issue} in {repo} must be open; "
+            f"GitHub returned state {snapshot.state!r}"
         )
+    actual = snapshot.lifecycle_labels
+    if actual not in ((from_status,), ("status:blocked",)):
+        rendered = ", ".join(actual) if actual else "none"
+        fail(
+            f"planned task #{issue} in {repo} requires exactly {from_status!r} "
+            f"or a partially completed 'status:blocked' retry; "
+            f"found lifecycle labels: {rendered}"
+        )
+
+    if diagnostic not in read_comment_bodies(repo, issue):
+        run_gh(
+            (
+                "issue",
+                "comment",
+                str(issue),
+                "--repo",
+                repo,
+                "--body-file",
+                str(comment_file),
+            )
+        )
+        if diagnostic not in read_comment_bodies(repo, issue):
+            fail(
+                f"blocked verification failed for planned task #{issue} in {repo}: "
+                "the exact diagnostic comment was not found after posting"
+            )
+
+    if actual == (from_status,):
+        edit_status(repo, issue, from_status, "status:blocked")
+    verify_transition(repo, issue, "status:blocked")
     print_result(repo, issue, "status:blocked", diagnostic_comment=True)
 
 
