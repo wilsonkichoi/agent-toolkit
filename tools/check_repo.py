@@ -502,7 +502,7 @@ def check_manual_review_pr_one_pass_contract() -> None:
 
     executable_chain = re.compile(
         r"\b(?:run|re-run|rerun|invoke(?:s)?|execute(?:s)?|start(?:s)?|begin(?:s)?|"
-        r"perform(?:s)?|repeat(?:s)?|continue(?:s)?)\s+"
+        r"perform(?:s)?|repeat(?:s)?|continue(?:s)?|dispatch(?:es)?)\s+"
         r"(?:a\s+|an\s+|the\s+|another\s+|next\s+|new\s+|fresh\s+|second\s+|manual\s+)*"
         r"(?:dev:review-pr\b|(?:fresh|new|next|another|second)\s+review(?:\s+pass)?\b|"
         r"(?:another|next|second)\s+fix\s+(?:pass|cycle)\b|fix\s+(?:loop|cycle)\b)"
