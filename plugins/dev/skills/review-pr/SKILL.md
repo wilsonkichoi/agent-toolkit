@@ -30,6 +30,19 @@ review, and REST API target are all `github_primary_repo`; every `gh pr`, `gh is
 `repos/$github_primary_repo/`. Fixes push to the contributor branch on `origin`, never to
 `upstream`. Existing non-opt-in routing remains unchanged.
 
+Resolve queue classification from the latest `dev:execute` work summary before choosing the
+planned-task or no-planned-queue path. `Queue classification: planned` is authoritative even when
+the issue's current `status:*` label is missing or malformed; report that as an execute lifecycle
+failure and stop instead of silently treating the task as an external contribution. Likewise,
+`external` and `secondary` records do not acquire queue state from incidental labels. For legacy
+records without the field, use the configured backend, invocation shape, and linked task packet;
+never use a missing lifecycle label alone to infer external work.
+
+Routine lifecycle transitions are not review operations. `dev:review-pr` preserves the task's
+existing queue state and never sets `status:in-progress`, `status:in-review`, or `status:blocked`
+to compensate for a failed or omitted execute transition. Return the failure to `dev:execute` or
+the orchestrating `dev:auto` flow.
+
 After the minimal task/PR fetch needed to identify the execution repository, follow
 `docs/project-bootstrap.md` before gathering the diff, spec, CI, or review evidence. Pass every
 changed path from the PR or branch diff to the resolver, then read every reported project
@@ -44,7 +57,9 @@ with fresh context, never a fork/copy of this session's history), passing the PR
 task id, and the packet + work-summary
 *text fetched verbatim from the tracker* - the agent works from the local repo + `gh` only
 and has no tracker access, so on Linear/custom backends it cannot self-fetch them - pass the
-packet text verbatim. The dispatch message must also embed the review contract itself,
+packet text verbatim. Pass the work summary's exact `Queue classification:` value as an
+authoritative routing fact; the agent must not re-infer it from current labels. The dispatch
+message must also embed the review contract itself,
 because the agent cannot reliably read this skill's file on every harness: the step 3 body
 format verbatim, the solo-repo `gh pr review --comment` fallback, and the requirement to
 fill `Commit:` with the current PR HEAD. In active fork routing, also pass the resolved

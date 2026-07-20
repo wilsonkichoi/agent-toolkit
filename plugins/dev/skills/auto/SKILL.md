@@ -114,8 +114,11 @@ orchestrator holds the implementer's report, so it is not independent.
 
 - **Task id:** run `get-task`, then apply `dev:execute` step 1's targeted-task contract:
   require `Todo`, all dependencies `Done`, WIP below `work_in_progress_limit`, a valid packet,
-  and a successful race-guarded claim. Refuse and report the exact failed gate; unattended
-  auto never overrides eligibility. Run only this task and stop after its record-only retro.
+  and a successful race-guarded claim. For a primary-GitHub numeric id, this includes the shared
+  verified `validate-todo` and `claim` commands from `tracker.md`; missing or malformed lifecycle
+  labels never reroute the task to external contribution handling. Refuse and report the exact
+  failed gate; unattended auto never overrides eligibility. Run only this task and stop after its
+  record-only retro.
   Never fall through to another task if the target is missing, ineligible, has an invalid
   packet, becomes `Blocked`, or otherwise stops. `max N tasks` is invalid with a task id.
 - **Milestone N:** restrict `next-task` to that milestone. Process eligible tasks sequentially
@@ -156,7 +159,10 @@ orchestrator holds the implementer's report, so it is not independent.
         to green, work summary, `In Review`.
 
    `max_fix_attempts` applies inside the implementation phase; a `Blocked` result stops
-   the pipeline.
+   the pipeline. Before review, require the execute work summary's `Queue classification:` record
+   and, for planned primary-GitHub work, re-read the canonical issue and require exactly
+   `status:in-review`. A missing record or failed handoff verification stops the pipeline; review
+   never repairs execute-owned state.
 3. **Review** - fresh `reviewer` agent, exactly as `dev:review-pr` delegation (the dispatch
    message embeds the packet + work-summary text verbatim, the review body format, the
    solo-repo `--comment` fallback, and the current-HEAD `Commit:` requirement), dispatched

@@ -183,6 +183,37 @@ Uses the `gh` CLI. No MCP required.
 `status:*` label, add new one, in that order, single `gh issue edit` call:
 `gh issue edit <n> --remove-label status:todo --add-label status:in-progress`.
 
+### Verified planned-task lifecycle writes
+
+For a primary-GitHub tracker, an explicit issue id is a planned-queue task when the
+authenticated user has upstream write permission. It does not become an external contribution
+because its lifecycle label is missing or malformed. A maintainer selects the external path only
+with the explicit `external #<n>` argument. A read-only contributor in active fork routing still
+uses the external path automatically because that user cannot mutate the maintainer queue.
+
+Every planned-task lifecycle read and write uses the bundled
+`scripts/github_task_lifecycle.py` command. On Claude Code it is under
+`${CLAUDE_PLUGIN_ROOT}/scripts/`; on Codex it is `../../scripts/github_task_lifecycle.py`
+relative to a dev skill's `SKILL.md`. The command targets `--repo <canonical-repository>`
+explicitly. In fork routing that value is `github_primary_repo`; in existing same-repository mode
+it is the resolved GitHub remote repository. The command rejects a closed issue or anything other
+than exactly one expected `status:*` label, and exits nonzero when the GitHub call or verification
+read fails.
+
+Before claim, `validate-todo` requires exactly `status:todo` without mutation. Claim uses
+`claim`, which repeats that precondition, changes `status:todo` to `status:in-progress` and adds
+`@me` in one `gh issue edit`, then re-reads the canonical issue and verifies the label and
+assignee. Routine transitions use `transition --from-status <current> --to-status <target>`;
+the command validates the current label, performs one remove/add edit, then re-reads and requires
+exactly the target label. Exhausted execution attempts use `block --from-status <current>
+--comment-file <path>`; it transitions to `status:blocked`, posts the diagnostic comment, and
+re-reads both the issue and comments to verify both records.
+
+No caller may treat a successful `gh issue edit` or `gh issue comment` exit code as proof that a
+transition completed. The helper's successful verification result is the gate before isolation,
+handoff, or a blocked stop. Failed verification is a lifecycle failure, not a reason for
+`dev:review-pr` or `dev:verify` to repair labels they do not own.
+
 **Terminal transitions strip the label.** For `Done` and `Wont Do` the closed state IS the
 status, so the invariant is: a closed issue carries no `status:*` label. A merged PR's
 `Closes #N` auto-closes the issue but does not touch labels - whoever performs the terminal

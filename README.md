@@ -77,6 +77,10 @@ The `dev` plugin's task-scoped lifecycle resolves project instructions and tiere
 task's execution repository with a bundled resolver. Codex does not depend on Claude Code's
 `@` import expansion, including for cross-repository tasks.
 
+For planned GitHub tasks, `dev:execute` validates and verifies each non-terminal `status:*`
+transition against the canonical issue. Missing or malformed queue labels stop execution instead
+of silently routing planned work as an external contribution.
+
 ## Project development
 
 Contributions use the standard GitHub fork and cross-repository pull-request workflow. The
