@@ -306,6 +306,29 @@ direction), and a plugin that rewrites them collides with the project. The gener
   `.claude/dev.md`; both-fields-absent configs keep the pre-port `.claude/rules/` +
   CLAUDE.md safety net. Consumer migration guide: `docs/adoption.md` §6.
 
+## Deterministic execution-repository bootstrap (dev 0.0.56, 2026-07-19)
+
+The encapsulated config import chain was not an execution contract. Claude Code can expand
+explicit `@` references, but Codex does not recursively expand arbitrary markdown imports, and a
+task can be tracked in one repository while its code and project rules live in another. Reading
+the tracker repository's `AGENTS.md` or stopping at a rule index therefore produced silent rule
+omissions.
+
+Task-scoped lifecycle skills now share `docs/project-bootstrap.md` and the dependency-free
+`scripts/resolve_project_rules.py` resolver. The sequence intentionally has two phases: read the
+tracker config only far enough to fetch the packet and resolve repository roles, then resolve the
+packet's execution repository and load that repository's context file, dev config, and applicable
+rules before implementation or evidence gathering. Execute refreshes after the diff exists;
+review, verify, auto, and retro begin with the known changed paths. Delegated agents receive exact
+resolved paths and read the files themselves instead of re-inferring context.
+
+Rule files have two tiers. `doctrine` is unconditional. `gotcha` requires at least one
+machine-readable path glob, Objective substring, or Definition of Done substring and loads when
+any trigger matches. Recursive rule indexes are resolved by the script with cycle and repository
+escape checks, so Codex never depends on Claude-specific import expansion. Metadata-free terminal
+rules remain doctrine for backward compatibility. Lifecycle artifacts include the execution
+repository and exact `Rules loaded:` list, making omissions auditable.
+
 ## Primary GitHub fork contribution routing
 
 Fork contribution support is an additive repository-resolution capability for projects whose

@@ -123,7 +123,8 @@ Project conventions the fields cannot capture go here as free text.
 
 ## Rules
 
-<!-- managed by dev:retro: one `@.agent-toolkit/rules/<slug>.md` import line per promoted rule -->
+<!-- managed by dev:retro: one `@.agent-toolkit/rules/<slug>.md` import line per promoted rule;
+     rule tier/trigger frontmatter follows docs/project-bootstrap.md -->
 ```
 
 When Q6 enables fork contributions, add both fields below. Do not add either field when the
@@ -147,6 +148,11 @@ the project's choice, and never migrate rule files between locations uninvited. 
 `rules_dir` and `context_file` are absent (legacy or hand-written configs), skills fall
 back to `.claude/rules/` + `CLAUDE.md` as a safety net - not a recommended config; run
 `dev:setup` to write explicit fields.
+
+Task-scoped lifecycle skills resolve this configuration from the task's execution repository,
+not blindly from the tracker repository. They use `docs/project-bootstrap.md` and the bundled
+`scripts/resolve_project_rules.py` resolver to load the context file, this dev configuration,
+all doctrine rules, and only gotcha rules whose declared triggers match.
 
 Add Linear fields (`linear_team`, `linear_project`) when applicable. When the user opted into
 a secondary GitHub intake channel (interview Q5), add `secondary_intake: github`,

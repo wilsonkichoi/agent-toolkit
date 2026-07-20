@@ -23,14 +23,21 @@ for it.
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
-Read first: `.agent-toolkit/dev.md` (config; legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
-`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
+Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
+`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md`, and the
+plugin's `docs/project-bootstrap.md`. On Claude Code these plugin docs are under
+`${CLAUDE_PLUGIN_ROOT}/docs/`; equivalently they are under `../../docs/` relative to this
 skill's directory.
 
 Before any repository or tracker call, resolve repository context once using `tracker.md`
 "GitHub repository resolution". In active fork routing, every PR, issue, CI, review, and REST
 call explicitly targets `github_primary_repo`. Preserve the resolved upstream permission and
 whether the PR head belongs to a fork; those facts control the merge boundary and branch cleanup.
+
+After the minimal task/PR fetch needed to identify the execution repository, follow
+`docs/project-bootstrap.md` before checking preconditions or gathering evidence. Pass every
+changed path from the PR or branch diff to the resolver and read every reported project
+instruction and loaded rule.
 
 ## Independence rule
 
@@ -61,8 +68,9 @@ to, the calling session also posts the task-comment copy of the report the agent
 
 In active fork routing, the dispatch also includes `github_primary_repo`, the linked issue
 number if any, the current PR HEAD SHA, and the requirement that every GitHub call target the
-canonical repository explicitly. The verifier receives no merge or terminal-transition
-authority.
+canonical repository explicitly. It also includes the resolved execution repository, changed
+paths, and exact project-instruction / loaded-rule paths from the bootstrap; the verifier reads
+those files itself. The verifier receives no merge or terminal-transition authority.
 
 ## 1. Preconditions
 
@@ -156,6 +164,8 @@ Post the verification report as a PR comment and a task comment:
 ## dev:verify - <task-id>
 Commit: <PR HEAD SHA>
 Merge authorization: required
+Execution repository: <resolved repository>
+Rules loaded: <exact resolver paths, or "none">
 Result: <n>/<total> criteria met
 
 | # | Criterion | Evidence | Met |

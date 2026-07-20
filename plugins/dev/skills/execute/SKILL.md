@@ -16,9 +16,12 @@ Merging is `dev:verify`'s job; never merge, even if asked mid-run - point at `de
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
-Read first: `.agent-toolkit/dev.md` (config; legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` (tracker verbs,
-backend mapping, next-task algorithm) — on Claude Code `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`,
-equivalently `../../docs/tracker.md` relative to this skill's directory.
+Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
+`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md` (tracker
+verbs, backend mapping, next-task algorithm), and the plugin's
+`docs/project-bootstrap.md` (execution-repository instructions and deterministic rule loading).
+On Claude Code these plugin docs are under `${CLAUDE_PLUGIN_ROOT}/docs/`; equivalently they are
+under `../../docs/` relative to this skill's directory.
 
 Before any repository or tracker call, resolve the repository context once using
 `tracker.md` "GitHub repository resolution". Carry the canonical issue/PR repository, base
@@ -51,6 +54,12 @@ implement:
 - Interactive: ask the user to confirm the drafted packet, then proceed.
 - Unattended: release the claim (transition back to `Todo`), comment why it was skipped, and
   claim the next valid task instead.
+
+After fetching and validating the packet, follow `docs/project-bootstrap.md` before the first
+claim or implementation write. Resolve the task's execution repository, run the rule resolver
+with Objective and Definition of Done, and read every reported project-instruction and loaded-rule
+file. The tracker config read for routing is not a substitute when the execution repository
+differs.
 
 **External fork contribution (`#N`, primary GitHub).** This is GitHub-native intake and audit,
 not a planned queue task. It requires active fork routing. Before any write:
@@ -136,8 +145,11 @@ The packet is the contract: read its inlined spec excerpts and follow the linked
 
 **Tests.** For non-trivial tasks, delegate test authoring to the `dev:test-writer` agent,
 giving it ONLY: the task packet, the spec excerpts, and the public interface (signatures,
-schemas, endpoints). Never show it the implementation diff - it tests the contract, not the
-code. Trivial tasks (config, docs, one-liners) may test inline. Run the full
+schemas, endpoints), plus the bootstrap's resolved execution repository and exact project
+instruction / loaded-rule paths. The agent reads those files itself. Never show it the
+implementation diff - it tests the contract, not the code. Trivial tasks (config, docs,
+one-liners) may test inline. After implementation, rerun the project bootstrap with every path
+from the branch diff, read any newly matched gotcha rules, and only then run the full
 `test_command` from `.agent-toolkit/dev.md`; everything passes before pushing.
 
 ## 4. PR
@@ -231,6 +243,8 @@ If no visual criteria exist in the DoD, skip to step 7.
    ```
    ## Work summary (dev:execute - <date>)
    - PR: <url>  Branch: task/<id>-<slug>
+   - Execution repository: <resolved repository>
+   - Rules loaded: <exact resolver paths, or "none">
    - Implemented: <1-2 sentences>
    - Key decisions: <non-trivial choices, or "none">
    - Obstacles: <what failed and how it was resolved, or "none">

@@ -73,6 +73,10 @@ Codex's default `agents.max_depth = 1` prevents nested subagent spawning. The `d
 therefore dispatches its implementation worker and `test-writer` as siblings. Standalone
 `dev:execute` dispatches `test-writer` directly from the root session.
 
+The `dev` plugin's task-scoped lifecycle resolves project instructions and tiered rules from the
+task's execution repository with a bundled resolver. Codex does not depend on Claude Code's
+`@` import expansion, including for cross-repository tasks.
+
 ## Project development
 
 Contributions use the standard GitHub fork and cross-repository pull-request workflow. The

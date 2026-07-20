@@ -39,7 +39,7 @@
       "name": "dev",
       "source": "./plugins/dev",
       "category": "development",
-      "description": "AI-assisted product development lifecycle: tracker-backed task packets (Linear, GitHub Issues, or local files) with PR-native execution via worktrees, CI, review, and verified merge.",
+      "description": "AI-assisted product development lifecycle with tracker-backed task packets, PR-native execution, and deterministic execution-repository rule loading.",
       "keywords": [
         "development",
         "workflow",
@@ -56,7 +56,7 @@
         "worktree",
         "agile"
       ],
-      "version": "0.0.55"
+      "version": "0.0.56"
     }
   ]
 }

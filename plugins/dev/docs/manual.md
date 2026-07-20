@@ -24,8 +24,9 @@ Four rules explain every skill's behavior:
    custom review files. `dev:execute` never merges; `dev:verify` is the only merger.
 4. **The memory loop is closed.** Execution produces evidence (PR threads, CI history,
    work-summary comments); `dev:retro` distills it; approved learnings land as rule files
-   under `rules_dir` (default `.agent-toolkit/rules/`), imported from `dev.md` and loaded
-   in every future session through the context file's reference line.
+   under `rules_dir` (default `.agent-toolkit/rules/`). Task-scoped lifecycle skills resolve
+   the execution repository and load those rules through the deterministic
+   [project bootstrap](project-bootstrap.md), independent of harness import expansion.
 
 ## Prerequisites
 
@@ -73,8 +74,8 @@ until its config file migrates.
 | `max_fix_attempts` | `3` | `execute`, `auto` | CI-fix or review-fix cycles before the task goes `Blocked` with a diagnostic comment |
 | `max_tasks_per_run` | `5` | `execute` loop mode, `auto` | Batch cap per unattended run |
 | `auto_merge` | `false` | `auto`, `verify` | Standing merge approval for `dev:auto`; see Unattended operation |
-| `rules_dir` | `.agent-toolkit/rules/` | `retro`, `status` | Directory of promoted rule files, one per rule, each registered as an import line in the `dev.md` `## Rules` section; point it at an existing convention (e.g. `.claude/rules/`) when the project already has one |
-| `context_file` | `AGENTS.md` | `setup`, `status` (legacy fallbacks: `retro`, `architect`) | Project-owned context file carrying the single `@.agent-toolkit/dev.md` reference line (`CLAUDE.md` on Claude-only projects); the plugin writes nothing else there |
+| `rules_dir` | `.agent-toolkit/rules/` | task-scoped lifecycle skills, `retro`, `status` | Directory of promoted rule files, one per rule, each registered from the dev config's `## Rules` section and selected by the project-bootstrap tier/trigger contract; point it at an existing convention (e.g. `.claude/rules/`) when the project already has one |
+| `context_file` | `AGENTS.md` | task-scoped lifecycle skills, `setup`, `status` | Project-owned context file loaded from the resolved execution repository; it carries the single `@.agent-toolkit/dev.md` reference line (`CLAUDE.md` on Claude-only projects), and the plugin writes nothing else there |
 | `memory_target` | `files` | `retro` | Where promotions land: the configured `rules_dir` files, or a memory MCP system (see adoption.md §5) |
 | `github_primary_repo` | - | every skill in fork-configured projects | Canonical `owner/repo` that owns primary GitHub issues and PRs; only valid with `tracker: github` and `fork_contributions: true` |
 | `fork_contributions` | `false` | every skill | Explicit project-owner opt-in to primary-GitHub fork routing; must be `true` with `github_primary_repo`, otherwise omit both fields |

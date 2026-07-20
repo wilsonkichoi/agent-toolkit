@@ -18,15 +18,26 @@ state; this skill's job is keeping the two consistent while requests arrive.
 Skill references like `dev:architect` mean this plugin's `architect` skill; when telling the
 user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`; Codex: `$architect`).
 
-Read first: `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md` (on Claude Code
-`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
-skill's directory), and skim `docs/PRD.md` and `docs/SPEC.md` headings; triage is impossible
-without knowing current intent.
+Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
+`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md`, and the
+plugin's `docs/project-bootstrap.md`. On Claude Code these plugin docs are under
+`${CLAUDE_PLUGIN_ROOT}/docs/`; equivalently they are under `../../docs/` relative to this
+skill's directory.
 
 Before any repository or tracker call, resolve the repository context once using
 `tracker.md` "GitHub repository resolution". In active fork routing, every issue read,
 creation, comment, edit, or close explicitly targets `github_primary_repo`. Do not substitute
 the secondary-intake `github_repo` field.
+
+For operations on an existing task (`#N`, `promote`, `wont-do`, `split`, or `triage`), fetch
+only enough task identity to resolve its execution repository, then follow
+`docs/project-bootstrap.md` before reading project intent or making a triage decision. Changed
+paths are empty unless a linked PR supplies them. Read every reported project instruction and
+loaded rule, and include the exact execution repository and `Rules loaded:` list in the triage
+diagnostic or task comment. New ticketless `add` requests have no execution repository yet and
+continue to use the current project's instructions. After that resolution, skim the applicable
+repository's `docs/PRD.md` and `docs/SPEC.md` headings; triage is impossible without knowing
+current intent.
 
 ## External contribution intake (`add <request>` in read-only fork mode)
 

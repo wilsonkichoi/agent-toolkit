@@ -21,8 +21,10 @@ use `dev:auto` to complete one named task or drain a milestone.
 Skill references like `dev:execute` mean this plugin's `execute` skill; when telling the user
 to run one, render your harness's invocation for it (Claude Code: `/dev:execute`; Codex: `$execute`).
 
-Read first: `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
-`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
+Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
+`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md`, and the
+plugin's `docs/project-bootstrap.md`. On Claude Code these plugin docs are under
+`${CLAUDE_PLUGIN_ROOT}/docs/`; equivalently they are under `../../docs/` relative to this
 skill's directory.
 
 Before any repository or tracker call, resolve repository context once using `tracker.md`
@@ -80,6 +82,13 @@ In active fork routing, every dispatch also carries the already-resolved canonic
 base remote, push remote, issue/PR identity, and upstream permission. Subagents must not infer
 repository roles again from their worktree.
 
+For each claimed task, fetch only enough packet/PR identity to resolve the execution repository,
+then follow `docs/project-bootstrap.md` before dispatch. Pass the resolved execution repository,
+changed paths when known, and exact project-instruction / loaded-rule paths to every worker and
+named agent; each child reads those files itself. Refresh the bootstrap after implementation or
+fix edits expose the complete changed-path list. Preserve the exact execution repository and
+`Rules loaded:` list in the work summary, review, verification report, and final task report.
+
 **Model discipline:** spawn every subagent with NO `model` parameter - the dev agents pin
 `model: inherit` and generic subagents inherit the session model by default, and an explicit
 `model` on the spawn call overrides both. Never pass a model alias to "match" the session
@@ -135,9 +144,10 @@ orchestrator holds the implementer's report, so it is not independent.
         PR yet. Its report must return the worktree path, branch, and the public interface
         (signatures, CLI surface, schemas) for the test-writer briefing.
      2. `test-writer` (named agent), briefed with ONLY the packet, spec excerpts, public
-        interface, worktree path, and `test_command` - never the implementation diff or
-        the worker's rationale. It writes and runs contract tests, reporting pass/fail
-        verbatim.
+        interface, worktree path, `test_command`, and the bootstrap's resolved project
+        instruction / loaded-rule paths - never the implementation diff or the worker's
+        rationale. It reads the supplied bootstrap files, writes and runs contract tests,
+        and reports pass/fail verbatim.
      3. Worker (fresh, given the worktree path and the test results) reconciles failures
         (code vs contract), runs the full `test_command`, then executes steps 4-7: PR, CI
         to green, work summary, `In Review`.

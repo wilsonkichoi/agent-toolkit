@@ -105,6 +105,10 @@ Flag, do not fix:
 - Unregistered rules: files exist in `rules_dir` that the `## Rules` section of
   `.agent-toolkit/dev.md` does not import → invisible to future sessions; suggest adding
   the missing import lines.
+- Invalid rule graph or metadata: run the plugin's `scripts/resolve_project_rules.py` with
+  empty task text and no changed paths. Import cycles, imports outside `rules_dir`, invalid
+  tiers, and trigger-free gotchas are configuration errors; report them. Unmatched gotchas
+  in `Rules skipped:` are healthy, not missing rules.
 - Legacy memory config: `context_file` set with no `rules_dir` (the 0.0.42-0.0.53 mixed
   config, rules consolidated inside the context file) → reads keep working, but `dev:retro`
   holds new promotions as proposals until the config migrates (no import chain exists for

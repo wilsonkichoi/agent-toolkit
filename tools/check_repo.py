@@ -389,6 +389,46 @@ def check_generator_drift() -> None:
         raise CheckFailure(f"generator --check failed:\n{details}")
 
 
+def check_project_rule_resolver() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools/test_resolve_project_rules.py")],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        details = "\n".join(
+            part.strip() for part in (result.stdout, result.stderr) if part.strip()
+        )
+        raise CheckFailure(f"project rule resolver tests failed:\n{details}")
+
+
+def check_project_bootstrap_adoption() -> None:
+    task_scoped_skills = (
+        "auto",
+        "backlog",
+        "execute",
+        "retro",
+        "review-pr",
+        "verify",
+    )
+    for name in task_scoped_skills:
+        path = ROOT / "plugins/dev/skills" / name / "SKILL.md"
+        content = path.read_text(encoding="utf-8")
+        for required in ("docs/project-bootstrap.md", "Rules loaded:"):
+            if required not in content:
+                raise fail(path, f"task-scoped skill must contain {required!r}")
+
+    for name in ("reviewer", "test-writer", "verifier"):
+        path = ROOT / "plugins/dev/agents" / f"{name}.md"
+        content = path.read_text(encoding="utf-8")
+        if "docs/project-bootstrap.md" not in content:
+            raise fail(
+                path, "delegated agent must require resolved project bootstrap context"
+            )
+
+
 CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("claude-import", check_claude_import),
     ("json-manifests", check_json_manifests),
@@ -396,6 +436,8 @@ CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("skill-frontmatter", check_skill_frontmatter),
     ("agent-sources-and-outputs", check_agent_sources_and_outputs),
     ("generator-drift", check_generator_drift),
+    ("project-rule-resolver", check_project_rule_resolver),
+    ("project-bootstrap-adoption", check_project_bootstrap_adoption),
 )
 
 
