@@ -98,7 +98,8 @@ prepare → execute → review → (fix → fresh review)[0..max_fix_attempts] �
      branches at the validated base and pushes them.
    - `shadow_replay.py create-shadow-issue --repo "$repo" --title "[SHADOW] <source title>"
      --body-file <file>` creates the isolated issue (labels `experiment:shadow`, created
-     idempotently), then re-reads and asserts no `status:*` label and no milestone.
+     idempotently), rejects `Blocked by #N` dependency declarations, then re-reads and asserts
+     no `status:*` label, milestone, or assignee.
    - Add the candidate worktree yourself: `git worktree add <path> shadow/<source-id>/<run-id>`
      (never harness worktree isolation - it creates an untracked branch no cleanup step knows
      about, exactly as `dev:execute` step 2 forbids).
@@ -115,9 +116,9 @@ not exist yet. Before review and every later stage, and before terminal cleanup,
 `--shadow-pr <m> --head-repo <push-repository>` so the same command also binds the PR's draft/open
 state, `do-not-merge` label, base branch, candidate branch, head repository, and `Refs` target.
 The source snapshot includes issue comments plus PR comments and reviews. Any drift (a required
-label disappears, a `status:*` label or milestone appears, an artifact closes early, the PR's
-base/head repository or branch changes, a closing keyword appears, the shadow-base ref moves, or
-a source artifact changes) stops the run.
+label disappears, a `status:*` label, milestone, assignee, or dependency declaration appears, an
+artifact closes early, the PR's base/head repository or branch changes, a closing keyword appears,
+the shadow-base ref moves, or a source artifact changes) stops the run.
 
 ### 2. Execute
 
@@ -165,9 +166,10 @@ unresolved findings in the report, do not verify.
 
 ### 5. Verify
 
-Before verifying, gate on `shadow_replay.py review-freshness --review-commit <approval sha>
---head <current candidate head>`: an approval whose commit is not the current head is stale
-(a fix push advanced the head after the review) and stops the run for a fresh review. Only
+Before verifying, gate on `shadow_replay.py review-freshness --repo "$repo" --shadow-pr <n>
+--review-commit <approval sha>`: the helper re-reads the current GitHub PR head, and an approval
+whose commit is not that head is stale (a fix push advanced the head after the review) and stops
+the run for a fresh review. Only
 after a fresh approval, dispatch a fresh `verifier` (or a generic worker carrying the verify
 contract, same rule as review) to gather evidence for every source Definition-of-Done
 criterion. The verifier exposes no merge path: `dev:shadow` never calls a merge command and

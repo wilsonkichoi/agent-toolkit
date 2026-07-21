@@ -43,10 +43,14 @@ STATUS_LABEL_PREFIX = "status:"
 SHADOW_LABEL = "experiment:shadow"
 DO_NOT_MERGE_LABEL = "do-not-merge"
 CLOSING_KEYWORD_RE = re.compile(
-    r"\b(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\b\s*#\d+",
+    r"\b(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\b"
+    r"\s*:?\s*(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)?#\d+\b",
     re.IGNORECASE,
 )
 REFS_RE = re.compile(r"\bRefs\b\s*#\d+")
+BLOCKED_BY_RE = re.compile(
+    r"^\s*Blocked\s+by\s+#\d+\s*$", re.IGNORECASE | re.MULTILINE
+)
 
 # The disclosures every dev:shadow report must carry. Reporting always emits these; a
 # caller may add more but can never drop one.
@@ -580,7 +584,7 @@ def read_issue_isolation(repo: str, issue: int) -> dict[str, Any]:
             "--repo",
             repo,
             "--json",
-            "labels,milestone,state,stateReason",
+            "labels,milestone,state,stateReason,body,assignees",
         ),
         context=context,
     )
@@ -595,6 +599,8 @@ def read_issue_isolation(repo: str, issue: int) -> dict[str, Any]:
         "has_milestone": has_milestone,
         "state": str(value.get("state", "")).upper(),
         "state_reason": value.get("stateReason"),
+        "body": value.get("body") or "",
+        "assignees": normalized_assignees(value.get("assignees")),
     }
 
 
@@ -615,6 +621,16 @@ def assert_issue_isolated(repo: str, issue: int) -> None:
         fail(
             f"shadow issue #{issue} in {repo} has a milestone; a shadow issue must have none"
         )
+    if state["assignees"]:
+        fail(
+            f"shadow issue #{issue} in {repo} has assignee(s) "
+            f"{', '.join(state['assignees'])}; a shadow issue must not enter normal assignment"
+        )
+    if BLOCKED_BY_RE.search(state["body"]):
+        fail(
+            f"shadow issue #{issue} in {repo} declares a Blocked by dependency; "
+            "a shadow issue must have no dependency edges"
+        )
     if state["state"] != "OPEN":
         fail(
             f"shadow issue #{issue} in {repo} must remain OPEN before cleanup "
@@ -623,7 +639,12 @@ def assert_issue_isolated(repo: str, issue: int) -> None:
 
 
 def command_create_shadow_issue(args: argparse.Namespace) -> None:
-    read_text_file(args.body_file, context="shadow issue body")
+    body = read_text_file(args.body_file, context="shadow issue body")
+    if BLOCKED_BY_RE.search(body):
+        fail(
+            "shadow issue body declares a Blocked by dependency; "
+            "a shadow issue must have no dependency edges"
+        )
     ensure_labels(args.repo, (SHADOW_LABEL, DO_NOT_MERGE_LABEL))
     raw = run_gh(
         (
@@ -774,7 +795,8 @@ def read_pr_state(repo: str, pr: int) -> dict[str, Any]:
             "--repo",
             repo,
             "--json",
-            "isDraft,merged,state,labels,baseRefName,headRefName,headRepository,body",
+            "isDraft,merged,state,labels,baseRefName,headRefName,headRefOid,"
+            "headRepository,body",
         ),
         context=context,
     )
@@ -950,6 +972,15 @@ def command_validate_invariants(args: argparse.Namespace) -> None:
         )
     if issue_state["has_milestone"]:
         violations.append(f"shadow issue #{args.shadow_issue} has a milestone")
+    if issue_state["assignees"]:
+        violations.append(
+            f"shadow issue #{args.shadow_issue} has assignee(s) "
+            f"{', '.join(issue_state['assignees'])}"
+        )
+    if BLOCKED_BY_RE.search(issue_state["body"]):
+        violations.append(
+            f"shadow issue #{args.shadow_issue} declares a Blocked by dependency"
+        )
     if issue_state["state"] != "OPEN":
         violations.append(
             f"shadow issue #{args.shadow_issue} is not OPEN during replay "
@@ -1012,12 +1043,23 @@ def command_review_freshness(args: argparse.Namespace) -> None:
     current head is stale and its verdict does not carry to the new commits. The skill
     calls this before verification; a stale approval requires a fresh review first.
     """
-    if args.review_commit != args.head:
+    current = read_pr_state(args.repo, args.shadow_pr)
+    context = f"shadow pull request #{args.shadow_pr} in {args.repo}"
+    current_head = string_field(current.get("headRefOid"), "headRefOid", context=context)
+    if args.review_commit != current_head:
         fail(
             f"stale review: approval targets {args.review_commit} but the current "
-            f"candidate head is {args.head}; re-review the new head before verifying"
+            f"candidate head is {current_head}; re-review the new head before verifying"
         )
-    emit({"fresh": True, "review_commit": args.review_commit, "head": args.head})
+    emit(
+        {
+            "fresh": True,
+            "repo": args.repo,
+            "shadow_pr": args.shadow_pr,
+            "review_commit": args.review_commit,
+            "head": current_head,
+        }
+    )
 
 
 def command_fix_attempt(args: argparse.Namespace) -> None:
@@ -1857,8 +1899,9 @@ def build_parser() -> argparse.ArgumentParser:
         "review-freshness",
         help="Reject an approval whose commit is not the current candidate head.",
     )
+    freshness.add_argument("--repo", required=True, type=repository)
+    freshness.add_argument("--shadow-pr", required=True, type=positive_int)
     freshness.add_argument("--review-commit", required=True)
-    freshness.add_argument("--head", required=True)
     freshness.set_defaults(func=command_review_freshness)
 
     attempt = sub.add_parser(

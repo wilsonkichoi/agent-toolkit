@@ -268,11 +268,15 @@ class ShadowReplayTests(unittest.TestCase):
         labels: tuple[str, ...] = ("experiment:shadow",),
         milestone: Any = None,
         state: str = "OPEN",
+        body: str = "Shadow replay.\n",
+        assignees: tuple[str, ...] = (),
     ) -> dict[str, Any]:
         return {
             "labels": [{"name": name} for name in labels],
             "milestone": milestone,
             "state": state,
+            "body": body,
+            "assignees": [{"login": login} for login in assignees],
         }
 
     def clean_pr(
@@ -286,6 +290,7 @@ class ShadowReplayTests(unittest.TestCase):
         state: str = "OPEN",
         labels: tuple[str, ...] = ("do-not-merge",),
         body: str = "Refs #99\n",
+        head_oid: str = "head1",
     ) -> dict[str, Any]:
         return {
             "isDraft": is_draft,
@@ -294,6 +299,7 @@ class ShadowReplayTests(unittest.TestCase):
             "labels": [{"name": name} for name in labels],
             "baseRefName": base,
             "headRefName": head,
+            "headRefOid": head_oid,
             "headRepository": {"nameWithOwner": head_repo},
             "body": body,
         }
@@ -813,6 +819,19 @@ class ShadowReplayTests(unittest.TestCase):
         )
         self.assert_failure(result)
 
+    def test_create_shadow_issue_rejects_blocked_by_dependency_before_mutation(self) -> None:
+        result = self.run_cli(
+            "create-shadow-issue",
+            "--repo",
+            REPO,
+            "--title",
+            "[SHADOW] Replay",
+            "--body-file",
+            self._body_file("Replay packet.\n\nBlocked by #11\n"),
+        )
+        self.assert_failure(result)
+        self.assertEqual(self.gh_calls(), [])
+
     # ------------------------------------------------------- create-branches
     def test_create_branches_happy_path(self) -> None:
         result = self.run_cli(
@@ -989,22 +1008,28 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertEqual(self.gh_calls(), [])
 
     def test_open_shadow_pr_rejects_closing_keyword_before_create(self) -> None:
-        body = self._body_file("This Closes #99 by accident.\n")
-        result = self.run_cli(
-            "open-shadow-pr",
-            "--repo",
-            REPO,
-            "--base",
-            "B",
-            "--head",
-            "C",
-            "--title",
-            "[SHADOW] PR",
-            "--body-file",
-            body,
+        bodies = (
+            "Refs #99\nCloses #99\n",
+            "Refs #99\nCloses: #99\n",
+            "Refs #99\nFixes octo/demo#99\n",
         )
-        self.assert_failure(result)
-        self.assertEqual(self.gh_calls(), [])
+        for body_text in bodies:
+            with self.subTest(body=body_text):
+                result = self.run_cli(
+                    "open-shadow-pr",
+                    "--repo",
+                    REPO,
+                    "--base",
+                    "B",
+                    "--head",
+                    "C",
+                    "--title",
+                    "[SHADOW] PR",
+                    "--body-file",
+                    self._body_file(body_text),
+                )
+                self.assert_failure(result)
+                self.assertEqual(self.gh_calls(), [])
 
     def test_open_shadow_pr_rejects_missing_refs(self) -> None:
         body = self._body_file("Replay work with no reference.\n")
@@ -1092,6 +1117,14 @@ class ShadowReplayTests(unittest.TestCase):
             ),
             "milestone": (
                 self.clean_issue(milestone={"title": "M1"}),
+                self.clean_pr(),
+            ),
+            "assigned_issue": (
+                self.clean_issue(assignees=("octocat",)),
+                self.clean_pr(),
+            ),
+            "blocked_by_dependency": (
+                self.clean_issue(body="Replay packet.\n\nBlocked by #11\n"),
                 self.clean_pr(),
             ),
             "wrong_base": (self.clean_issue(), self.clean_pr(base="WRONG")),
@@ -1418,12 +1451,12 @@ class ShadowReplayTests(unittest.TestCase):
             "1000000",
         )
         payload = self.payload(result)
-        # 5.0 + 0.5 + 10.0 + 25.0 + reasoning-at-output 25.0
-        self.assertAlmostEqual(payload["cost"], 65.5)
+        # 5.0 + 0.5 + 6.25 + 25.0 + reasoning-at-output 25.0
+        self.assertAlmostEqual(payload["cost"], 61.75)
         self.assertEqual(payload["currency"], "USD")
         self.assertEqual(payload["model"], "claude-opus-4-8")
         self.assertEqual(payload["provider"], "anthropic")
-        self.assertEqual(payload["catalog_version"], "4")
+        self.assertEqual(payload["catalog_version"], "5")
 
     def test_pricing_gpt_5_6_base_rates_handle_subsets_and_cache_writes(self) -> None:
         result = self.run_cli(
@@ -1451,7 +1484,47 @@ class ShadowReplayTests(unittest.TestCase):
         # 850k*5 + 100k*0.5 + 50k*6.25 + 100k*30.
         self.assertAlmostEqual(payload["cost"], 7.6125)
         self.assertEqual(payload["pricing_tier"], "base")
-        self.assertEqual(payload["catalog_version"], "4")
+        self.assertEqual(payload["catalog_version"], "5")
+
+    def test_pricing_gpt_5_6_applies_long_context_multipliers(self) -> None:
+        result = self.run_cli(
+            "pricing",
+            "--provider",
+            "openai",
+            "--model",
+            "openai/gpt-5.6",
+            "--input",
+            "1000000",
+            "--cached-input",
+            "100000",
+            "--cache-write",
+            "50000",
+            "--output",
+            "100000",
+            "--reasoning",
+            "10000",
+            "--max-request-input",
+            "272001",
+        )
+        payload = self.payload(result)
+        self.assertAlmostEqual(payload["cost"], 13.725)
+        self.assertEqual(payload["pricing_tier"], "long_context")
+
+    def test_pricing_gpt_5_6_requires_explicit_context_tier(self) -> None:
+        result = self.run_cli(
+            "pricing",
+            "--provider",
+            "openai",
+            "--model",
+            "openai/gpt-5.6",
+            "--input",
+            "1000",
+            "--cache-write",
+            "0",
+        )
+        payload = self.payload(result)
+        self.assertEqual(payload["cost"], "unavailable")
+        self.assertIn("--max-request-input", payload["reason"])
 
     def test_pricing_gpt_5_6_requires_explicit_cache_writes(self) -> None:
         result = self.run_cli(
@@ -1913,16 +1986,31 @@ class ShadowReplayTests(unittest.TestCase):
     # ------------------------------------------------------- review-freshness
     def test_review_freshness_accepts_matching_head(self) -> None:
         result = self.run_cli(
-            "review-freshness", "--review-commit", "abc123", "--head", "abc123"
+            "review-freshness",
+            "--repo",
+            REPO,
+            "--shadow-pr",
+            "100",
+            "--review-commit",
+            "abc123",
+            gh={"pr view": [self.resp(self.clean_pr(head_oid="abc123"))]},
         )
         payload = self.payload(result)
         self.assertTrue(payload["fresh"])
-        self.assertEqual(self.gh_calls(), [])
+        self.assertEqual(payload["head"], "abc123")
+        self.assert_gh_repo_targeting(self.gh_calls())
 
     def test_review_freshness_rejects_stale_approval(self) -> None:
         # A fix push advanced the head; the old approval SHA no longer verifies the head.
         result = self.run_cli(
-            "review-freshness", "--review-commit", "oldsha", "--head", "newsha"
+            "review-freshness",
+            "--repo",
+            REPO,
+            "--shadow-pr",
+            "100",
+            "--review-commit",
+            "oldsha",
+            gh={"pr view": [self.resp(self.clean_pr(head_oid="newsha"))]},
         )
         self.assert_failure(result)
         self.assertIn("stale", result.stderr.lower())

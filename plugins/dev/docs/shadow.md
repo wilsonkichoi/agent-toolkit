@@ -95,11 +95,11 @@ subcommands re-read GitHub state and assert isolation before reporting success.
 | `run-id` | Print `<UTC-timestamp>-<suffix>`; `--now`/`--suffix` make it deterministic for tests. |
 | `preflight` | Gate the source issue (completed), PR (merged + bound), and historical base (recoverable). |
 | `historical-base` | Reconstruct the base commit and cutoff from the source-PR commits; detect ambiguity. |
-| `create-shadow-issue` | Idempotently ensure labels, create the `[SHADOW]` issue, assert no `status:*`/milestone. |
+| `create-shadow-issue` | Idempotently ensure labels, reject `Blocked by #N`, create the `[SHADOW]` issue, and assert no `status:*`, milestone, assignee, or dependency declaration. |
 | `create-branches` | Create and push the shadow-base and candidate branches at the validated base. |
 | `open-shadow-pr` | After the first candidate push, prove head differs from base, open the draft `do-not-merge` PR, bind a same-repo or fork-qualified head repository, reject a closing keyword, and require `Refs #N`. |
 | `validate-invariants` | Re-read issue + PR, bind identities/revisions, assert isolation; stop on drift. |
-| `review-freshness` | Reject an approval whose commit is not the current candidate head (stale review). |
+| `review-freshness` | Re-read the current GitHub PR head and reject an approval bound to any other commit (stale review). |
 | `fix-attempt` | Reject a one-based fix/review attempt above `max_fix_attempts`. |
 | `metrics` | Aggregate harness token usage per adapter without double-counting. |
 | `pricing` | Estimate API-equivalent cost from the versioned catalog, or `cost unavailable`. |
@@ -198,6 +198,8 @@ with input/output multipliers. For such entries, `pricing` requires `--cache-wri
 total input, so the helper subtracts those subsets before billing ordinary input. If the harness
 does not expose either required value, the result is `cost unavailable`; the helper never assumes
 zero cache writes or silently applies the base tier to a potentially long-context request.
+Anthropic cache-write entries use the standard 5-minute TTL rates published by the cited pricing
+page.
 
 Keep the catalog current: add dated, sourced entries when published prices change, and bump
 `catalog_version`. Do not edit an entry's rates in place without updating `effective_date` and
