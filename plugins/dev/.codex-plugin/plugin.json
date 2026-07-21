@@ -1,6 +1,6 @@
 {
   "name": "dev",
-  "version": "0.0.60",
+  "version": "0.0.61",
   "description": "AI-assisted product development lifecycle with tracker-backed task packets, PR-native execution, deterministic rule loading, verified GitHub lifecycle transitions, and structured feedback filing.",
   "skills": "./skills/"
 }

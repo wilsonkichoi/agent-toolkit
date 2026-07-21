@@ -38,7 +38,14 @@ CATEGORY_LABELS = {
 }
 
 SECRET_PATTERNS = [
-    re.compile(r"(?i)(?:api[_-]?key|token|secret|password|credential|auth)\s*[=:]\s*\S+"),
+    # Keyword-labeled secrets: capture a whole quoted value (which may contain spaces),
+    # else a single unquoted token. Bare `\S+` leaks a quoted passphrase after its first word.
+    re.compile(
+        r"(?i)(?:api[_-]?key|token|secret|password|credential|auth)\s*[=:]\s*"
+        r"(?:\"[^\"]*\"|'[^']*'|\S+)"
+    ),
+    # Authorization header: the entire value (Basic/Bearer/Digest + token) is sensitive.
+    re.compile(r"(?i)authorization\s*:\s*.+"),
     re.compile(r"(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36,}"),
     re.compile(r"github_pat_[A-Za-z0-9_]{20,}"),
     re.compile(r"sk-proj-[A-Za-z0-9\-_]{20,}"),
@@ -46,13 +53,14 @@ SECRET_PATTERNS = [
     re.compile(r"xoxb-[A-Za-z0-9\-]+"),
     re.compile(r"xoxp-[A-Za-z0-9\-]+"),
     re.compile(
-        r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"
+        r"-----BEGIN (?:RSA |EC |DSA |OPENSSH |ENCRYPTED |PGP )?PRIVATE KEY-----"
         r"[\s\S]*?"
-        r"-----END (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"
+        r"-----END (?:RSA |EC |DSA |OPENSSH |ENCRYPTED |PGP )?PRIVATE KEY-----"
     ),
     re.compile(r"AKIA[0-9A-Z]{16}"),
     re.compile(r"(?i)bearer\s+[A-Za-z0-9\-._~+/]+=*"),
-    re.compile(r"[a-z+]+://[^\s:]+:[^\s@]+@[^\s]+"),
+    # Credentialed URI (user:pass@host). Scheme is case-insensitive per RFC 3986.
+    re.compile(r"(?i)[a-z][a-z0-9+.\-]*://[^\s:@/]+:[^\s@/]+@[^\s]+"),
 ]
 
 HOME_PATH_RE = re.compile(r"/(?:Users|home)/[A-Za-z0-9_.\-]+/")

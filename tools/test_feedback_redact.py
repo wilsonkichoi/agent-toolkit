@@ -202,6 +202,39 @@ class TestRedaction(unittest.TestCase):
         self.assertNotIn("/opt/customer-alpha", result.stdout)
         self.assertIn("<redacted-path>", result.stdout)
 
+    def test_redacts_quoted_passphrase_with_spaces(self) -> None:
+        text = 'password = "correct horse battery staple"'
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("horse battery staple", result.stdout)
+        self.assertIn("<REDACTED>", result.stdout)
+
+    def test_redacts_encrypted_pem_block(self) -> None:
+        text = (
+            "-----BEGIN ENCRYPTED PRIVATE KEY-----\n"
+            "MIIFakeEncryptedKeyBody0123456789\n"
+            "-----END ENCRYPTED PRIVATE KEY-----"
+        )
+        result = run_cli("redact", stdin=text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("MIIFakeEncryptedKeyBody", result.stdout)
+        self.assertNotIn("END ENCRYPTED PRIVATE KEY", result.stdout)
+        self.assertIn("<REDACTED>", result.stdout)
+
+    def test_redacts_mixed_case_connection_string(self) -> None:
+        text = "db PostgreSQL://user:pass@host/db"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("user:pass", result.stdout)
+        self.assertIn("<REDACTED>", result.stdout)
+
+    def test_redacts_authorization_basic_header(self) -> None:
+        text = "Authorization: Basic dXNlcjpwYXNzd29yZA=="
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("dXNlcjpwYXNzd29yZA", result.stdout)
+        self.assertIn("<REDACTED>", result.stdout)
+
 
 class TestDraft(unittest.TestCase):
     """Tests for the draft subcommand covering template rendering."""
