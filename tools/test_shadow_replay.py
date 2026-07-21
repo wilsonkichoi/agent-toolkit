@@ -1,0 +1,1332 @@
+#!/usr/bin/env -S uv run
+"""Black-box contract tests for the shadow-replay CLI.
+
+Tests exercise only the public interface described in ``plugins/dev/docs/shadow.md``
+and the task packet. ``gh`` and ``git`` are driven exclusively through fake
+executables placed first on ``PATH``; no test hits real GitHub or mutates a real
+repository.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+from typing import Any
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+CLI = REPOSITORY_ROOT / "plugins/dev/scripts/shadow_replay.py"
+REPO = "octo/demo"
+
+
+# Fake ``gh``: records every invocation and replays scripted responses keyed by a
+# coarse operation name. An unscripted operation exits 98 so missing scripting is a
+# loud failure rather than a silent success.
+FAKE_GH = r'''#!/usr/bin/env -S uv run --script
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+args = sys.argv[1:]
+calls_path = Path(os.environ["SHADOW_TEST_GH_CALLS"])
+with calls_path.open("a", encoding="utf-8") as handle:
+    handle.write(json.dumps(args) + "\n")
+
+if args and args[0] == "api":
+    operation = "api"
+elif len(args) >= 2:
+    operation = args[0] + " " + args[1]
+elif args:
+    operation = args[0]
+else:
+    operation = ""
+
+scenario_path = Path(os.environ["SHADOW_TEST_GH_SCENARIO"])
+scenario = json.loads(scenario_path.read_text(encoding="utf-8"))
+responses = scenario.get("responses", {}).get(operation, [])
+indexes = scenario.setdefault("indexes", {})
+index = indexes.get(operation, 0)
+if index >= len(responses):
+    print(
+        f"unexpected gh {operation!r} invocation #{index + 1}: {args!r}",
+        file=sys.stderr,
+    )
+    raise SystemExit(98)
+
+response = responses[index]
+indexes[operation] = index + 1
+scenario_path.write_text(json.dumps(scenario), encoding="utf-8")
+
+stdout = response.get("stdout", "")
+if not isinstance(stdout, str):
+    stdout = json.dumps(stdout)
+if stdout:
+    sys.stdout.write(stdout)
+    if not stdout.endswith("\n"):
+        sys.stdout.write("\n")
+stderr = response.get("stderr", "")
+if stderr:
+    sys.stderr.write(stderr)
+    if not stderr.endswith("\n"):
+        sys.stderr.write("\n")
+raise SystemExit(response.get("returncode", 0))
+'''
+
+
+# Fake ``git``: records every invocation. Unscripted operations succeed (exit 0)
+# because most git mutations here produce no stdout the script parses; the
+# exit-code-sensitive cases (``merge-base --is-ancestor``) are scripted explicitly.
+FAKE_GIT = r'''#!/usr/bin/env -S uv run --script
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+args = sys.argv[1:]
+calls_path = Path(os.environ["SHADOW_TEST_GIT_CALLS"])
+with calls_path.open("a", encoding="utf-8") as handle:
+    handle.write(json.dumps(args) + "\n")
+
+if args and args[0] == "-C":
+    operation = args[2] if len(args) > 2 else ""
+elif args:
+    operation = args[0]
+else:
+    operation = ""
+
+scenario_path = Path(os.environ["SHADOW_TEST_GIT_SCENARIO"])
+scenario = json.loads(scenario_path.read_text(encoding="utf-8"))
+responses = scenario.get("responses", {}).get(operation, [])
+indexes = scenario.setdefault("indexes", {})
+index = indexes.get(operation, 0)
+if index < len(responses):
+    response = responses[index]
+    indexes[operation] = index + 1
+    scenario_path.write_text(json.dumps(scenario), encoding="utf-8")
+else:
+    response = {"returncode": 0, "stdout": "", "stderr": ""}
+
+stdout = response.get("stdout", "")
+if not isinstance(stdout, str):
+    stdout = json.dumps(stdout)
+if stdout:
+    sys.stdout.write(stdout)
+    if not stdout.endswith("\n"):
+        sys.stdout.write("\n")
+stderr = response.get("stderr", "")
+if stderr:
+    sys.stderr.write(stderr)
+    if not stderr.endswith("\n"):
+        sys.stderr.write("\n")
+raise SystemExit(response.get("returncode", 0))
+'''
+
+
+REQUIRED_DISCLOSURES = (
+    "Same-repository replay is not blind; the original solution may be discoverable "
+    "in Git history or through GitHub.",
+    "The source issue body is current, not guaranteed to be its exact historical text "
+    "at cutoff.",
+    "Original token and cost data may be unavailable.",
+    "GitHub timestamps are observable workflow timestamps, not continuous agent work.",
+    "Estimated API-equivalent cost is not the user's actual subscription charge.",
+    "Reviewer and verifier judgments depend on the identified models.",
+)
+
+
+class ShadowReplayTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary_directory.cleanup)
+        self.root = Path(self.temporary_directory.name)
+        self.fake_bin = self.root / "bin"
+        self.fake_bin.mkdir()
+        (self.fake_bin / "gh").write_text(FAKE_GH, encoding="utf-8")
+        (self.fake_bin / "gh").chmod(0o755)
+        (self.fake_bin / "git").write_text(FAKE_GIT, encoding="utf-8")
+        (self.fake_bin / "git").chmod(0o755)
+        self.gh_scenario = self.root / "gh_scenario.json"
+        self.git_scenario = self.root / "git_scenario.json"
+        self.gh_calls_path = self.root / "gh_calls.jsonl"
+        self.git_calls_path = self.root / "git_calls.jsonl"
+
+    # ------------------------------------------------------------------ helpers
+    def resp(
+        self,
+        stdout: Any = "",
+        *,
+        returncode: int = 0,
+        stderr: str = "",
+    ) -> dict[str, Any]:
+        return {"stdout": stdout, "returncode": returncode, "stderr": stderr}
+
+    def run_cli(
+        self,
+        *args: str,
+        gh: dict[str, list[dict[str, Any]]] | None = None,
+        git: dict[str, list[dict[str, Any]]] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        self.gh_scenario.write_text(
+            json.dumps({"responses": gh or {}, "indexes": {}}), encoding="utf-8"
+        )
+        self.git_scenario.write_text(
+            json.dumps({"responses": git or {}, "indexes": {}}), encoding="utf-8"
+        )
+        self.gh_calls_path.write_text("", encoding="utf-8")
+        self.git_calls_path.write_text("", encoding="utf-8")
+        environment = os.environ.copy()
+        environment["PATH"] = f"{self.fake_bin}{os.pathsep}{environment['PATH']}"
+        environment["SHADOW_TEST_GH_SCENARIO"] = str(self.gh_scenario)
+        environment["SHADOW_TEST_GH_CALLS"] = str(self.gh_calls_path)
+        environment["SHADOW_TEST_GIT_SCENARIO"] = str(self.git_scenario)
+        environment["SHADOW_TEST_GIT_CALLS"] = str(self.git_calls_path)
+        environment["GH_REPO"] = "wrong/inferred-repository"
+        return subprocess.run(
+            ["uv", "run", str(CLI), *args],
+            cwd=REPOSITORY_ROOT,
+            env=environment,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def gh_calls(self) -> list[list[str]]:
+        return [
+            json.loads(line)
+            for line in self.gh_calls_path.read_text(encoding="utf-8").splitlines()
+        ]
+
+    def git_calls(self) -> list[list[str]]:
+        return [
+            json.loads(line)
+            for line in self.git_calls_path.read_text(encoding="utf-8").splitlines()
+        ]
+
+    def opt(self, call: list[str], option: str) -> str | None:
+        for index, token in enumerate(call):
+            if token == option and index + 1 < len(call):
+                return call[index + 1]
+            if token.startswith(f"{option}="):
+                return token.split("=", 1)[1]
+        return None
+
+    def payload(self, result: subprocess.CompletedProcess[str]) -> dict[str, Any]:
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return json.loads(result.stdout)
+
+    def assert_failure(self, result: subprocess.CompletedProcess[str]) -> None:
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertTrue(result.stderr.strip(), "failure must be actionable on stderr")
+
+    def assert_gh_repo_targeting(self, calls: list[list[str]]) -> None:
+        self.assertTrue(calls, "expected at least one gh call")
+        for call in calls:
+            if call and call[0] == "api":
+                self.assertTrue(
+                    any(token.startswith(f"repos/{REPO}/") for token in call),
+                    f"gh api call did not target the repository path: {call}",
+                )
+            else:
+                self.assertEqual(
+                    self.opt(call, "--repo"),
+                    REPO,
+                    f"gh call did not explicitly target --repo {REPO}: {call}",
+                )
+
+    def commits_jsonl(self, *commits: dict[str, Any]) -> str:
+        return "\n".join(json.dumps(commit) for commit in commits)
+
+    def clean_issue(
+        self,
+        *,
+        labels: tuple[str, ...] = ("experiment:shadow",),
+        milestone: Any = None,
+        state: str = "OPEN",
+    ) -> dict[str, Any]:
+        return {
+            "labels": [{"name": name} for name in labels],
+            "milestone": milestone,
+            "state": state,
+        }
+
+    def clean_pr(
+        self,
+        *,
+        base: str = "B",
+        head: str = "C",
+        is_draft: bool = True,
+        merged: bool = False,
+        state: str = "OPEN",
+        labels: tuple[str, ...] = ("do-not-merge",),
+        body: str = "Refs #99\n",
+    ) -> dict[str, Any]:
+        return {
+            "isDraft": is_draft,
+            "merged": merged,
+            "state": state,
+            "labels": [{"name": name} for name in labels],
+            "baseRefName": base,
+            "headRefName": head,
+            "body": body,
+        }
+
+    # ---------------------------------------------------------------- run-id
+    def test_run_id_is_deterministic_with_now_and_suffix(self) -> None:
+        result = self.run_cli(
+            "run-id", "--now", "2026-07-21T14:30:00Z", "--suffix", "a1b2c3d4"
+        )
+        payload = self.payload(result)
+        self.assertEqual(payload["run_id"], "20260721T143000Z-a1b2c3d4")
+        self.assertEqual(self.gh_calls(), [])
+        self.assertEqual(self.git_calls(), [])
+
+    def test_run_id_rejects_non_alphanumeric_suffix(self) -> None:
+        self.assert_failure(
+            self.run_cli("run-id", "--now", "2026-07-21T14:30:00Z", "--suffix", "bad-!")
+        )
+
+    def test_run_id_rejects_non_iso_now(self) -> None:
+        self.assert_failure(
+            self.run_cli("run-id", "--now", "not-a-timestamp", "--suffix", "abcd1234")
+        )
+
+    # -------------------------------------------------------- historical-base
+    def test_historical_base_happy_path(self) -> None:
+        commits = self.commits_jsonl(
+            {"sha": "c1", "parents": ["base0"], "date": "2026-01-01T00:00:00Z"},
+            {"sha": "c2", "parents": ["c1"], "date": "2026-01-02T00:00:00Z"},
+        )
+        result = self.run_cli(
+            "historical-base",
+            "--repo",
+            REPO,
+            "--source-pr",
+            "5",
+            gh={"api": [self.resp(commits)]},
+            git={"merge-base": [self.resp(returncode=0)]},
+        )
+        payload = self.payload(result)
+        self.assertEqual(payload["historical_base"], "base0")
+        self.assertEqual(payload["first_commit"], "c1")
+        self.assertEqual(payload["source_head"], "c2")
+        self.assertEqual(payload["cutoff"], "2026-01-01T00:00:00Z")
+        self.assertEqual(payload["commit_count"], 2)
+        self.assertIn("cutoff_rule", payload)
+        self.assert_gh_repo_targeting(self.gh_calls())
+        ancestor_call = self.git_calls()[0]
+        self.assertIn("merge-base", ancestor_call)
+        self.assertIn("--is-ancestor", ancestor_call)
+        self.assertIn("base0", ancestor_call)
+        self.assertIn("c2", ancestor_call)
+
+    def test_historical_base_honors_explicit_source_head(self) -> None:
+        commits = self.commits_jsonl(
+            {"sha": "c1", "parents": ["base0"], "date": "2026-01-01T00:00:00Z"},
+        )
+        result = self.run_cli(
+            "historical-base",
+            "--repo",
+            REPO,
+            "--source-pr",
+            "5",
+            "--source-head",
+            "explicit-head",
+            gh={"api": [self.resp(commits)]},
+            git={"merge-base": [self.resp(returncode=0)]},
+        )
+        payload = self.payload(result)
+        self.assertEqual(payload["source_head"], "explicit-head")
+        self.assertIn("explicit-head", self.git_calls()[0])
+
+    def test_historical_base_no_verify_ancestor_skips_git(self) -> None:
+        commits = self.commits_jsonl(
+            {"sha": "c1", "parents": ["base0"], "date": "2026-01-01T00:00:00Z"},
+        )
+        result = self.run_cli(
+            "historical-base",
+            "--repo",
+            REPO,
+            "--source-pr",
+            "5",
+            "--no-verify-ancestor",
+            gh={"api": [self.resp(commits)]},
+        )
+        self.payload(result)
+        self.assertEqual(self.git_calls(), [])
+
+    def test_historical_base_rejects_root_commit(self) -> None:
+        commits = self.commits_jsonl(
+            {"sha": "c1", "parents": [], "date": "2026-01-01T00:00:00Z"},
+        )
+        result = self.run_cli(
+            "historical-base",
+            "--repo",
+            REPO,
+            "--source-pr",
+            "5",
+            gh={"api": [self.resp(commits)]},
+        )
+        self.assert_failure(result)
+        self.assertEqual(self.git_calls(), [])
+
+    def test_historical_base_rejects_merge_commit(self) -> None:
+        commits = self.commits_jsonl(
+            {"sha": "c1", "parents": ["a", "b"], "date": "2026-01-01T00:00:00Z"},
+        )
+        result = self.run_cli(
+            "historical-base",
+            "--repo",
+            REPO,
+            "--source-pr",
+            "5",
+            gh={"api": [self.resp(commits)]},
+        )
+        self.assert_failure(result)
+        self.assertEqual(self.git_calls(), [])
+
+    def test_historical_base_rejects_non_ancestor(self) -> None:
+        commits = self.commits_jsonl(
+            {"sha": "c1", "parents": ["base0"], "date": "2026-01-01T00:00:00Z"},
+            {"sha": "c2", "parents": ["c1"], "date": "2026-01-02T00:00:00Z"},
+        )
+        result = self.run_cli(
+            "historical-base",
+            "--repo",
+            REPO,
+            "--source-pr",
+            "5",
+            gh={"api": [self.resp(commits)]},
+            git={"merge-base": [self.resp(returncode=1)]},
+        )
+        self.assert_failure(result)
+
+    # ------------------------------------------------------------- preflight
+    def test_preflight_happy_path_uses_pr_head_as_source_head(self) -> None:
+        issue = {
+            "state": "CLOSED",
+            "stateReason": "COMPLETED",
+            "title": "Fix the widget",
+            "closedByPullRequestsReferences": [{"number": 7}],
+        }
+        pr = {
+            "state": "MERGED",
+            "merged": True,
+            "mergedAt": "2026-01-05T00:00:00Z",
+            "mergeCommit": {"oid": "mergecommit1"},
+            "closingIssuesReferences": [{"number": 3}],
+            "headRefOid": "prhead1",
+        }
+        commits = self.commits_jsonl(
+            {"sha": "c1", "parents": ["base0"], "date": "2026-01-01T00:00:00Z"},
+        )
+        result = self.run_cli(
+            "preflight",
+            "--repo",
+            REPO,
+            "--source-issue",
+            "3",
+            gh={
+                "issue view": [self.resp(issue)],
+                "pr view": [self.resp(pr)],
+                "api": [self.resp(commits)],
+            },
+            git={"merge-base": [self.resp(returncode=0)]},
+        )
+        payload = self.payload(result)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["source_pr"], 7)
+        self.assertEqual(payload["source_title"], "Fix the widget")
+        self.assertEqual(payload["merge_commit"], "mergecommit1")
+        self.assertEqual(payload["merged_at"], "2026-01-05T00:00:00Z")
+        self.assertEqual(payload["source_head"], "prhead1")
+        self.assertEqual(payload["historical_base"], "base0")
+        self.assertEqual(payload["first_commit"], "c1")
+        self.assert_gh_repo_targeting(self.gh_calls())
+        self.assertIn("prhead1", self.git_calls()[0])
+
+    def test_preflight_rejects_ambiguous_source_pr_selection(self) -> None:
+        issue = {
+            "state": "CLOSED",
+            "stateReason": "COMPLETED",
+            "title": "Ambiguous",
+            "closedByPullRequestsReferences": [{"number": 7}, {"number": 8}],
+        }
+        result = self.run_cli(
+            "preflight",
+            "--repo",
+            REPO,
+            "--source-issue",
+            "3",
+            gh={"issue view": [self.resp(issue)]},
+        )
+        self.assert_failure(result)
+        operations = [call[:2] for call in self.gh_calls()]
+        self.assertEqual(operations, [["issue", "view"]])
+        self.assertNotIn(["pr", "view"], operations)
+
+    def test_preflight_rejects_uncompleted_issue(self) -> None:
+        issue = {
+            "state": "OPEN",
+            "stateReason": None,
+            "title": "Still open",
+            "closedByPullRequestsReferences": [{"number": 7}],
+        }
+        result = self.run_cli(
+            "preflight",
+            "--repo",
+            REPO,
+            "--source-issue",
+            "3",
+            gh={"issue view": [self.resp(issue)]},
+        )
+        self.assert_failure(result)
+        self.assertIn("completed", result.stderr.lower())
+
+    def test_preflight_rejects_non_completed_state_reason(self) -> None:
+        issue = {
+            "state": "CLOSED",
+            "stateReason": "NOT_PLANNED",
+            "title": "Closed not planned",
+            "closedByPullRequestsReferences": [{"number": 7}],
+        }
+        result = self.run_cli(
+            "preflight",
+            "--repo",
+            REPO,
+            "--source-issue",
+            "3",
+            gh={"issue view": [self.resp(issue)]},
+        )
+        self.assert_failure(result)
+
+    def test_preflight_rejects_unmerged_source_pr(self) -> None:
+        issue = {
+            "state": "CLOSED",
+            "stateReason": "COMPLETED",
+            "title": "Fix",
+            "closedByPullRequestsReferences": [{"number": 7}],
+        }
+        pr = {
+            "state": "OPEN",
+            "merged": False,
+            "mergedAt": None,
+            "mergeCommit": None,
+            "closingIssuesReferences": [{"number": 3}],
+            "headRefOid": "prhead1",
+        }
+        result = self.run_cli(
+            "preflight",
+            "--repo",
+            REPO,
+            "--source-issue",
+            "3",
+            gh={"issue view": [self.resp(issue)], "pr view": [self.resp(pr)]},
+        )
+        self.assert_failure(result)
+        self.assertIn("merged", result.stderr.lower())
+
+    def test_preflight_rejects_unbound_explicit_source_pr(self) -> None:
+        issue = {
+            "state": "CLOSED",
+            "stateReason": "COMPLETED",
+            "title": "Fix",
+            "closedByPullRequestsReferences": [{"number": 7}],
+        }
+        pr = {
+            "state": "MERGED",
+            "merged": True,
+            "mergedAt": "2026-01-05T00:00:00Z",
+            "mergeCommit": {"oid": "mc1"},
+            "closingIssuesReferences": [{"number": 999}],
+            "headRefOid": "prhead1",
+        }
+        result = self.run_cli(
+            "preflight",
+            "--repo",
+            REPO,
+            "--source-issue",
+            "3",
+            "--source-pr",
+            "7",
+            gh={"issue view": [self.resp(issue)], "pr view": [self.resp(pr)]},
+        )
+        self.assert_failure(result)
+        operations = [call[:2] for call in self.gh_calls()]
+        self.assertNotIn(["api"], [[call[0]] for call in self.gh_calls()])
+        self.assertIn(["pr", "view"], operations)
+
+    # --------------------------------------------------- create-shadow-issue
+    def _body_file(self, text: str = "shadow body\n") -> str:
+        path = self.root / "body.md"
+        path.write_text(text, encoding="utf-8")
+        return str(path)
+
+    def test_create_shadow_issue_happy_path(self) -> None:
+        result = self.run_cli(
+            "create-shadow-issue",
+            "--repo",
+            REPO,
+            "--title",
+            "[SHADOW] Replay",
+            "--body-file",
+            self._body_file(),
+            gh={
+                "label list": [self.resp([{"name": "experiment:shadow"}])],
+                "label create": [self.resp("")],
+                "issue create": [
+                    self.resp("https://github.com/octo/demo/issues/99")
+                ],
+                "issue view": [
+                    self.resp(
+                        {
+                            "labels": [{"name": "experiment:shadow"}],
+                            "milestone": None,
+                            "state": "OPEN",
+                        }
+                    )
+                ],
+            },
+        )
+        payload = self.payload(result)
+        self.assertEqual(payload["shadow_issue"], 99)
+        self.assertEqual(payload["url"], "https://github.com/octo/demo/issues/99")
+        self.assertEqual(payload["repo"], REPO)
+        calls = self.gh_calls()
+        self.assert_gh_repo_targeting(calls)
+        # Only the missing label (do-not-merge) is created.
+        created = [call for call in calls if call[:2] == ["label", "create"]]
+        self.assertEqual(len(created), 1)
+        self.assertIn("do-not-merge", created[0])
+        self.assertIn("--force", created[0])
+        issue_create = next(call for call in calls if call[:2] == ["issue", "create"])
+        self.assertEqual(self.opt(issue_create, "--label"), "experiment:shadow")
+
+    def test_create_shadow_issue_skips_existing_labels(self) -> None:
+        result = self.run_cli(
+            "create-shadow-issue",
+            "--repo",
+            REPO,
+            "--title",
+            "[SHADOW] Replay",
+            "--body-file",
+            self._body_file(),
+            gh={
+                "label list": [
+                    self.resp(
+                        [{"name": "experiment:shadow"}, {"name": "do-not-merge"}]
+                    )
+                ],
+                "issue create": [
+                    self.resp("https://github.com/octo/demo/issues/99")
+                ],
+                "issue view": [
+                    self.resp(
+                        {
+                            "labels": [{"name": "experiment:shadow"}],
+                            "milestone": None,
+                            "state": "OPEN",
+                        }
+                    )
+                ],
+            },
+        )
+        self.payload(result)
+        self.assertNotIn(
+            ["label", "create"], [call[:2] for call in self.gh_calls()]
+        )
+
+    def test_create_shadow_issue_rejects_status_label_on_reread(self) -> None:
+        result = self.run_cli(
+            "create-shadow-issue",
+            "--repo",
+            REPO,
+            "--title",
+            "[SHADOW] Replay",
+            "--body-file",
+            self._body_file(),
+            gh={
+                "label list": [
+                    self.resp(
+                        [{"name": "experiment:shadow"}, {"name": "do-not-merge"}]
+                    )
+                ],
+                "issue create": [
+                    self.resp("https://github.com/octo/demo/issues/99")
+                ],
+                "issue view": [
+                    self.resp(
+                        {
+                            "labels": [
+                                {"name": "experiment:shadow"},
+                                {"name": "status:todo"},
+                            ],
+                            "milestone": None,
+                            "state": "OPEN",
+                        }
+                    )
+                ],
+            },
+        )
+        self.assert_failure(result)
+
+    def test_create_shadow_issue_rejects_milestone_on_reread(self) -> None:
+        result = self.run_cli(
+            "create-shadow-issue",
+            "--repo",
+            REPO,
+            "--title",
+            "[SHADOW] Replay",
+            "--body-file",
+            self._body_file(),
+            gh={
+                "label list": [
+                    self.resp(
+                        [{"name": "experiment:shadow"}, {"name": "do-not-merge"}]
+                    )
+                ],
+                "issue create": [
+                    self.resp("https://github.com/octo/demo/issues/99")
+                ],
+                "issue view": [
+                    self.resp(
+                        {
+                            "labels": [{"name": "experiment:shadow"}],
+                            "milestone": {"title": "M1"},
+                            "state": "OPEN",
+                        }
+                    )
+                ],
+            },
+        )
+        self.assert_failure(result)
+
+    def test_create_shadow_issue_rejects_missing_body_file(self) -> None:
+        result = self.run_cli(
+            "create-shadow-issue",
+            "--repo",
+            REPO,
+            "--title",
+            "[SHADOW] Replay",
+            "--body-file",
+            str(self.root / "does-not-exist.md"),
+        )
+        self.assert_failure(result)
+
+    # ------------------------------------------------------- create-branches
+    def test_create_branches_happy_path(self) -> None:
+        result = self.run_cli(
+            "create-branches",
+            "--shadow-base",
+            "shadow-base/x/run",
+            "--candidate",
+            "shadow/x/run",
+            "--base-commit",
+            "base0",
+        )
+        payload = self.payload(result)
+        self.assertEqual(payload["shadow_base"], "shadow-base/x/run")
+        self.assertEqual(payload["candidate"], "shadow/x/run")
+        self.assertEqual(payload["base_commit"], "base0")
+        self.assertEqual(payload["remote"], "origin")
+        self.assertEqual(self.gh_calls(), [])
+        operations = [
+            call[2] if call[0] == "-C" else call[0] for call in self.git_calls()
+        ]
+        self.assertEqual(operations, ["branch", "push", "branch", "push"])
+
+    def test_create_branches_rejects_identical_base_and_candidate(self) -> None:
+        result = self.run_cli(
+            "create-branches",
+            "--shadow-base",
+            "same",
+            "--candidate",
+            "same",
+            "--base-commit",
+            "base0",
+        )
+        self.assert_failure(result)
+        self.assertEqual(self.git_calls(), [])
+
+    # --------------------------------------------------------- open-shadow-pr
+    def test_open_shadow_pr_happy_path(self) -> None:
+        body = self._body_file("Replay work.\n\nRefs #99\n")
+        result = self.run_cli(
+            "open-shadow-pr",
+            "--repo",
+            REPO,
+            "--base",
+            "B",
+            "--head",
+            "C",
+            "--title",
+            "[SHADOW] PR",
+            "--body-file",
+            body,
+            gh={
+                "pr create": [self.resp("https://github.com/octo/demo/pull/100")],
+                "pr edit": [self.resp("")],
+                "pr view": [self.resp(self.clean_pr())],
+            },
+        )
+        payload = self.payload(result)
+        self.assertEqual(payload["shadow_pr"], 100)
+        self.assertEqual(payload["url"], "https://github.com/octo/demo/pull/100")
+        self.assertEqual(payload["repo"], REPO)
+        calls = self.gh_calls()
+        self.assert_gh_repo_targeting(calls)
+        create = next(call for call in calls if call[:2] == ["pr", "create"])
+        self.assertIn("--draft", create)
+        self.assertEqual(self.opt(create, "--base"), "B")
+        self.assertEqual(self.opt(create, "--head"), "C")
+        edit = next(call for call in calls if call[:2] == ["pr", "edit"])
+        self.assertEqual(self.opt(edit, "--add-label"), "do-not-merge")
+
+    def test_open_shadow_pr_rejects_closing_keyword_before_create(self) -> None:
+        body = self._body_file("This Closes #99 by accident.\n")
+        result = self.run_cli(
+            "open-shadow-pr",
+            "--repo",
+            REPO,
+            "--base",
+            "B",
+            "--head",
+            "C",
+            "--title",
+            "[SHADOW] PR",
+            "--body-file",
+            body,
+        )
+        self.assert_failure(result)
+        self.assertEqual(self.gh_calls(), [])
+
+    def test_open_shadow_pr_rejects_missing_refs(self) -> None:
+        body = self._body_file("Replay work with no reference.\n")
+        result = self.run_cli(
+            "open-shadow-pr",
+            "--repo",
+            REPO,
+            "--base",
+            "B",
+            "--head",
+            "C",
+            "--title",
+            "[SHADOW] PR",
+            "--body-file",
+            body,
+        )
+        self.assert_failure(result)
+        self.assertEqual(self.gh_calls(), [])
+
+    # --------------------------------------------------- validate-invariants
+    def _validate(
+        self,
+        issue: dict[str, Any],
+        pr: dict[str, Any],
+    ) -> subprocess.CompletedProcess[str]:
+        return self.run_cli(
+            "validate-invariants",
+            "--repo",
+            REPO,
+            "--shadow-issue",
+            "99",
+            "--shadow-pr",
+            "100",
+            "--shadow-base",
+            "B",
+            "--candidate",
+            "C",
+            gh={
+                "issue view": [self.resp(issue)],
+                "pr view": [self.resp(pr)],
+            },
+        )
+
+    def test_validate_invariants_clean_pass(self) -> None:
+        result = self._validate(self.clean_issue(), self.clean_pr())
+        payload = self.payload(result)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["repo"], REPO)
+        self.assertEqual(payload["shadow_issue"], 99)
+        self.assertEqual(payload["shadow_pr"], 100)
+        self.assert_gh_repo_targeting(self.gh_calls())
+
+    def test_validate_invariants_detects_each_drift(self) -> None:
+        drifts = {
+            "status_label": (
+                self.clean_issue(labels=("experiment:shadow", "status:todo")),
+                self.clean_pr(),
+            ),
+            "milestone": (
+                self.clean_issue(milestone={"title": "M1"}),
+                self.clean_pr(),
+            ),
+            "wrong_base": (self.clean_issue(), self.clean_pr(base="WRONG")),
+            "wrong_head": (self.clean_issue(), self.clean_pr(head="WRONG")),
+            "missing_do_not_merge": (
+                self.clean_issue(),
+                self.clean_pr(labels=()),
+            ),
+            "not_draft": (self.clean_issue(), self.clean_pr(is_draft=False)),
+            "merged": (self.clean_issue(), self.clean_pr(merged=True)),
+            "closing_keyword": (
+                self.clean_issue(),
+                self.clean_pr(body="Refs #99\nCloses #99\n"),
+            ),
+        }
+        for name, (issue, pr) in drifts.items():
+            with self.subTest(drift=name):
+                result = self._validate(issue, pr)
+                self.assert_failure(result)
+
+    # ---------------------------------------------------------------- cleanup
+    def test_cleanup_closes_draft_without_merge(self) -> None:
+        worktree = self.root / "wt"
+        worktree.mkdir()
+        result = self.run_cli(
+            "cleanup",
+            "--repo",
+            REPO,
+            "--shadow-pr",
+            "100",
+            "--shadow-issue",
+            "99",
+            "--worktree",
+            str(worktree),
+            gh={
+                "pr view": [
+                    self.resp(self.clean_pr()),
+                    self.resp(self.clean_pr(state="CLOSED")),
+                ],
+                "pr close": [self.resp("")],
+                "issue close": [self.resp("")],
+            },
+        )
+        payload = self.payload(result)
+        self.assertTrue(payload["ok"])
+        self.assertFalse(payload["merged"])
+        self.assertTrue(payload["branches_retained"])
+        self.assertEqual(payload["repo"], REPO)
+        calls = self.gh_calls()
+        self.assert_gh_repo_targeting(calls)
+        operations = [call[:2] for call in calls]
+        self.assertNotIn(["pr", "merge"], operations)
+        self.assertIn(["pr", "close"], operations)
+        issue_close = next(call for call in calls if call[:2] == ["issue", "close"])
+        self.assertEqual(self.opt(issue_close, "--reason"), "completed")
+        git_operations = [
+            call[2] if call and call[0] == "-C" else (call[0] if call else "")
+            for call in self.git_calls()
+        ]
+        self.assertNotIn("merge", git_operations)
+        self.assertIn("worktree", git_operations)
+
+    def test_cleanup_refuses_merged_pr(self) -> None:
+        result = self.run_cli(
+            "cleanup",
+            "--repo",
+            REPO,
+            "--shadow-pr",
+            "100",
+            "--shadow-issue",
+            "99",
+            gh={"pr view": [self.resp(self.clean_pr(merged=True, state="MERGED"))]},
+        )
+        self.assert_failure(result)
+        operations = [call[:2] for call in self.gh_calls()]
+        self.assertNotIn(["pr", "close"], operations)
+        self.assertNotIn(["pr", "merge"], operations)
+        self.assertNotIn(["issue", "close"], operations)
+        git_operations = [
+            call[2] if call and call[0] == "-C" else (call[0] if call else "")
+            for call in self.git_calls()
+        ]
+        self.assertNotIn("merge", git_operations)
+
+    # ---------------------------------------------------------------- metrics
+    def _log_file(self, name: str, records: list[dict[str, Any]]) -> str:
+        path = self.root / name
+        path.write_text(
+            "\n".join(json.dumps(record) for record in records) + "\n",
+            encoding="utf-8",
+        )
+        return str(path)
+
+    def test_metrics_claude_code_sums_incremental_and_counts_threads(self) -> None:
+        log = self._log_file(
+            "claude.jsonl",
+            [
+                {
+                    "type": "assistant",
+                    "sessionId": "s1",
+                    "message": {
+                        "usage": {
+                            "input_tokens": 100,
+                            "cache_read_input_tokens": 10,
+                            "cache_creation_input_tokens": 5,
+                            "output_tokens": 20,
+                        }
+                    },
+                },
+                {
+                    "type": "assistant",
+                    "sessionId": "s1",
+                    "message": {
+                        "usage": {
+                            "input_tokens": 200,
+                            "cache_read_input_tokens": 30,
+                            "cache_creation_input_tokens": 15,
+                            "output_tokens": 40,
+                        }
+                    },
+                },
+                {
+                    "type": "assistant",
+                    "sessionId": "s1",
+                    "isSidechain": True,
+                    "message": {
+                        "usage": {
+                            "input_tokens": 50,
+                            "cache_read_input_tokens": 0,
+                            "cache_creation_input_tokens": 0,
+                            "output_tokens": 5,
+                        }
+                    },
+                },
+            ],
+        )
+        result = self.run_cli("metrics", "--harness", "claude-code", "--log", log)
+        payload = self.payload(result)
+        self.assertEqual(payload["harness"], "claude-code")
+        self.assertEqual(payload["threads"], 2)
+        # input = (100+5)+(200+15)+(50+0)
+        self.assertEqual(payload["input_tokens"], 370)
+        self.assertEqual(payload["cached_input_tokens"], 40)
+        self.assertEqual(payload["output_tokens"], 65)
+        self.assertIsNone(payload["reasoning_tokens"])
+        self.assertEqual(payload["unattributed_tokens"], 0)
+        self.assertEqual(self.gh_calls(), [])
+        self.assertEqual(self.git_calls(), [])
+
+    def test_metrics_codex_keeps_last_cumulative_event(self) -> None:
+        log = self._log_file(
+            "codex.jsonl",
+            [
+                {
+                    "type": "token_count",
+                    "thread_id": "t1",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 100,
+                            "cached_input_tokens": 10,
+                            "output_tokens": 20,
+                            "reasoning_output_tokens": 5,
+                        }
+                    },
+                },
+                {
+                    "type": "token_count",
+                    "thread_id": "t1",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 300,
+                            "cached_input_tokens": 30,
+                            "output_tokens": 60,
+                            "reasoning_output_tokens": 15,
+                        }
+                    },
+                },
+            ],
+        )
+        result = self.run_cli("metrics", "--harness", "codex", "--log", log)
+        payload = self.payload(result)
+        self.assertEqual(payload["harness"], "codex")
+        self.assertEqual(payload["threads"], 1)
+        # Last cumulative event wins; NOT summed (400/40/80/20).
+        self.assertEqual(payload["input_tokens"], 300)
+        self.assertEqual(payload["cached_input_tokens"], 30)
+        self.assertEqual(payload["output_tokens"], 60)
+        self.assertEqual(payload["reasoning_tokens"], 15)
+
+    def test_metrics_codex_sums_across_threads_and_logs(self) -> None:
+        log_a = self._log_file(
+            "codex_a.jsonl",
+            [
+                {
+                    "type": "token_count",
+                    "thread_id": "t1",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 300,
+                            "cached_input_tokens": 30,
+                            "output_tokens": 60,
+                            "reasoning_output_tokens": 15,
+                        }
+                    },
+                }
+            ],
+        )
+        log_b = self._log_file(
+            "codex_b.jsonl",
+            [
+                {
+                    "type": "token_count",
+                    "thread_id": "t2",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 100,
+                            "cached_input_tokens": 5,
+                            "output_tokens": 10,
+                            "reasoning_output_tokens": 5,
+                        }
+                    },
+                }
+            ],
+        )
+        result = self.run_cli(
+            "metrics", "--harness", "codex", "--log", log_a, "--log", log_b
+        )
+        payload = self.payload(result)
+        self.assertEqual(payload["threads"], 2)
+        self.assertEqual(payload["input_tokens"], 400)
+        self.assertEqual(payload["cached_input_tokens"], 35)
+        self.assertEqual(payload["output_tokens"], 70)
+        self.assertEqual(payload["reasoning_tokens"], 20)
+
+    def test_metrics_unattributed_records_bucketed_and_totaled(self) -> None:
+        log = self._log_file(
+            "codex_unattr.jsonl",
+            [
+                {
+                    "type": "token_count",
+                    "thread_id": "t1",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 100,
+                            "cached_input_tokens": 0,
+                            "output_tokens": 10,
+                            "reasoning_output_tokens": 0,
+                        }
+                    },
+                },
+                {
+                    "type": "token_count",
+                    "info": {
+                        "total_token_usage": {
+                            "input_tokens": 40,
+                            "cached_input_tokens": 0,
+                            "output_tokens": 4,
+                            "reasoning_output_tokens": 0,
+                        }
+                    },
+                },
+            ],
+        )
+        result = self.run_cli("metrics", "--harness", "codex", "--log", log)
+        payload = self.payload(result)
+        self.assertGreater(payload["unattributed_tokens"], 0)
+        # Unattributed usage is still included in the grand totals.
+        self.assertGreaterEqual(payload["input_tokens"], 140)
+
+    # ---------------------------------------------------------------- pricing
+    def test_pricing_known_model_exact_cost(self) -> None:
+        result = self.run_cli(
+            "pricing",
+            "--provider",
+            "anthropic",
+            "--model",
+            "claude-opus-4-8",
+            "--input",
+            "1000000",
+            "--cached-input",
+            "1000000",
+            "--output",
+            "1000000",
+            "--reasoning",
+            "1000000",
+        )
+        payload = self.payload(result)
+        # 15.0 + 1.5 + 75.0 + reasoning-at-output 75.0
+        self.assertAlmostEqual(payload["cost"], 166.5)
+        self.assertEqual(payload["currency"], "USD")
+        self.assertEqual(payload["model"], "claude-opus-4-8")
+        self.assertEqual(payload["provider"], "anthropic")
+        self.assertEqual(payload["catalog_version"], "1")
+
+    def test_pricing_unknown_model_is_unavailable(self) -> None:
+        result = self.run_cli(
+            "pricing",
+            "--provider",
+            "anthropic",
+            "--model",
+            "no-such-model",
+            "--input",
+            "1000",
+        )
+        payload = self.payload(result)
+        self.assertEqual(payload["cost"], "unavailable")
+        self.assertIn("reason", payload)
+
+    def test_pricing_missing_rate_is_unavailable(self) -> None:
+        catalog = self.root / "catalog.json"
+        catalog.write_text(
+            json.dumps(
+                {
+                    "catalog_version": "9",
+                    "generated": "2026-01-01",
+                    "prices": [
+                        {
+                            "provider": "test",
+                            "model": "norate",
+                            "effective_date": "2026-01-01",
+                            "source_url": "https://example.test",
+                            "currency": "USD",
+                            "unit": "per_mtok",
+                            "input": 10.0,
+                            "cached_input": 1.0,
+                            "reasoning": "output",
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        result = self.run_cli(
+            "pricing",
+            "--catalog",
+            str(catalog),
+            "--provider",
+            "test",
+            "--model",
+            "norate",
+            "--output",
+            "1000000",
+        )
+        payload = self.payload(result)
+        self.assertEqual(payload["cost"], "unavailable")
+        self.assertIn("reason", payload)
+
+    # ---------------------------------------------------------------- compare
+    def _compare_file(self, name: str, blob: dict[str, Any]) -> str:
+        path = self.root / name
+        path.write_text(json.dumps(blob), encoding="utf-8")
+        return str(path)
+
+    @staticmethod
+    def _norm(text: str) -> str:
+        return text.strip().lower().replace(" ", "_").replace("-", "_")
+
+    def test_compare_renders_missing_values_as_unavailable(self) -> None:
+        original = self._compare_file(
+            "original.json",
+            {"dod_criteria_met": "5/5", "input_tokens": 1000, "files_changed": None},
+        )
+        shadow = self._compare_file(
+            "shadow.json",
+            {"dod_criteria_met": "5/5", "output_tokens": 2000},
+        )
+        result = self.run_cli("compare", "--original", original, "--shadow", shadow)
+        payload = self.payload(result)
+        rows = payload["rows"]
+        self.assertEqual(len(rows), 14)
+        for row in rows:
+            self.assertEqual(
+                {"dimension", "original", "shadow", "evidence"} - set(row), set()
+            )
+        by_dimension = {self._norm(row["dimension"]): row for row in rows}
+
+        input_row = by_dimension["input_tokens"]
+        self.assertNotEqual(input_row["original"], "unavailable")
+        self.assertEqual(input_row["shadow"], "unavailable")
+
+        output_row = by_dimension["output_tokens"]
+        self.assertEqual(output_row["original"], "unavailable")
+        self.assertNotEqual(output_row["shadow"], "unavailable")
+
+        # A null value renders as unavailable, same as a missing key.
+        self.assertEqual(by_dimension["files_changed"]["original"], "unavailable")
+
+    # ----------------------------------------------------------------- report
+    def _report_data(self, **overrides: Any) -> dict[str, Any]:
+        data = {
+            "run_id": "20260721T143000Z-abcd1234",
+            "harness": "claude-code",
+            "model": "claude-opus-4-8",
+            "reasoning_effort": "high",
+            "source_issue_url": "https://github.com/octo/demo/issues/3",
+            "source_pr_url": "https://github.com/octo/demo/pull/7",
+            "historical_base": "base0",
+            "cutoff": "2026-01-01T00:00:00Z",
+            "shadow_issue_url": "https://github.com/octo/demo/issues/99",
+            "shadow_pr_url": "https://github.com/octo/demo/pull/100",
+            "candidate_head": "head1",
+            "final_state": "verified",
+            "comparison": [
+                {
+                    "dimension": "dod_criteria_met",
+                    "original": "5/5",
+                    "shadow": "5/5",
+                    "evidence": "all criteria met",
+                }
+            ],
+            "verification": "All DoD criteria satisfied.",
+            "disclosures": ["Custom extra disclosure sentence for this run."],
+        }
+        data.update(overrides)
+        return data
+
+    def _write_report_data(self, data: dict[str, Any]) -> str:
+        path = self.root / "report_data.json"
+        path.write_text(json.dumps(data), encoding="utf-8")
+        return str(path)
+
+    def test_report_renders_all_sections_and_disclosures(self) -> None:
+        data_file = self._write_report_data(self._report_data())
+        result = self.run_cli("report", "--data", data_file)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        markdown = result.stdout
+        self.assertIn(
+            "## dev:shadow evaluation - 20260721T143000Z-abcd1234", markdown
+        )
+        self.assertIn("### Quality and delivery comparison", markdown)
+        self.assertIn("|", markdown)
+        self.assertIn("### Limitations", markdown)
+        for disclosure in REQUIRED_DISCLOSURES:
+            self.assertIn(disclosure, markdown)
+        self.assertIn("Custom extra disclosure sentence for this run.", markdown)
+
+    def test_report_renders_missing_top_level_value_as_unavailable(self) -> None:
+        data = self._report_data()
+        del data["candidate_head"]
+        data_file = self._write_report_data(data)
+        result = self.run_cli("report", "--data", data_file)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("unavailable", result.stdout)
+
+    def test_report_out_writes_file_and_prints_path(self) -> None:
+        data_file = self._write_report_data(self._report_data())
+        out_path = self.root / "report.md"
+        result = self.run_cli(
+            "report", "--data", data_file, "--out", str(out_path)
+        )
+        payload = self.payload(result)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["path"], str(out_path))
+        written = out_path.read_text(encoding="utf-8")
+        self.assertIn(
+            "## dev:shadow evaluation - 20260721T143000Z-abcd1234", written
+        )
+        for disclosure in REQUIRED_DISCLOSURES:
+            self.assertIn(disclosure, written)
+
+
+if __name__ == "__main__":
+    unittest.main()

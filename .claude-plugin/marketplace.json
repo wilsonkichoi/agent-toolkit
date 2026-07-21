@@ -54,9 +54,11 @@
         "pull-request",
         "ci",
         "worktree",
-        "agile"
+        "agile",
+        "evaluation",
+        "shadow-replay"
       ],
-      "version": "0.0.58"
+      "version": "0.0.59"
     }
   ]
 }

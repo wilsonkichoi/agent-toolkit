@@ -83,6 +83,16 @@ verdict and stops; fix mode applies one current findings batch, requests or reco
 re-review, and stops. Only `dev:auto` may chain separate review and fix invocations, and its loop
 must remain bounded by `max_fix_attempts`.
 
+`dev:shadow` is an evaluation surface, not a lifecycle skill. Its deterministic steps live in
+`plugins/dev/scripts/shadow_replay.py` and its contract in `plugins/dev/docs/shadow.md`; the
+skill never merges a shadow PR, never mutates the source issue or original PR, and never enters
+the planned-task queue. Shadow issues carry `experiment:shadow`, no `status:*` label, and no
+milestone; the candidate PR stays draft and `do-not-merge`, targets its `shadow-base` branch, and
+references the shadow issue with `Refs`, never `Closes`. Do not label a shadow item `planned`,
+`external`, or `secondary` to satisfy a `reviewer`/`verifier` planned-task contract; carry the
+review or verify contract into a fresh generic worker instead. `check_repo.py` runs
+`tools/test_shadow_replay.py`; keep those network-free fixture tests green.
+
 ## Repository tools
 
 Agent Markdown files under `plugins/*/agents/` are authoritative. Regenerate both the
