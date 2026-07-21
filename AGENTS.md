@@ -83,6 +83,25 @@ verdict and stops; fix mode applies one current findings batch, requests or reco
 re-review, and stops. Only `dev:auto` may chain separate review and fix invocations, and its loop
 must remain bounded by `max_fix_attempts`.
 
+`dev:review-pr` and the `reviewer` agent share one BLOCKER-severity discipline; keep the skill
+rubric and the agent's Quality Standards in lockstep. A BLOCKER must cite the DoD/spec clause the
+diff violates or a regression it introduces, and state a concrete failure scenario; a scenario
+mapping to no clause and no regression is at most a SUGGESTION. DoD criteria are judged at their
+stated bar (for a qualitative criterion, the common and enumerated cases); residual completeness
+gaps are SUGGESTIONs unless they defeat the criterion's core purpose. A defect fully caught by a
+mandatory downstream gate the task ships (human approval, `dev:verify`) is at most a SUGGESTION
+unless it defeats that gate. On a re-review, prior findings bound the pass: raise regressions,
+genuinely new findings, or still-unaddressed prior findings, never a fresh edge case of a category
+already pushed on, and never a resolution that contradicts a prior pass.
+
+Definition-of-Done quality is a shared contract across `dev:plan`, `dev:backlog`, and
+`dev:execute`. `dev:plan` and `dev:backlog` author DoD criteria that are checkable, evidence-named,
+and carry a decidable acceptance bar - a qualitative or completeness criterion (redaction,
+validation, error handling) must enumerate the classes or cases it covers. `dev:execute`'s
+claim-time packet validation rejects a missing DoD, a "works correctly"-class criterion, or an
+open-ended bar the same way it rejects a missing Objective. Keep the three in lockstep: an
+unbounded DoD admitted at claim time is what prevents review from converging downstream.
+
 `dev:shadow` is an evaluation surface, not a lifecycle skill. Its deterministic steps live in
 `plugins/dev/scripts/shadow_replay.py` and its contract in `plugins/dev/docs/shadow.md`; the
 skill never merges a shadow PR, never mutates the source issue or original PR, and never enters

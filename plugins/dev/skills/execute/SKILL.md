@@ -54,13 +54,19 @@ working directory.
   isolation or implementation; a successful edit without a successful verification read is a
   failed claim.
 
-**Packet validation.** A claimable packet has at minimum an Objective and a Definition of
-Done. If either is missing (typical for hand-written tickets), do not guess and do not
-implement:
+**Packet validation.** A claimable packet has an Objective and a Definition of Done whose
+criteria are *workable*: each criterion must be checkable, name its evidence (a test command, a
+CI check, or an explicit manual step), and carry a decidable acceptance bar - a qualitative or
+completeness criterion ("redacts secrets", "validates input", "handles errors") must enumerate
+the classes or cases it covers, so "met" is decidable at review time. A missing Objective or DoD
+(typical for hand-written tickets), a "works correctly"-class criterion, and a criterion whose
+bar is open-ended all fail this gate. An unbounded DoD admitted here is what lets review never
+converge downstream. Do not guess and do not implement against a failed gate:
 
-- Draft the missing fields from `docs/PRD.md` / `docs/SPEC.md` and post them as a comment on
-  the task for confirmation.
-- Interactive: ask the user to confirm the drafted packet, then proceed.
+- Draft the missing or unbounded fields from `docs/PRD.md` / `docs/SPEC.md` - naming the
+  concrete cases a qualitative criterion must cover - and post them as a comment on the task
+  for confirmation.
+- Interactive: ask the user to confirm the drafted or tightened packet, then proceed.
 - Unattended: release the claim (transition back to `Todo`), comment why it was skipped, and
   claim the next valid task instead.
 
@@ -75,8 +81,9 @@ when the execution repository differs.
 audit, not a planned queue task. A maintainer selects it explicitly; a read-only contributor in
 active fork routing enters it automatically. Before any write:
 
-1. Read the issue with `gh issue view <n> --repo "$github_primary_repo"`. Require a complete
-   Objective and Definition of Done; if either is absent, report the missing sections and stop.
+1. Read the issue with `gh issue view <n> --repo "$github_primary_repo"`. Require an Objective
+   and a Definition of Done that pass the packet-validation gate above (checkable, evidence-named,
+   bounded criteria); if either is absent or a criterion is unbounded, report the gap and stop.
    Do not claim, assign, label, milestone, or otherwise repair the issue as a queue task.
 2. Inspect the canonical issue timeline and cross-references through
    `gh api "repos/$github_primary_repo/issues/<n>/timeline"`, then re-read any referenced PR
