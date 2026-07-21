@@ -419,6 +419,21 @@ def check_github_task_lifecycle() -> None:
         raise CheckFailure(f"GitHub task lifecycle tests failed:\n{details}")
 
 
+def check_shadow_replay() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools/test_shadow_replay.py")],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        details = "\n".join(
+            part.strip() for part in (result.stdout, result.stderr) if part.strip()
+        )
+        raise CheckFailure(f"shadow replay tests failed:\n{details}")
+
+
 def check_github_lifecycle_adoption() -> None:
     required_by_file = {
         ROOT / "plugins/dev/docs/tracker.md": (
@@ -634,6 +649,7 @@ CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("generator-drift", check_generator_drift),
     ("project-rule-resolver", check_project_rule_resolver),
     ("github-task-lifecycle", check_github_task_lifecycle),
+    ("shadow-replay", check_shadow_replay),
     ("github-lifecycle-adoption", check_github_lifecycle_adoption),
     ("manual-review-pr-one-pass", check_manual_review_pr_one_pass_contract),
     ("project-bootstrap-adoption", check_project_bootstrap_adoption),

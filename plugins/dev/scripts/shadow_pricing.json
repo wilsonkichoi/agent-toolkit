@@ -1,0 +1,106 @@
+{
+  "catalog_version": "5",
+  "generated": "2026-07-21",
+  "notes": "API-equivalent list prices for estimating what a dev:shadow replay would have cost at published per-token rates. This is not the user's actual subscription charge. Rates are per 1,000,000 tokens (MTok); Anthropic cache-write rates use the cited standard 5-minute TTL. 'reasoning' names how reasoning/thinking tokens are billed: 'output' at the output rate, 'input' at the input rate, 'included_in_output' when reasoning is already a subset of reported output, 'unpriced' when the provider does not bill them separately, or a numeric MTok rate. A model absent from this catalog, or a required rate missing for a non-zero token category, yields 'cost unavailable' - never a guessed value. Update this file with dated, sourced entries when published prices change.",
+  "prices": [
+    {
+      "provider": "anthropic",
+      "model": "claude-fable-5",
+      "effective_date": "2026-07-21",
+      "source_url": "https://www.anthropic.com/pricing",
+      "currency": "USD",
+      "unit": "per_mtok",
+      "input": 10.0,
+      "cached_input": 1.0,
+      "cache_write": 12.5,
+      "output": 50.0,
+      "reasoning": "output"
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-opus-4-8",
+      "effective_date": "2026-07-21",
+      "source_url": "https://www.anthropic.com/pricing",
+      "currency": "USD",
+      "unit": "per_mtok",
+      "input": 5.0,
+      "cached_input": 0.5,
+      "cache_write": 6.25,
+      "output": 25.0,
+      "reasoning": "output"
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-sonnet-5",
+      "effective_date": "2026-07-21",
+      "source_url": "https://www.anthropic.com/pricing",
+      "currency": "USD",
+      "unit": "per_mtok",
+      "input": 2.0,
+      "cached_input": 0.2,
+      "cache_write": 2.5,
+      "output": 10.0,
+      "reasoning": "output"
+    },
+    {
+      "provider": "openai",
+      "model": "openai/gpt-5.6",
+      "canonical_model": "gpt-5.6-sol",
+      "effective_date": "2026-07-09",
+      "source_url": "https://developers.openai.com/api/docs/models/gpt-5.6-sol",
+      "currency": "USD",
+      "unit": "per_mtok",
+      "input": 5.0,
+      "cached_input": 0.5,
+      "cache_write": 6.25,
+      "output": 30.0,
+      "reasoning": "included_in_output",
+      "cached_input_is_subset": true,
+      "long_context": {
+        "threshold_input_tokens": 272000,
+        "input_multiplier": 2.0,
+        "output_multiplier": 1.5
+      }
+    },
+    {
+      "provider": "openai",
+      "model": "openai/gpt-5.6-terra",
+      "canonical_model": "gpt-5.6-terra",
+      "effective_date": "2026-07-09",
+      "source_url": "https://developers.openai.com/api/docs/models/gpt-5.6-terra",
+      "currency": "USD",
+      "unit": "per_mtok",
+      "input": 2.5,
+      "cached_input": 0.25,
+      "cache_write": 3.125,
+      "output": 15.0,
+      "reasoning": "included_in_output",
+      "cached_input_is_subset": true,
+      "long_context": {
+        "threshold_input_tokens": 272000,
+        "input_multiplier": 2.0,
+        "output_multiplier": 1.5
+      }
+    },
+    {
+      "provider": "openai",
+      "model": "openai/gpt-5.6-luna",
+      "canonical_model": "gpt-5.6-luna",
+      "effective_date": "2026-07-09",
+      "source_url": "https://developers.openai.com/api/docs/models/gpt-5.6-luna",
+      "currency": "USD",
+      "unit": "per_mtok",
+      "input": 1.0,
+      "cached_input": 0.1,
+      "cache_write": 1.25,
+      "output": 6.0,
+      "reasoning": "included_in_output",
+      "cached_input_is_subset": true,
+      "long_context": {
+        "threshold_input_tokens": 272000,
+        "input_multiplier": 2.0,
+        "output_multiplier": 1.5
+      }
+    }
+  ]
+}

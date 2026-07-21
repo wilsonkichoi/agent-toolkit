@@ -53,7 +53,7 @@ for the complete local-marketplace workflow.
 | Plugin | Description |
 |---|---|
 | `utils` | Research, knowledge synthesis, LLM Wiki maintenance, retrospectives, and security scanning |
-| `dev` | Product discovery, architecture, tracker-backed planning, implementation, review, verification, status, and retrospectives |
+| `dev` | Product discovery, architecture, tracker-backed planning, implementation, review, verification, status, retrospectives, and historical-replay evaluation |
 
 Plugin-specific documentation is in [plugins/utils/README.md](plugins/utils/README.md) and
 [plugins/dev/README.md](plugins/dev/README.md).
@@ -76,6 +76,9 @@ therefore dispatches its implementation worker and `test-writer` as siblings. St
 The `dev` plugin's task-scoped lifecycle resolves project instructions and tiered rules from the
 task's execution repository with a bundled resolver. Codex does not depend on Claude Code's
 `@` import expansion, including for cross-repository tasks.
+
+`dev:shadow` opens its isolated draft PR only after the replay has produced a candidate commit,
+and binds the PR head to the resolved push repository for both same-repository and fork routing.
 
 Primary-GitHub lifecycle routing binds execute work summaries to the PR author, URL, branch, and
 commit ancestry before review or verification uses their queue classification. Planned reviews
