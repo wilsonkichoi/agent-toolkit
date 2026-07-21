@@ -41,7 +41,10 @@ draft tasks against the packet schema. Every packet:
 - **Why** - the problem it solves, naming the PRD/SPEC section that motivates it.
 - **Definition of Done** - checkable criteria only. Each criterion must name its evidence: a
   test command, a CI check, or an explicit manual verification step. "Works correctly" is not
-  a criterion. Prefer test-backed: if a behavior is fully checkable by a script (stdout, exit
+  a criterion. A qualitative or completeness criterion (redaction, validation, error handling)
+  must enumerate the classes or cases it covers, so "met" is decidable at review time; an
+  open-ended bar is how review cannot converge and `dev:execute`'s packet gate will reject it.
+  Prefer test-backed: if a behavior is fully checkable by a script (stdout, exit
   code, API response), write one test-backed criterion - never a manual criterion duplicating
   what an automated test in the same task covers. Manual criteria are for genuinely
   human-observable things (visual layout, UX judgment), and each one forces `dev:auto` to

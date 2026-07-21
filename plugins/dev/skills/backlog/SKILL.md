@@ -53,7 +53,10 @@ repository with:
 - `## Relevant references`
 - `## Suggested implementation`
 
-Use `gh issue create --repo "$github_primary_repo"`. Apply no `status:*`, priority, or size
+The `## Definition of Done` must meet the same standard `dev:plan` requires: checkable,
+evidence-named criteria with a decidable acceptance bar (qualitative criteria enumerate the
+cases they cover), so `dev:execute`'s packet-validation gate admits it without a round of
+tightening. Use `gh issue create --repo "$github_primary_repo"`. Apply no `status:*`, priority, or size
 label, no milestone, no dependency relation, and no assignee. The contributor does not need
 assignment, queue promotion, milestone placement, or maintainer approval before running
 `dev:execute #<n>`. Report the canonical issue URL and stop. If goal or spec triage requires a
@@ -84,7 +87,9 @@ For each request:
    real cost is visible. Declining an existing ticket = `Wont Do` with the triage rationale;
    declining a ticketless request = record the decision in the triage summary.
 2. **Write a full task packet** (DESIGN.md schema: objective, why with PRD/SPEC link, DoD
-   with evidence paths, dependencies, estimate, inlined spec excerpts, suggested steps).
+   with evidence paths and a decidable acceptance bar per `dev:plan` - qualitative criteria
+   enumerate the cases they cover, dependencies, estimate, inlined spec excerpts, suggested
+   steps).
    Model implicit ordering as a real dependency, checked in **both directions**: does this
    request build on existing `Backlog`/`Todo` tickets, and do existing tickets build on it?
    Ordering that lives only in the ticket prose is invisible to the next-task algorithm -
