@@ -142,6 +142,27 @@ class TestRedaction(unittest.TestCase):
         self.assertNotIn("dbuser:dbpass", result.stdout)
         self.assertIn("<REDACTED>", result.stdout)
 
+    def test_redacts_standalone_private_repo(self) -> None:
+        text = "tracker repository: acme/private-platform"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("acme/private-platform", result.stdout)
+        self.assertIn("<private-repo>", result.stdout)
+
+    def test_preserves_standalone_target_repo(self) -> None:
+        text = "filed in wilsonkichoi/agent-toolkit"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("wilsonkichoi/agent-toolkit", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_redacts_non_home_absolute_path(self) -> None:
+        text = "config at /opt/customer-alpha/config.yaml"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("/opt/customer-alpha", result.stdout)
+        self.assertIn("<redacted-path>", result.stdout)
+
 
 class TestDraft(unittest.TestCase):
     """Tests for the draft subcommand covering template rendering."""
@@ -249,6 +270,28 @@ class TestDraft(unittest.TestCase):
         draft = json.loads(result.stdout)
         self.assertIn("--title '", draft["command"])
 
+    def test_draft_redacts_title(self) -> None:
+        data = self._draft_input(
+            title="Token sk-proj-abcdefghijklmnopqrstuv in acme/private-platform"
+        )
+        result = run_cli("draft", stdin=json.dumps(data))
+        self.assertEqual(result.returncode, 0)
+        draft = json.loads(result.stdout)
+        self.assertNotIn("sk-proj-", draft["title"])
+        self.assertNotIn("acme/private-platform", draft["title"])
+        self.assertIn("<REDACTED>", draft["title"])
+        self.assertIn("<private-repo>", draft["title"])
+
+    def test_draft_redacts_body_fields(self) -> None:
+        data = self._draft_input(
+            objective="Fix /Users/dev/secret path and postgresql://u:p@host/db"
+        )
+        result = run_cli("draft", stdin=json.dumps(data))
+        self.assertEqual(result.returncode, 0)
+        draft = json.loads(result.stdout)
+        self.assertNotIn("/Users/dev/", draft["body"])
+        self.assertNotIn("u:p@host", draft["body"])
+
 
 class TestDuplicateSearch(unittest.TestCase):
     """Tests for the search subcommand covering duplicate detection.
@@ -338,6 +381,34 @@ class TestDuplicateSearch(unittest.TestCase):
         result = run_cli("search", "some query", env_override=env)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("error:", result.stderr)
+
+    def test_search_fails_when_one_state_entirely_fails(self) -> None:
+        """Open queries succeed but all closed queries fail: partial-state failure."""
+        call_count_file = os.path.join(self._tmp_dir, "counter")
+        script = textwrap.dedent(f"""\
+            #!/bin/bash
+            COUNTER_FILE="{call_count_file}"
+            if [ ! -f "$COUNTER_FILE" ]; then
+                echo "0" > "$COUNTER_FILE"
+            fi
+            INDEX=$(cat "$COUNTER_FILE")
+            NEXT=$((INDEX + 1))
+            echo "$NEXT" > "$COUNTER_FILE"
+            # First call is open state (succeeds), second is closed state (fails)
+            if echo "$@" | grep -q "\\-\\-state closed"; then
+                echo "rate limit" >&2
+                exit 1
+            fi
+            echo '[]'
+            exit 0
+        """)
+        with open(self._fake_gh_path, "w") as f:
+            f.write(script)
+        os.chmod(self._fake_gh_path, 0o755)
+        env = {"PATH": f"{self._tmp_dir}:{os.environ.get('PATH', '')}"}
+        result = run_cli("search", "some query", env_override=env)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("closed", result.stderr)
 
 
 class TestGitHubAccess(unittest.TestCase):
@@ -448,11 +519,12 @@ class TestCrossRepoContext(unittest.TestCase):
         self.assertIn("fork_contributions: true", result.stdout)
 
 
-class TestExplicitApproval(unittest.TestCase):
-    """Tests verifying that the draft command does not submit, only renders.
+class TestWorkflowContract(unittest.TestCase):
+    """Tests verifying the skill workflow contract.
 
-    The CLI's draft subcommand produces output but never calls gh issue create.
-    Submission is the skill's responsibility (requires human approval in the session).
+    The workflow is: access check -> (if authenticated) search -> draft -> submit.
+    The CLI never submits; it renders a command the LLM executes after human approval.
+    When access is unavailable, search is skipped and the draft is the final output.
     """
 
     def test_draft_produces_command_but_does_not_execute(self) -> None:
@@ -468,8 +540,52 @@ class TestExplicitApproval(unittest.TestCase):
         draft = json.loads(result.stdout)
         self.assertIn("gh issue create", draft["command"])
         self.assertIn("--body-file", draft["command"])
-        # The CLI returns the command string; it never executes it.
-        # Actual submission requires the LLM skill to get human approval first.
+
+    def test_offline_draft_path_produces_complete_output(self) -> None:
+        """When access check shows no auth, draft still renders a complete issue."""
+        tmp_dir = tempfile.mkdtemp()
+        try:
+            fake_gh = os.path.join(tmp_dir, "gh")
+            with open(fake_gh, "w") as f:
+                f.write("#!/bin/bash\nexit 1\n")
+            os.chmod(fake_gh, 0o755)
+            env = {"PATH": f"{tmp_dir}:{os.environ.get('PATH', '')}"}
+            access = run_cli("access", env_override=env)
+            self.assertEqual(access.returncode, 0)
+            access_data = json.loads(access.stdout)
+            self.assertFalse(access_data["authenticated"])
+
+            data = {
+                "title": "Offline test issue",
+                "category": "enhancement",
+                "objective": "Something useful.",
+                "why": "Needed.",
+                "definition_of_done": "- [ ] Done",
+            }
+            draft = run_cli("draft", stdin=json.dumps(data))
+            self.assertEqual(draft.returncode, 0)
+            draft_data = json.loads(draft.stdout)
+            self.assertIn("gh issue create", draft_data["command"])
+            self.assertIn("## Objective", draft_data["body"])
+            self.assertEqual(draft_data["title"], "Offline test issue")
+        finally:
+            import shutil
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    def test_draft_with_redaction_prevents_secret_in_command(self) -> None:
+        """A title with secrets gets redacted in both title and command output."""
+        data = {
+            "title": "Token sk-proj-abcdefghijklmnopqrstuv leaks",
+            "category": "bug",
+            "objective": "Stop the leak.",
+            "why": "Security.",
+            "definition_of_done": "- [ ] No leak",
+        }
+        result = run_cli("draft", stdin=json.dumps(data))
+        self.assertEqual(result.returncode, 0)
+        draft = json.loads(result.stdout)
+        self.assertNotIn("sk-proj-", draft["title"])
+        self.assertNotIn("sk-proj-", draft["command"])
 
 
 if __name__ == "__main__":

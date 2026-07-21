@@ -57,14 +57,20 @@ appear in the issue body. On Claude Code the script is under
 `${CLAUDE_PLUGIN_ROOT}/scripts/feedback_redact.py`; on Codex it is
 `../../scripts/feedback_redact.py` relative to this skill's directory.
 
+**Always pass text via stdin, never as shell arguments.** Write the text to a temporary
+file and redirect, or pipe it directly from the tool output. This avoids shell
+interpretation of untrusted content (quotes, `$()`, backticks).
+
 ```bash
-uv run <plugin-root>/scripts/feedback_redact.py redact --text "<field value>"
+uv run <plugin-root>/scripts/feedback_redact.py redact < /tmp/field.txt
 ```
 
-For multiple fields, pipe the assembled text via stdin:
+Or pipe via heredoc when the text is known safe (no unmatched quotes):
 
 ```bash
-echo "<assembled text>" | uv run <plugin-root>/scripts/feedback_redact.py redact
+uv run <plugin-root>/scripts/feedback_redact.py redact <<'REDACT_EOF'
+<text to redact>
+REDACT_EOF
 ```
 
 Add `--public-repo <owner/repo>` for any repository whose visibility has been confirmed
@@ -90,19 +96,30 @@ If a piece of context is needed for the report but cannot be safely included, de
 its shape without revealing the value (e.g. "a Linear project key" instead of the actual
 key).
 
-## 3. Search for duplicates
+## 3. Check access and search for duplicates
 
-Use the bundled search helper to find likely duplicates across open and closed issues:
+First, check GitHub access:
 
 ```bash
-uv run <plugin-root>/scripts/feedback_redact.py search "<keywords from title>" "<keywords from symptoms>"
+uv run <plugin-root>/scripts/feedback_redact.py access
+```
+
+If the access check reports `authenticated: false` or `has_write: false`, skip the
+duplicate search (it will also fail without auth). Proceed directly to step 4, noting
+that the workflow will end with an offline draft (step 6 unavailable-access path).
+
+If authenticated, search for duplicates. Use only short, agent-chosen search terms
+derived from the title and symptoms (never raw user text as an argument):
+
+```bash
+uv run <plugin-root>/scripts/feedback_redact.py search 'keyword1 keyword2' 'symptom phrase'
 ```
 
 The helper searches both open and closed issues in `wilsonkichoi/agent-toolkit`,
 deduplicates results, and returns JSON with number, title, state, and url per match.
-If the search fails (rate limit, auth error, network), the helper exits nonzero with an
-error message. Do not proceed to draft or submit if the duplicate search could not
-complete; report the failure to the user.
+If the search fails despite authentication (rate limit, transient error), the helper
+exits nonzero. Report the failure to the user and ask whether to proceed without
+duplicate checking or retry.
 
 Present any likely matches to the user with their number, title, state, and URL.
 If a match is confirmed as a duplicate:
@@ -113,19 +130,24 @@ If a match is confirmed as a duplicate:
 
 ## 4. Select template
 
-Choose the issue template based on the target repository's `.github/ISSUE_TEMPLATE/`:
+Fetch the current issue templates from the target repository:
 
-- Bug reports or regressions: use `external-contribution.yml` with a clear reproduction
-  framing in the Objective.
-- Enhancements, docs gaps, workflow improvements: use `external-contribution.yml` with
-  a proposal framing.
+```bash
+gh api repos/wilsonkichoi/agent-toolkit/contents/.github/ISSUE_TEMPLATE \
+  --jq '.[].name'
+```
 
-The external-contribution template is the correct choice because feedback issues are
-contributions to agent-toolkit, not maintainer-planned tasks. They enter through the
-external contribution channel and may be promoted to the planned queue by a maintainer
-later.
+Select the template whose name indicates external contributions (currently
+`external-contribution.yml`). Feedback issues are contributions, not
+maintainer-planned tasks; they enter through the external contribution channel and may
+be promoted by a maintainer later.
 
-Fill the template fields:
+If the template set has changed (renamed, removed, new templates added), pick the
+closest match for a contribution. If none exists, use the default fields below.
+
+Read the selected template to discover its current field names and required sections.
+Map the gathered context to those fields. The expected mapping (for the current
+`external-contribution.yml`):
 
 | Template field | Content |
 |---|---|
@@ -137,15 +159,18 @@ Fill the template fields:
 
 ## 5. Draft
 
-Use the bundled draft helper to render the complete issue body:
+Use the bundled draft helper to render the complete issue body. **Write the JSON input
+to a temporary file** and pass it with `--input` to avoid shell interpolation:
 
 ```bash
-echo '<json>' | uv run <plugin-root>/scripts/feedback_redact.py draft
+uv run <plugin-root>/scripts/feedback_redact.py draft --input /tmp/feedback-draft.json
 ```
 
 The JSON input must contain: `title`, `category`, `objective`, `why`,
-`definition_of_done`, and optionally `references` and `implementation`. The helper
-returns JSON with `title`, `label`, `body`, and `command` fields.
+`definition_of_done`, and optionally `references`, `implementation`, and
+`public_repos` (list of confirmed-public repository names). The helper applies
+redaction to all fields (including the title) and returns JSON with `title`, `label`,
+`body`, and `command` fields.
 
 Present the rendered draft to the user showing:
 
@@ -166,21 +191,16 @@ submit, or request changes."
 **Requires explicit human approval.** Do not submit on silence, ambiguity, or implicit
 confirmation. The user must clearly say yes, approve, submit, file it, or equivalent.
 
-Before attempting submission, check access:
-
-```bash
-uv run <plugin-root>/scripts/feedback_redact.py access
-```
-
-If GitHub authentication is unavailable or write access is denied (the helper returns
+If step 3 determined that GitHub access is unavailable (`authenticated: false` or
 `has_write: false`):
 - Present the complete issue draft in a copyable fenced block.
 - Include the `command` field from the draft helper output.
-- Stop. Do not retry or error-loop.
+- Stop. Report that GitHub access is unavailable and the user can file manually.
+  Do not retry or error-loop.
 
 On approval with working access, write the draft body to a temporary file and run the
 command from the draft helper output (which uses `--body-file <draft-file>`). Replace
-`<draft-file>` with the actual path.
+`<draft-file>` with the actual temporary file path.
 
 Return the created issue URL.
 
@@ -191,15 +211,6 @@ a reference comment on the originating task in the current project's tracker. Th
 requires a second explicit approval because it writes to the current project's tracker.
 
 If declined or if there is no originating task, skip silently.
-
-## Unavailable GitHub access
-
-If `gh auth status` fails or the user lacks write access to `wilsonkichoi/agent-toolkit`:
-
-1. Complete steps 1-5 normally (gather, redact, search, template, draft).
-2. Present the final draft in a fenced code block.
-3. Include the exact `gh issue create` command that would file it.
-4. Stop. Report that GitHub access is unavailable and the user can file manually.
 
 ## Scope boundaries
 

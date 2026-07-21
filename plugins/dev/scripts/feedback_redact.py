@@ -52,6 +52,10 @@ SECRET_PATTERNS = [
 ]
 
 HOME_PATH_RE = re.compile(r"/(?:Users|home)/[A-Za-z0-9_.\-]+/")
+ABS_PATH_RE = re.compile(r"/(?:opt|var|etc|srv|tmp|usr/local)/[^\s\"'`,;)}\]]+")
+STANDALONE_REPO_RE = re.compile(
+    r"(?<![\w/.:<>])([A-Za-z][A-Za-z0-9_.\-]*/[A-Za-z][A-Za-z0-9_.\-]*)(?![/\w.\-])"
+)
 
 
 def redact_secrets(text: str) -> str:
@@ -62,8 +66,10 @@ def redact_secrets(text: str) -> str:
 
 
 def redact_home_paths(text: str) -> str:
-    """Replace /Users/<name>/ or /home/<name>/ with ~/."""
-    return HOME_PATH_RE.sub("~/", text)
+    """Replace /Users/<name>/ or /home/<name>/ with ~/, and other absolute paths."""
+    text = HOME_PATH_RE.sub("~/", text)
+    text = ABS_PATH_RE.sub("<redacted-path>", text)
+    return text
 
 
 def redact_private_repos(text: str, public_repos: set[str] | None = None) -> str:
@@ -76,7 +82,7 @@ def redact_private_repos(text: str, public_repos: set[str] | None = None) -> str
         public_repos = set()
     public_repos = public_repos | {TARGET_REPO}
 
-    def _replace_url(match: re.Match[str]) -> str:
+    def _replace_repo(match: re.Match[str]) -> str:
         repo = match.group(1)
         if repo in public_repos:
             return match.group(0)
@@ -85,7 +91,20 @@ def redact_private_repos(text: str, public_repos: set[str] | None = None) -> str
     github_url_re = re.compile(
         r"https://github\.com/([A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)"
     )
-    text = github_url_re.sub(_replace_url, text)
+    text = github_url_re.sub(_replace_repo, text)
+
+    def _replace_standalone(match: re.Match[str]) -> str:
+        repo = match.group(1)
+        if repo in public_repos:
+            return match.group(0)
+        if "/" not in repo:
+            return match.group(0)
+        parts = repo.split("/")
+        if len(parts) != 2 or not parts[0] or not parts[1]:
+            return match.group(0)
+        return match.group(0).replace(repo, "<private-repo>")
+
+    text = STANDALONE_REPO_RE.sub(_replace_standalone, text)
     return text
 
 
@@ -107,11 +126,20 @@ def render_draft(
     definition_of_done: str,
     references: str = "",
     implementation: str = "",
+    public_repos: set[str] | None = None,
 ) -> dict[str, str]:
     """Render a complete issue draft from structured fields.
 
+    Applies redaction to the title and all body fields before rendering.
     Returns a dict with 'title', 'label', 'body', and 'command' keys.
     """
+    title = redact_text(title, public_repos)
+    objective = redact_text(objective, public_repos)
+    why = redact_text(why, public_repos)
+    definition_of_done = redact_text(definition_of_done, public_repos)
+    references = redact_text(references, public_repos) if references else ""
+    implementation = redact_text(implementation, public_repos) if implementation else ""
+
     label = CATEGORY_LABELS.get(category, "enhancement")
     sections = [
         f"## Objective\n\n{objective}",
@@ -159,7 +187,7 @@ def search_duplicates(keywords: list[str]) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     seen_numbers: set[int] = set()
     errors: list[str] = []
-    successes = 0
+    state_successes: dict[str, int] = {"open": 0, "closed": 0}
 
     for state in ("open", "closed"):
         for query in keywords:
@@ -192,7 +220,7 @@ def search_duplicates(keywords: list[str]) -> list[dict[str, Any]]:
 
             output = proc.stdout.strip()
             if not output:
-                successes += 1
+                state_successes[state] += 1
                 continue
 
             try:
@@ -203,18 +231,27 @@ def search_duplicates(keywords: list[str]) -> list[dict[str, Any]]:
                 )
                 continue
 
-            successes += 1
+            state_successes[state] += 1
             for item in items:
                 num = item.get("number")
                 if num and num not in seen_numbers:
                     seen_numbers.add(num)
                     results.append(item)
 
-    if successes == 0:
+    total_successes = sum(state_successes.values())
+    if total_successes == 0:
         raise SearchError(
             f"All duplicate searches failed ({len(errors)} errors): "
             + "; ".join(errors[:5])
         )
+
+    for state, count in state_successes.items():
+        if count == 0:
+            raise SearchError(
+                f"All {state}-issue searches failed; cannot confirm no duplicates "
+                f"exist among {state} issues. Errors: "
+                + "; ".join(e for e in errors if f"state={state}" in e)[:3]
+            )
 
     return results
 
@@ -298,6 +335,7 @@ def cmd_draft(args: argparse.Namespace) -> None:
         if field not in data:
             die(f"missing required field: {field}")
 
+    public = set(data.get("public_repos", []))
     draft = render_draft(
         title=data["title"],
         category=data["category"],
@@ -306,6 +344,7 @@ def cmd_draft(args: argparse.Namespace) -> None:
         definition_of_done=data["definition_of_done"],
         references=data.get("references", ""),
         implementation=data.get("implementation", ""),
+        public_repos=public if public else None,
     )
     print(json.dumps(draft, indent=2))
 

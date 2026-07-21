@@ -96,6 +96,12 @@ Open the shadow PR only after the first candidate commit is pushed; bind and re-
 head repository so fork-qualified candidate branches cannot be confused with same-named upstream
 branches.
 
+`dev:feedback` is not a lifecycle skill. It files issues only in `wilsonkichoi/agent-toolkit`,
+never mutates the current project's tracker, and does not use the project bootstrap sequence.
+Its deterministic helpers live in `plugins/dev/scripts/feedback_redact.py`; `check_repo.py` runs
+`tools/test_feedback_redact.py`. The draft helper applies redaction to all fields including the
+title; never pass untrusted text as shell arguments to the helper.
+
 ## Repository tools
 
 Agent Markdown files under `plugins/*/agents/` are authoritative. Regenerate both the
