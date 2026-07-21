@@ -71,6 +71,32 @@ GIT_HOSTING_URL_RE = re.compile(
     r"(?:gitlab|bitbucket|codeberg|gitea)[^\s\"'`,;)}\]]+"
 )
 
+# A bare `owner/repo` token (no URL, no scheme). The lookbehind/lookahead keep this off
+# URL path segments (always preceded by `/`) and multi-segment file paths (followed by `/`),
+# so only standalone two-segment names match.
+STANDALONE_REPO_RE = re.compile(
+    r"(?<![\w./@:-])"
+    r"([A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?/[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)"
+    r"(?![\w/])"
+)
+
+# Two-segment tokens that read as `owner/repo` but are ordinary technical text; preserved so
+# drafts stay legible. False positives beyond this set are acceptable (the draft is
+# human-reviewed before filing); a leaked private repo name is not.
+TECHNICAL_TERM_ALLOWLIST = {
+    "client/server", "read/write", "input/output", "and/or", "he/she", "she/he",
+    "tcp/ip", "http/https", "ci/cd", "yes/no", "on/off", "pass/fail",
+    "true/false", "n/a", "w/o", "24/7",
+}
+
+# First segment of a `type/slug` token that is a git ref or branch-type word, not a repo owner;
+# preserved so branch names and refs (`task/11-dev-feedback`, `origin/main`) survive.
+NON_OWNER_FIRST_SEGMENTS = {
+    "feat", "fix", "docs", "chore", "refactor", "test", "spike", "perf",
+    "ci", "build", "style", "revert", "hotfix", "release", "task",
+    "origin", "upstream", "head", "main",
+}
+
 
 def redact_secrets(text: str) -> str:
     """Replace secret-like patterns with <REDACTED>."""
@@ -96,7 +122,10 @@ def redact_private_repos(
 
     Handles GitHub URLs (https://github.com/owner/repo), non-GitHub git hosting
     URLs (gitlab, bitbucket, codeberg, gitea), SSH git URLs (git@host:owner/repo),
-    and explicitly declared private repository names.
+    explicitly declared private repository names, and bare `owner/repo` tokens whose
+    visibility is not established. A bare token is redacted by default (false-positives
+    acceptable, false-negatives are not) unless it is the target repo, a declared public
+    repo, an allowlisted technical term, or a git ref / branch name.
     """
     if public_repos is None:
         public_repos = set()
@@ -126,6 +155,18 @@ def redact_private_repos(
         for repo in private_repos:
             if repo not in public_repos:
                 text = text.replace(repo, "<private-repo>")
+
+    def _replace_standalone_repo(match: re.Match[str]) -> str:
+        token = match.group(1)
+        if token in public_repos:
+            return token
+        if token.lower() in TECHNICAL_TERM_ALLOWLIST:
+            return token
+        if token.split("/", 1)[0].lower() in NON_OWNER_FIRST_SEGMENTS:
+            return token
+        return "<private-repo>"
+
+    text = STANDALONE_REPO_RE.sub(_replace_standalone_repo, text)
 
     return text
 

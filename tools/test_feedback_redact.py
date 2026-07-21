@@ -188,6 +188,44 @@ class TestRedaction(unittest.TestCase):
         self.assertNotIn("gitlab.com:acme", result.stdout)
         self.assertIn("<private-repo-url>", result.stdout)
 
+    def test_redacts_standalone_repo_by_default(self) -> None:
+        text = "tracker repository: acme/private-platform"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("acme/private-platform", result.stdout)
+        self.assertIn("<private-repo>", result.stdout)
+
+    def test_preserves_standalone_public_repo_when_declared(self) -> None:
+        text = "compare against public-org/open-lib"
+        result = run_cli(
+            "redact", "--text", text, "--public-repo", "public-org/open-lib"
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("public-org/open-lib", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_preserves_technical_two_segment_term(self) -> None:
+        text = "client/server timeout during read/write"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("client/server", result.stdout)
+        self.assertIn("read/write", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_preserves_branch_ref(self) -> None:
+        text = "on branch task/11-dev-feedback rebased onto origin/main"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("task/11-dev-feedback", result.stdout)
+        self.assertIn("origin/main", result.stdout)
+
+    def test_preserves_multi_segment_path(self) -> None:
+        text = "edit plugins/dev/skills/feedback/SKILL.md for the fix"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("plugins/dev/skills/feedback/SKILL.md", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
     def test_redacts_windows_path(self) -> None:
         text = r"config at C:\Users\alice\src\private-platform\config.yaml"
         result = run_cli("redact", "--text", text)

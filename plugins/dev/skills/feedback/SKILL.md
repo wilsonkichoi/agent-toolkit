@@ -73,14 +73,19 @@ uv run <plugin-root>/scripts/feedback_redact.py redact <<'REDACT_EOF'
 REDACT_EOF
 ```
 
-Add `--public-repo <owner/repo>` for any repository whose visibility has been confirmed
-public. Add `--private-repo <owner/repo>` for any repository known to be private (the
-current project's tracker repository, execution repository, etc.); all occurrences of
-that name in the text will be replaced. The helper strips:
+A bare `owner/repo` name whose visibility is not established is redacted to `<private-repo>`
+by default; false positives are acceptable because you review the draft before filing, a
+leaked private repository name is not. Add `--public-repo <owner/repo>` for any repository
+whose visibility has been confirmed public so the helper preserves it. Add
+`--private-repo <owner/repo>` for any repository known to be private (the current project's
+tracker repository, execution repository, etc.); all occurrences of that name in the text
+will be replaced. The helper strips:
 
 - Secrets and credentials (API keys, tokens, passwords, PEM private keys, connection strings)
 - Private repository URLs on any git hosting platform (GitHub, GitLab, Bitbucket, etc.)
 - Explicitly declared private repository names (all occurrences)
+- Bare `owner/repo` names of unestablished visibility (redacted by default; declare
+  confirmed-public ones with `--public-repo` to keep them)
 - Unix home paths (`/Users/<name>/`, `/home/<name>/`) replaced with `~/`
 - Windows user paths (`C:\Users\<name>\...`) replaced with `<redacted-path>`
 - Sensitive absolute paths (`/opt/`, `/var/`, `/etc/`, `/srv/`, `/tmp/`, `/usr/local/`)
@@ -89,6 +94,8 @@ Preserve (handled automatically by the helper):
 
 - Public `wilsonkichoi/agent-toolkit` links (issues, PRs, files)
 - Declared public repository names
+- Ordinary two-segment technical terms (`client/server`, `read/write`) and git refs /
+  branch names (`origin/main`, `task/<id>-<slug>`)
 - Error messages and stack traces (after secret stripping)
 - Skill names, command invocations, and configuration field names
 
