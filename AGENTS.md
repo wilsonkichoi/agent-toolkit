@@ -92,6 +92,9 @@ references the shadow issue with `Refs`, never `Closes`. Do not label a shadow i
 `external`, or `secondary` to satisfy a `reviewer`/`verifier` planned-task contract; carry the
 review or verify contract into a fresh generic worker instead. `check_repo.py` runs
 `tools/test_shadow_replay.py`; keep those network-free fixture tests green.
+Open the shadow PR only after the first candidate commit is pushed; bind and re-read the exact
+head repository so fork-qualified candidate branches cannot be confused with same-named upstream
+branches.
 
 ## Repository tools
 

@@ -49,7 +49,9 @@ the planned-task queue.
   an isolated worktree (`git worktree add`, never harness worktree isolation).
 - The `[SHADOW]` issue carries `experiment:shadow`, no `status:*` label, no milestone, no
   dependency edges, and no normal task assignment. Required labels are created idempotently.
-- The candidate PR is a **draft** whose base is the shadow-base branch (so its diff is only
+- The candidate PR is opened only after the implementation worker has committed and pushed the
+  first replay change. GitHub rejects PR creation while the candidate and shadow-base refs are
+  identical. The PR is a **draft** whose base is the shadow-base branch (so its diff is only
   replay work) and whose head is the candidate branch. It carries `do-not-merge` and references
   the shadow issue with `Refs #<shadow-issue>`, never `Closes`.
 - Before each lifecycle stage and before terminal cleanup, `validate-invariants` re-reads the
@@ -58,13 +60,18 @@ the planned-task queue.
   shadow-base ref must still equal that immutable SHA (a force-push is caught); and when given
   `--source-issue`/`--source-pr`/`--source-merge-sha`/`--source-snapshot-sha256`, the source
   issue and PR must still match the SHA-256 snapshot returned by preflight. The snapshot covers
-  state, title, body, labels, issue assignment and milestone, closing references, PR branch
-  identities, head SHA, and merge commit; content mutation is caught even when completion state
-  and merge SHA remain unchanged.
+  state, title, body, labels, issue assignment and milestone, issue comments, closing references,
+  PR branch identities, head SHA, merge commit, PR comments, and reviews; content mutation is
+  caught even when completion state and merge SHA remain unchanged. Before the PR exists, the
+  command validates the issue, immutable base, and source snapshot without `--shadow-pr`. After
+  PR creation it also requires the shadow issue and PR to remain open, the `experiment:shadow`
+  and `do-not-merge` labels to remain present, and the PR head repository to match the resolved
+  push repository.
 - On success, cleanup closes the draft PR unmerged, closes the shadow issue as a completed
-  evaluation, removes the worktree, and **retains both remote shadow branches** for audit and
-  reproducibility. On failure, artifacts stay open for inspection; nothing is deleted
-  automatically, and the source issue and original PR are never touched.
+  evaluation, re-reads and proves both closed states, then removes the worktree. It **retains both
+  remote shadow branches** for audit and reproducibility. On failure, including an ineffective
+  close, the worktree and artifacts stay available for inspection; the source issue and original
+  PR are never touched.
 
 ## Reusing review and verification agents
 
@@ -90,7 +97,7 @@ subcommands re-read GitHub state and assert isolation before reporting success.
 | `historical-base` | Reconstruct the base commit and cutoff from the source-PR commits; detect ambiguity. |
 | `create-shadow-issue` | Idempotently ensure labels, create the `[SHADOW]` issue, assert no `status:*`/milestone. |
 | `create-branches` | Create and push the shadow-base and candidate branches at the validated base. |
-| `open-shadow-pr` | Open the draft `do-not-merge` PR; reject a closing keyword, require `Refs #N`. |
+| `open-shadow-pr` | After the first candidate push, prove head differs from base, open the draft `do-not-merge` PR, bind a same-repo or fork-qualified head repository, reject a closing keyword, and require `Refs #N`. |
 | `validate-invariants` | Re-read issue + PR, bind identities/revisions, assert isolation; stop on drift. |
 | `review-freshness` | Reject an approval whose commit is not the current candidate head (stale review). |
 | `fix-attempt` | Reject a one-based fix/review attempt above `max_fix_attempts`. |
@@ -121,7 +128,9 @@ multiplies usage by the event count; the adapter must know which shape its harne
   *cumulative*, so the adapter keeps the **last** event in the rollout (never sums them). One
   rollout file is one thread; its session id (from the `session_meta` record) labels the thread
   when present. Field mapping: `input_tokens` → input; `cached_input_tokens` → cached input;
-  `output_tokens` → output; `reasoning_output_tokens` → reasoning.
+  `output_tokens` → output; `reasoning_output_tokens` → reasoning when the field is present. Codex
+  reports reasoning as a subset of output, so pricing entries use `included_in_output` and never
+  charge those tokens a second time.
 
 Across multiple logs (parent plus child rollouts), the adapter sums the per-file finals. A
 `claude-code` assistant record with no `sessionId` is unattributable; its tokens go to an
@@ -175,6 +184,7 @@ an original quality score. Original token and cost data that GitHub does not exp
 
 - a number — a per-MTok rate for reasoning tokens;
 - `"output"` / `"input"` — bill reasoning at that category's rate;
+- `"included_in_output"` — reported reasoning is already a subset of output (additional rate 0);
 - `"unpriced"` — the provider does not bill reasoning separately (rate 0).
 
 Cost = Σ (tokens × rate) / 1,000,000 over the categories with non-zero tokens. A model absent
@@ -210,9 +220,11 @@ Every report includes these, emitted by `report` automatically:
 A completed report must set `final_state` to exactly `evaluation-complete`, contain all 14 required
 comparison rows with original value, shadow value, and concrete evidence or a missing-data reason,
 and carry every audit binding:
-the run id, harness, model, source issue and PR links, the original PR merge SHA, the historical
-base, the information cutoff, the shadow issue and PR links, the reviewed candidate head SHA, and
-the verification evidence or verifier-report link. `report` fails instead of rendering
+the run id, harness and runtime version, model, source issue and PR links, the original PR merge
+SHA, the historical base, the information cutoff, the shadow issue and PR links, the reviewed
+candidate head SHA, the exact project-bootstrap execution repository/revision/rules, and the
+verification evidence or verifier-report link. URLs must be canonical GitHub issue/PR URLs and
+all revisions must be full commit SHAs. `report` fails instead of rendering
 `unavailable` for a missing binding, so a malformed run cannot produce a green report and then
 close the artifacts as evaluation-complete. A stopped run sets `final_state: failed:<stage>`,
 which is exempt from binding enforcement. Legitimately missing measurement data (original tokens,

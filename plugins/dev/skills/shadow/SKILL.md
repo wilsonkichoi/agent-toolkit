@@ -102,25 +102,22 @@ prepare → execute → review → (fix → fresh review)[0..max_fix_attempts] �
    - Add the candidate worktree yourself: `git worktree add <path> shadow/<source-id>/<run-id>`
      (never harness worktree isolation - it creates an untracked branch no cleanup step knows
      about, exactly as `dev:execute` step 2 forbids).
-   - `shadow_replay.py open-shadow-pr --repo "$repo" --base shadow-base/<source-id>/<run-id>
-     --head shadow/<source-id>/<run-id> --title "[SHADOW] <source title>"
-     --body-file <file> --shadow-issue <shadow-issue>` opens the draft PR (base is the
-     shadow-base branch, not `main`, so the diff is only replay work), labels it
-     `do-not-merge`, and asserts the body references the actual shadow issue with
-     `Refs #<shadow-issue>`, never `Closes`. The helper rejects a closing keyword in the body
-     before creating the PR.
+   - Do not open the draft PR yet. GitHub rejects a PR whose candidate and base refs still point
+     to the same commit. The execute stage pushes the first replay commit before PR creation.
 
-Before each later stage and before terminal cleanup, re-read state with
-`shadow_replay.py validate-invariants --repo "$repo" --shadow-issue <n> --shadow-pr <m>
+Immediately before execute, re-read the pre-PR state with
+`shadow_replay.py validate-invariants --repo "$repo" --shadow-issue <n>
 --shadow-base <b> --candidate <c> --historical-base <base> --remote <push-remote>
 --source-issue <src-issue> --source-pr <src-pr> --source-merge-sha <merge-sha>
 --source-snapshot-sha256 <preflight-snapshot>`. It re-reads
-both artifacts and binds identities, not just names: the `Refs` must target the actual shadow
-issue, the remote shadow-base ref must still equal the immutable historical base (guards a
-force-push), and the source issue and PR must still match their preflight snapshot, including
-state, title, body, labels, references, branch identities, and merge commit. Any drift (a `status:*` label or milestone
-appears, the PR loses draft/`do-not-merge`, its base/head changes, a closing keyword appears,
-the shadow-base ref moved, or a source artifact changed) stops the run.
+the shadow issue, remote shadow-base ref, and source artifacts without requiring a PR that does
+not exist yet. Before review and every later stage, and before terminal cleanup, add
+`--shadow-pr <m> --head-repo <push-repository>` so the same command also binds the PR's draft/open
+state, `do-not-merge` label, base branch, candidate branch, head repository, and `Refs` target.
+The source snapshot includes issue comments plus PR comments and reviews. Any drift (a required
+label disappears, a `status:*` label or milestone appears, an artifact closes early, the PR's
+base/head repository or branch changes, a closing keyword appears, the shadow-base ref moves, or
+a source artifact changes) stops the run.
 
 ### 2. Execute
 
@@ -133,8 +130,18 @@ strictly before the `cutoff`, the resolved execution repository/revision and loa
 the worktree path, the candidate branch, and `test_command`. For non-trivial work, brief
 `test-writer` with ONLY the packet, historical spec/rules, and the public interface (never the
 implementation diff), using nested delegation on Claude Code or sibling orchestration on Codex.
-Run applicable local tests and the candidate CI. `max_fix_attempts` bounds the execution CI
-loop; an unrecoverable failure stops the run with a stage diagnostic.
+After the worker creates the first replay commit, push the candidate branch, then open the draft
+PR with `shadow_replay.py open-shadow-pr --repo "$repo" --base
+shadow-base/<source-id>/<run-id> --head shadow/<source-id>/<run-id> --head-repo
+<push-repository> --remote <push-remote> --repo-path <execution-repository> --title
+"[SHADOW] <source title>" --body-file <file> --shadow-issue <shadow-issue>`. The helper re-reads
+both remote refs and refuses PR creation when they are still identical. For a contributor fork it
+passes `<fork-owner>:<candidate-branch>` to GitHub and verifies `headRepository`; a bare branch
+name is valid only when the push repository is the canonical repository. It labels the PR
+`do-not-merge` and requires `Refs #<shadow-issue>`, never `Closes`.
+
+Run applicable local tests and the candidate CI. `max_fix_attempts` bounds the execution CI loop;
+an unrecoverable failure stops the run with a stage diagnostic.
 
 ### 3. Review
 
@@ -180,7 +187,8 @@ metrics come from the helper:
   --reasoning N [--cache-write N] [--max-request-input N]` estimates API-equivalent cost from
   the versioned catalog. Models with cache-write or long-context pricing require those inputs
   explicitly; missing harness metadata produces `cost unavailable` instead of silently applying
-  base rates. Unknown pricing
+  base rates. A catalog's `included_in_output` reasoning treatment prevents charging reasoning
+  twice when the harness reports it as a subset of output. Unknown pricing
   prints `cost unavailable` with a reason; never substitute a guessed value.
 
 Timing boundaries (`docs/shadow.md` "Timing and token boundaries"): shadow delivery time runs
@@ -193,14 +201,15 @@ the dimensions into a single aggregate quality score.
 
 ### 7. Report and stop
 
-1. Assemble the report data (run identity, harness/model/effort, every source/shadow/base/issue
+1. Assemble the report data (run identity, harness/runtime/model/effort, every source/shadow/base/issue
    URL, the original PR merge SHA, reviewed candidate head SHA, comparison rows, verification
    evidence or the linked verifier report) and render it with
    `shadow_replay.py report --data <file>`. For a completed run the helper **enforces** the
    exact `final_state: evaluation-complete`, all 14 comparison rows with concrete evidence or a
    missing-data reason, and the audit bindings: a report missing the source issue/PR links, the original merge SHA, the
-   historical base, the shadow issue/PR links, the reviewed candidate head, or the verification
-   evidence fails rather than rendering `unavailable` (a stopped run instead sets
+   historical base, the shadow issue/PR links, the reviewed candidate head, the exact project
+   bootstrap `Execution repository:`, `Execution revision:`, and `Rules loaded:` values, or the
+   verification evidence fails rather than rendering `unavailable` (a stopped run instead sets
    `final_state: failed:<stage>`, which is exempt). The report includes every required
    disclosure (same-repository replay is not blind; the source body is current not historical;
    original token/cost data may be missing; GitHub timestamps are observable, not continuous
@@ -210,8 +219,8 @@ the dimensions into a single aggregate quality score.
 3. Re-read invariants (`validate-invariants`) and prove the candidate stayed unmerged, then
    `shadow_replay.py cleanup --repo "$repo" --shadow-pr <m> --shadow-issue <n> --worktree
    <path>`. Cleanup refuses if the PR reads as merged, closes the draft PR unmerged, closes the
-   shadow issue as a completed evaluation, removes the worktree, and retains both remote shadow
-   branches for reproducibility.
+   shadow issue as a completed evaluation, re-reads both closed states, removes the worktree only
+   after those proofs pass, and retains both remote shadow branches for reproducibility.
 4. Report to the user: source issue, original PR, historical base, shadow issue, shadow PR,
    reviewed SHA, final state, and the report link. **Stop.** Do not merge, do not reopen or
    edit the source issue or original PR, do not claim another task.

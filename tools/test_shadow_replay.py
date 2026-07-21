@@ -280,6 +280,7 @@ class ShadowReplayTests(unittest.TestCase):
         *,
         base: str = "B",
         head: str = "C",
+        head_repo: str = REPO,
         is_draft: bool = True,
         merged: bool = False,
         state: str = "OPEN",
@@ -293,6 +294,7 @@ class ShadowReplayTests(unittest.TestCase):
             "labels": [{"name": name} for name in labels],
             "baseRefName": base,
             "headRefName": head,
+            "headRepository": {"nameWithOwner": head_repo},
             "body": body,
         }
 
@@ -470,6 +472,78 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertRegex(payload["source_snapshot_sha256"], r"^[0-9a-f]{64}$")
         self.assert_gh_repo_targeting(self.gh_calls())
         self.assertIn("prhead1", self.git_calls()[0])
+
+    def test_preflight_snapshot_binds_issue_comments_and_pr_reviews(self) -> None:
+        issue = {
+            "state": "CLOSED",
+            "stateReason": "COMPLETED",
+            "title": "Fix the widget",
+            "closedByPullRequestsReferences": [{"number": 7}],
+            "comments": [
+                {
+                    "author": {"login": "octocat"},
+                    "body": "issue comment",
+                    "createdAt": "2026-01-01T00:00:00Z",
+                    "url": "https://github.com/octo/demo/issues/3#issuecomment-1",
+                }
+            ],
+        }
+        pr = {
+            "state": "MERGED",
+            "merged": True,
+            "mergedAt": "2026-01-05T00:00:00Z",
+            "mergeCommit": {"oid": "mergecommit1"},
+            "closingIssuesReferences": [{"number": 3}],
+            "headRefOid": "prhead1",
+            "comments": [],
+            "reviews": [
+                {
+                    "author": {"login": "reviewer"},
+                    "body": "approved",
+                    "state": "APPROVED",
+                    "submittedAt": "2026-01-04T00:00:00Z",
+                    "commit": {"oid": "prhead1"},
+                }
+            ],
+        }
+        commits = self.commits_jsonl(
+            {"sha": "c1", "parents": ["base0"], "date": "2026-01-01T00:00:00Z"},
+        )
+        first = self.payload(
+            self.run_cli(
+                "preflight",
+                "--repo",
+                REPO,
+                "--source-issue",
+                "3",
+                gh={
+                    "issue view": [self.resp(issue)],
+                    "pr view": [self.resp(pr)],
+                    "api": [self.resp(commits)],
+                },
+                git={"merge-base": [self.resp(returncode=0)]},
+            )
+        )
+        changed_issue = {**issue, "comments": [*issue["comments"], {"body": "new"}]}
+        changed_pr = {**pr, "reviews": [{**pr["reviews"][0], "body": "edited"}]}
+        second = self.payload(
+            self.run_cli(
+                "preflight",
+                "--repo",
+                REPO,
+                "--source-issue",
+                "3",
+                gh={
+                    "issue view": [self.resp(changed_issue)],
+                    "pr view": [self.resp(changed_pr)],
+                    "api": [self.resp(commits)],
+                },
+                git={"merge-base": [self.resp(returncode=0)]},
+            )
+        )
+        self.assertNotEqual(
+            first["source_snapshot_sha256"], second["source_snapshot_sha256"]
+        )
 
     def test_preflight_rejects_ambiguous_source_pr_selection(self) -> None:
         issue = {
@@ -785,6 +859,8 @@ class ShadowReplayTests(unittest.TestCase):
             "B",
             "--head",
             "C",
+            "--head-repo",
+            REPO,
             "--title",
             "[SHADOW] PR",
             "--body-file",
@@ -793,6 +869,12 @@ class ShadowReplayTests(unittest.TestCase):
                 "pr create": [self.resp("https://github.com/octo/demo/pull/100")],
                 "pr edit": [self.resp("")],
                 "pr view": [self.resp(self.clean_pr())],
+            },
+            git={
+                "ls-remote": [
+                    self.resp("base0\trefs/heads/B"),
+                    self.resp("head1\trefs/heads/C"),
+                ]
             },
         )
         payload = self.payload(result)
@@ -807,6 +889,104 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertEqual(self.opt(create, "--head"), "C")
         edit = next(call for call in calls if call[:2] == ["pr", "edit"])
         self.assertEqual(self.opt(edit, "--add-label"), "do-not-merge")
+
+    def test_open_shadow_pr_qualifies_cross_repository_head(self) -> None:
+        body = self._body_file("Replay work.\n\nRefs #99\n")
+        result = self.run_cli(
+            "open-shadow-pr",
+            "--repo",
+            REPO,
+            "--base",
+            "B",
+            "--head",
+            "C",
+            "--head-repo",
+            "contributor/demo",
+            "--title",
+            "[SHADOW] PR",
+            "--body-file",
+            body,
+            "--shadow-issue",
+            "99",
+            gh={
+                "pr create": [self.resp("https://github.com/octo/demo/pull/100")],
+                "pr edit": [self.resp("")],
+                "pr view": [
+                    self.resp(self.clean_pr(head_repo="contributor/demo"))
+                ],
+            },
+            git={
+                "ls-remote": [
+                    self.resp("base0\trefs/heads/B"),
+                    self.resp("head1\trefs/heads/C"),
+                ]
+            },
+        )
+        self.payload(result)
+        create = next(call for call in self.gh_calls() if call[:2] == ["pr", "create"])
+        self.assertEqual(self.opt(create, "--head"), "contributor:C")
+
+    def test_open_shadow_pr_rejects_wrong_head_repository_after_create(self) -> None:
+        body = self._body_file("Replay work.\n\nRefs #99\n")
+        result = self.run_cli(
+            "open-shadow-pr",
+            "--repo",
+            REPO,
+            "--base",
+            "B",
+            "--head",
+            "C",
+            "--head-repo",
+            "contributor/demo",
+            "--title",
+            "[SHADOW] PR",
+            "--body-file",
+            body,
+            "--shadow-issue",
+            "99",
+            gh={
+                "pr create": [self.resp("https://github.com/octo/demo/pull/100")],
+                "pr edit": [self.resp("")],
+                "pr view": [self.resp(self.clean_pr(head_repo="attacker/demo"))],
+            },
+            git={
+                "ls-remote": [
+                    self.resp("base0\trefs/heads/B"),
+                    self.resp("head1\trefs/heads/C"),
+                ]
+            },
+        )
+        self.assert_failure(result)
+        self.assertIn("head repository", result.stderr)
+
+    def test_open_shadow_pr_rejects_candidate_without_a_commit(self) -> None:
+        body = self._body_file("Replay work.\n\nRefs #99\n")
+        result = self.run_cli(
+            "open-shadow-pr",
+            "--repo",
+            REPO,
+            "--base",
+            "B",
+            "--head",
+            "C",
+            "--head-repo",
+            REPO,
+            "--title",
+            "[SHADOW] PR",
+            "--body-file",
+            body,
+            "--shadow-issue",
+            "99",
+            git={
+                "ls-remote": [
+                    self.resp("base0\trefs/heads/B"),
+                    self.resp("base0\trefs/heads/C"),
+                ]
+            },
+        )
+        self.assert_failure(result)
+        self.assertIn("no commits", result.stderr)
+        self.assertEqual(self.gh_calls(), [])
 
     def test_open_shadow_pr_rejects_closing_keyword_before_create(self) -> None:
         body = self._body_file("This Closes #99 by accident.\n")
@@ -862,6 +1042,8 @@ class ShadowReplayTests(unittest.TestCase):
             "B",
             "--candidate",
             "C",
+            "--head-repo",
+            REPO,
             gh={
                 "issue view": [self.resp(issue)],
                 "pr view": [self.resp(pr)],
@@ -876,6 +1058,31 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertEqual(payload["shadow_issue"], 99)
         self.assertEqual(payload["shadow_pr"], 100)
         self.assert_gh_repo_targeting(self.gh_calls())
+
+    def test_validate_invariants_before_pr_checks_pre_pr_state(self) -> None:
+        result = self.run_cli(
+            "validate-invariants",
+            "--repo",
+            REPO,
+            "--shadow-issue",
+            "99",
+            "--shadow-base",
+            "B",
+            "--candidate",
+            "C",
+            "--historical-base",
+            "base0",
+            "--remote",
+            "origin",
+            "--repo-path",
+            str(self.root),
+            gh={"issue view": [self.resp(self.clean_issue())]},
+            git={"ls-remote": [self.resp("base0\trefs/heads/B")]},
+        )
+        payload = self.payload(result)
+        self.assertTrue(payload["ok"])
+        self.assertIsNone(payload["shadow_pr"])
+        self.assertNotIn(["pr", "view"], [call[:2] for call in self.gh_calls()])
 
     def test_validate_invariants_detects_each_drift(self) -> None:
         drifts = {
@@ -898,6 +1105,13 @@ class ShadowReplayTests(unittest.TestCase):
             "closing_keyword": (
                 self.clean_issue(),
                 self.clean_pr(body="Refs #99\nCloses #99\n"),
+            ),
+            "missing_shadow_label": (self.clean_issue(labels=()), self.clean_pr()),
+            "closed_issue": (self.clean_issue(state="CLOSED"), self.clean_pr()),
+            "closed_pr": (self.clean_issue(), self.clean_pr(state="CLOSED")),
+            "wrong_head_repository": (
+                self.clean_issue(),
+                self.clean_pr(head_repo="attacker/demo"),
             ),
         }
         for name, (issue, pr) in drifts.items():
@@ -926,6 +1140,9 @@ class ShadowReplayTests(unittest.TestCase):
                 ],
                 "pr close": [self.resp("")],
                 "issue close": [self.resp("")],
+                "issue view": [
+                    self.resp(self.clean_issue(state="CLOSED")),
+                ],
             },
         )
         payload = self.payload(result)
@@ -946,6 +1163,33 @@ class ShadowReplayTests(unittest.TestCase):
         ]
         self.assertNotIn("merge", git_operations)
         self.assertIn("worktree", git_operations)
+
+    def test_cleanup_rejects_ineffective_issue_close_before_worktree_removal(self) -> None:
+        worktree = self.root / "wt"
+        worktree.mkdir()
+        result = self.run_cli(
+            "cleanup",
+            "--repo",
+            REPO,
+            "--shadow-pr",
+            "100",
+            "--shadow-issue",
+            "99",
+            "--worktree",
+            str(worktree),
+            gh={
+                "pr view": [
+                    self.resp(self.clean_pr()),
+                    self.resp(self.clean_pr(state="CLOSED")),
+                ],
+                "pr close": [self.resp("")],
+                "issue close": [self.resp("")],
+                "issue view": [self.resp(self.clean_issue(state="OPEN"))],
+            },
+        )
+        self.assert_failure(result)
+        self.assertIn("not CLOSED", result.stderr)
+        self.assertNotIn("worktree", [call[0] for call in self.git_calls() if call])
 
     def test_cleanup_refuses_merged_pr(self) -> None:
         result = self.run_cli(
@@ -1115,6 +1359,22 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertEqual(payload["output_tokens"], 70)
         self.assertEqual(payload["reasoning_tokens"], 20)
 
+    def test_metrics_codex_missing_reasoning_is_unavailable(self) -> None:
+        log = self._log_file(
+            "codex_no_reasoning.jsonl",
+            [
+                self._codex_token_event(
+                    input_tokens=300,
+                    cached_input_tokens=30,
+                    output_tokens=60,
+                )
+            ],
+        )
+        payload = self.payload(
+            self.run_cli("metrics", "--harness", "codex", "--log", log)
+        )
+        self.assertIsNone(payload["reasoning_tokens"])
+
     def test_metrics_claude_code_unattributed_records_bucketed_and_totaled(self) -> None:
         # A claude-code assistant record with no sessionId is unattributable; its tokens
         # go to the unattributed bucket but are still included in the grand totals.
@@ -1161,7 +1421,7 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertEqual(payload["currency"], "USD")
         self.assertEqual(payload["model"], "claude-opus-4-8")
         self.assertEqual(payload["provider"], "anthropic")
-        self.assertEqual(payload["catalog_version"], "2")
+        self.assertEqual(payload["catalog_version"], "3")
 
     def test_pricing_gpt_5_6_base_rates_handle_subsets_and_cache_writes(self) -> None:
         result = self.run_cli(
@@ -1184,11 +1444,12 @@ class ShadowReplayTests(unittest.TestCase):
             "200000",
         )
         payload = self.payload(result)
-        # OpenAI input includes cached reads and cache writes as subsets:
-        # 850k*5 + 100k*0.5 + 50k*6.25 + 100k*30 + 10k*30.
-        self.assertAlmostEqual(payload["cost"], 7.9125)
+        # OpenAI input includes cached reads and cache writes as subsets, and Codex
+        # reasoning_output_tokens is already included in output_tokens:
+        # 850k*5 + 100k*0.5 + 50k*6.25 + 100k*30.
+        self.assertAlmostEqual(payload["cost"], 7.6125)
         self.assertEqual(payload["pricing_tier"], "base")
-        self.assertEqual(payload["catalog_version"], "2")
+        self.assertEqual(payload["catalog_version"], "3")
 
     def test_pricing_gpt_5_6_applies_long_context_multipliers(self) -> None:
         result = self.run_cli(
@@ -1211,7 +1472,7 @@ class ShadowReplayTests(unittest.TestCase):
             "272001",
         )
         payload = self.payload(result)
-        self.assertAlmostEqual(payload["cost"], 14.175)
+        self.assertAlmostEqual(payload["cost"], 13.725)
         self.assertEqual(payload["pricing_tier"], "long_context")
 
     def test_pricing_gpt_5_6_requires_explicit_cache_writes(self) -> None:
@@ -1359,16 +1620,20 @@ class ShadowReplayTests(unittest.TestCase):
         data = {
             "run_id": "20260721T143000Z-abcd1234",
             "harness": "claude-code",
+            "runtime_version": "2.1.0",
             "model": "claude-opus-4-8",
             "reasoning_effort": "high",
             "source_issue_url": "https://github.com/octo/demo/issues/3",
             "source_pr_url": "https://github.com/octo/demo/pull/7",
-            "source_merge_sha": "merge9",
-            "historical_base": "base0",
+            "source_merge_sha": "a" * 40,
+            "historical_base": "b" * 40,
             "cutoff": "2026-01-01T00:00:00Z",
             "shadow_issue_url": "https://github.com/octo/demo/issues/99",
             "shadow_pr_url": "https://github.com/octo/demo/pull/100",
-            "candidate_head": "head1",
+            "candidate_head": "c" * 40,
+            "execution_repository": "/workspace/replay",
+            "execution_revision": "b" * 40,
+            "rules_loaded": "none",
             "final_state": "evaluation-complete",
             "comparison": [
                 {
@@ -1399,6 +1664,10 @@ class ShadowReplayTests(unittest.TestCase):
             "## dev:shadow evaluation - 20260721T143000Z-abcd1234", markdown
         )
         self.assertIn("### Quality and delivery comparison", markdown)
+        self.assertIn("Harness: claude-code 2.1.0", markdown)
+        self.assertIn("Execution repository: /workspace/replay", markdown)
+        self.assertIn(f"Execution revision: {'b' * 40}", markdown)
+        self.assertIn("Rules loaded: none", markdown)
         self.assertIn("|", markdown)
         self.assertIn("### Limitations", markdown)
         for disclosure in REQUIRED_DISCLOSURES:
@@ -1431,6 +1700,35 @@ class ShadowReplayTests(unittest.TestCase):
         data_file = self._write_report_data(data)
         result = self.run_cli("report", "--data", data_file)
         self.assert_failure(result)
+
+    def test_report_rejects_malformed_urls_and_shas(self) -> None:
+        for field, value in (
+            ("source_issue_url", "x"),
+            ("source_pr_url", "x"),
+            ("shadow_issue_url", "x"),
+            ("shadow_pr_url", "x"),
+            ("source_merge_sha", "merge9"),
+            ("historical_base", "base0"),
+            ("candidate_head", "head1"),
+            ("execution_revision", "base0"),
+        ):
+            with self.subTest(field=field):
+                data = self._report_data(**{field: value})
+                result = self.run_cli("report", "--data", self._write_report_data(data))
+                self.assert_failure(result)
+
+    def test_report_rejects_missing_runtime_and_project_provenance(self) -> None:
+        for field in (
+            "runtime_version",
+            "execution_repository",
+            "execution_revision",
+            "rules_loaded",
+        ):
+            with self.subTest(field=field):
+                data = self._report_data()
+                del data[field]
+                result = self.run_cli("report", "--data", self._write_report_data(data))
+                self.assert_failure(result)
 
     def test_report_rejects_missing_final_state(self) -> None:
         data = self._report_data()
@@ -1494,6 +1792,8 @@ class ShadowReplayTests(unittest.TestCase):
             "B",
             "--candidate",
             "C",
+            "--head-repo",
+            REPO,
             "--historical-base",
             "base0",
             "--remote",
@@ -1524,6 +1824,8 @@ class ShadowReplayTests(unittest.TestCase):
             "B",
             "--candidate",
             "C",
+            "--head-repo",
+            REPO,
             "--historical-base",
             "base0",
             "--remote",
@@ -1537,7 +1839,7 @@ class ShadowReplayTests(unittest.TestCase):
             "--source-merge-sha",
             "merge9",
             "--source-snapshot-sha256",
-            "b5da2ba87b7d73bad84e6f28213406a1cff72cbe9e87317910bbf2d6279b4fe4",
+            "73f5f16364d9770bc2f2ab145e6078e744f11e316682d664d77c78699bf144d4",
             gh={
                 "issue view": [
                     self.resp(self.clean_issue()),
@@ -1569,6 +1871,8 @@ class ShadowReplayTests(unittest.TestCase):
             "B",
             "--candidate",
             "C",
+            "--head-repo",
+            REPO,
             "--source-issue",
             "3",
             "--source-pr",
@@ -1618,6 +1922,8 @@ class ShadowReplayTests(unittest.TestCase):
             "B",
             "--candidate",
             "C",
+            "--head-repo",
+            REPO,
             "--source-issue",
             "3",
             "--source-pr",

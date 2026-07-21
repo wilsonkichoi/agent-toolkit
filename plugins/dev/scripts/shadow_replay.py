@@ -36,6 +36,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_PRICING_CATALOG = SCRIPT_DIR / "shadow_pricing.json"
 
 REPOSITORY_RE = re.compile(r"^[^/\s]+/[^/\s]+$")
+FULL_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
+GITHUB_ISSUE_URL_RE = re.compile(r"^https://github\.com/[^/\s]+/[^/\s]+/issues/\d+$")
+GITHUB_PR_URL_RE = re.compile(r"^https://github\.com/[^/\s]+/[^/\s]+/pull/\d+$")
 STATUS_LABEL_PREFIX = "status:"
 SHADOW_LABEL = "experiment:shadow"
 DO_NOT_MERGE_LABEL = "do-not-merge"
@@ -331,6 +334,46 @@ def normalized_assignees(value: Any) -> list[str]:
     )
 
 
+def normalized_comments(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    normalized: list[dict[str, Any]] = []
+    for comment in value:
+        if not isinstance(comment, dict):
+            continue
+        author = comment.get("author")
+        normalized.append(
+            {
+                "author": author.get("login") if isinstance(author, dict) else None,
+                "body": comment.get("body") or "",
+                "createdAt": comment.get("createdAt"),
+                "url": comment.get("url"),
+            }
+        )
+    return normalized
+
+
+def normalized_reviews(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    normalized: list[dict[str, Any]] = []
+    for review in value:
+        if not isinstance(review, dict):
+            continue
+        author = review.get("author")
+        commit = review.get("commit")
+        normalized.append(
+            {
+                "author": author.get("login") if isinstance(author, dict) else None,
+                "body": review.get("body") or "",
+                "state": review.get("state"),
+                "submittedAt": review.get("submittedAt"),
+                "commit": commit.get("oid") if isinstance(commit, dict) else None,
+            }
+        )
+    return normalized
+
+
 def source_issue_snapshot(value: dict[str, Any]) -> dict[str, Any]:
     context = "source issue snapshot"
     return {
@@ -344,6 +387,7 @@ def source_issue_snapshot(value: dict[str, Any]) -> dict[str, Any]:
         "closedByPullRequestsReferences": normalized_reference_numbers(
             value.get("closedByPullRequestsReferences")
         ),
+        "comments": normalized_comments(value.get("comments")),
     }
 
 
@@ -365,6 +409,8 @@ def source_pr_snapshot(value: dict[str, Any]) -> dict[str, Any]:
         "closingIssuesReferences": normalized_reference_numbers(
             value.get("closingIssuesReferences")
         ),
+        "comments": normalized_comments(value.get("comments")),
+        "reviews": normalized_reviews(value.get("reviews")),
     }
 
 
@@ -385,7 +431,7 @@ def read_issue_completion(repo: str, issue: int) -> dict[str, Any]:
             repo,
             "--json",
             "state,stateReason,title,body,labels,milestone,assignees,"
-            "closedByPullRequestsReferences",
+            "closedByPullRequestsReferences,comments",
         ),
         context=context,
     )
@@ -421,7 +467,7 @@ def read_pr_binding(repo: str, pr: int, issue: int) -> dict[str, Any]:
             repo,
             "--json",
             "state,merged,mergedAt,mergeCommit,title,body,labels,baseRefName,"
-            "headRefName,closingIssuesReferences,headRefOid",
+            "headRefName,closingIssuesReferences,headRefOid,comments,reviews",
         ),
         context=context,
     )
@@ -524,7 +570,7 @@ def ensure_labels(repo: str, labels: Sequence[str]) -> None:
             )
 
 
-def read_issue_isolation(repo: str, issue: int) -> tuple[tuple[str, ...], bool]:
+def read_issue_isolation(repo: str, issue: int) -> dict[str, Any]:
     context = f"shadow issue #{issue} in {repo}"
     raw = run_gh(
         (
@@ -534,7 +580,7 @@ def read_issue_isolation(repo: str, issue: int) -> tuple[tuple[str, ...], bool]:
             "--repo",
             repo,
             "--json",
-            "labels,milestone,state",
+            "labels,milestone,state,stateReason",
         ),
         context=context,
     )
@@ -544,20 +590,35 @@ def read_issue_isolation(repo: str, issue: int) -> tuple[tuple[str, ...], bool]:
     has_milestone = bool(milestone) if not isinstance(milestone, dict) else bool(
         milestone.get("title") or milestone.get("number")
     )
-    return labels, has_milestone
+    return {
+        "labels": labels,
+        "has_milestone": has_milestone,
+        "state": str(value.get("state", "")).upper(),
+        "state_reason": value.get("stateReason"),
+    }
 
 
 def assert_issue_isolated(repo: str, issue: int) -> None:
-    labels, has_milestone = read_issue_isolation(repo, issue)
+    state = read_issue_isolation(repo, issue)
+    labels = state["labels"]
     offending = status_labels(labels)
     if offending:
         fail(
             f"shadow issue #{issue} in {repo} carries lifecycle label(s) "
             f"{', '.join(offending)}; a shadow issue must have no status:* label"
         )
-    if has_milestone:
+    if SHADOW_LABEL not in labels:
+        fail(
+            f"shadow issue #{issue} in {repo} is missing required label {SHADOW_LABEL!r}"
+        )
+    if state["has_milestone"]:
         fail(
             f"shadow issue #{issue} in {repo} has a milestone; a shadow issue must have none"
+        )
+    if state["state"] != "OPEN":
+        fail(
+            f"shadow issue #{issue} in {repo} must remain OPEN before cleanup "
+            f"(state={state['state']!r})"
         )
 
 
@@ -634,6 +695,16 @@ def command_open_shadow_pr(args: argparse.Namespace) -> None:
             )
     elif not REFS_RE.search(body):
         fail("shadow PR body must reference the shadow issue with 'Refs #<shadow-issue>'")
+    base_sha = read_remote_ref_sha(args.remote, args.base, args.repo_path)
+    head_sha = read_remote_ref_sha(args.remote, args.head, args.repo_path)
+    if base_sha == head_sha:
+        fail(
+            f"candidate branch {args.head!r} has no commits beyond shadow-base "
+            f"{args.base!r}; push the replay implementation before opening the shadow PR"
+        )
+    head_repository = args.head_repo or args.repo
+    head_owner = head_repository.split("/", 1)[0]
+    qualified_head = args.head if head_repository == args.repo else f"{head_owner}:{args.head}"
     raw = run_gh(
         (
             "pr",
@@ -644,7 +715,7 @@ def command_open_shadow_pr(args: argparse.Namespace) -> None:
             "--base",
             args.base,
             "--head",
-            args.head,
+            qualified_head,
             "--title",
             args.title,
             "--body-file",
@@ -670,6 +741,7 @@ def command_open_shadow_pr(args: argparse.Namespace) -> None:
         pr_number,
         shadow_base=args.base,
         candidate=args.head,
+        head_repository=head_repository,
         shadow_issue=args.shadow_issue,
     )
     if violations:
@@ -677,7 +749,16 @@ def command_open_shadow_pr(args: argparse.Namespace) -> None:
             f"shadow PR #{pr_number} failed isolation checks after creation: "
             + "; ".join(violations)
         )
-    emit({"shadow_pr": pr_number, "url": raw, "repo": args.repo})
+    emit(
+        {
+            "shadow_pr": pr_number,
+            "url": raw,
+            "repo": args.repo,
+            "head_repository": head_repository,
+            "base_sha": base_sha,
+            "head_sha": head_sha,
+        }
+    )
 
 
 # ------------------------------------------------------- invariant validation
@@ -693,7 +774,7 @@ def read_pr_state(repo: str, pr: int) -> dict[str, Any]:
             "--repo",
             repo,
             "--json",
-            "isDraft,merged,state,labels,baseRefName,headRefName,body",
+            "isDraft,merged,state,labels,baseRefName,headRefName,headRepository,body",
         ),
         context=context,
     )
@@ -710,6 +791,7 @@ def check_pr_invariants(
     *,
     shadow_base: str,
     candidate: str,
+    head_repository: str,
     shadow_issue: int | None = None,
 ) -> list[str]:
     value = read_pr_state(repo, pr)
@@ -719,6 +801,10 @@ def check_pr_invariants(
         violations.append("PR is merged; a shadow PR must never merge")
     if value.get("isDraft") is not True:
         violations.append("PR is not a draft")
+    if str(value.get("state", "")).upper() != "OPEN":
+        violations.append(
+            f"PR is not OPEN during replay (state={value.get('state')!r})"
+        )
     labels = label_names(value.get("labels"), context=context)
     if DO_NOT_MERGE_LABEL not in labels:
         violations.append(f"PR is missing the {DO_NOT_MERGE_LABEL!r} label")
@@ -731,6 +817,16 @@ def check_pr_invariants(
     if head_ref != candidate:
         violations.append(
             f"PR head is {head_ref!r}, expected the candidate branch {candidate!r}"
+        )
+    actual_head_repository = value.get("headRepository")
+    actual_name = (
+        actual_head_repository.get("nameWithOwner")
+        if isinstance(actual_head_repository, dict)
+        else None
+    )
+    if actual_name != head_repository:
+        violations.append(
+            f"PR head repository is {actual_name!r}, expected {head_repository!r}"
         )
     body = value.get("body") or ""
     if CLOSING_KEYWORD_RE.search(body):
@@ -775,7 +871,7 @@ def assert_source_unchanged(
             repo,
             "--json",
             "state,stateReason,title,body,labels,milestone,assignees,"
-            "closedByPullRequestsReferences",
+            "closedByPullRequestsReferences,comments",
         ),
         context=completion_context,
     )
@@ -800,7 +896,7 @@ def assert_source_unchanged(
             repo,
             "--json",
             "state,merged,mergedAt,mergeCommit,title,body,labels,baseRefName,"
-            "headRefName,closingIssuesReferences,headRefOid",
+            "headRefName,closingIssuesReferences,headRefOid,comments,reviews",
         ),
         context=pr_context,
     )
@@ -840,24 +936,36 @@ def command_validate_invariants(args: argparse.Namespace) -> None:
             "--source-merge-sha, and --source-snapshot-sha256 together"
         )
     violations: list[str] = []
-    labels, has_milestone = read_issue_isolation(args.repo, args.shadow_issue)
+    issue_state = read_issue_isolation(args.repo, args.shadow_issue)
+    labels = issue_state["labels"]
     offending = status_labels(labels)
     if offending:
         violations.append(
             f"shadow issue #{args.shadow_issue} carries lifecycle label(s) "
             f"{', '.join(offending)}"
         )
-    if has_milestone:
-        violations.append(f"shadow issue #{args.shadow_issue} has a milestone")
-    violations.extend(
-        check_pr_invariants(
-            args.repo,
-            args.shadow_pr,
-            shadow_base=args.shadow_base,
-            candidate=args.candidate,
-            shadow_issue=args.shadow_issue,
+    if SHADOW_LABEL not in labels:
+        violations.append(
+            f"shadow issue #{args.shadow_issue} is missing required label {SHADOW_LABEL!r}"
         )
-    )
+    if issue_state["has_milestone"]:
+        violations.append(f"shadow issue #{args.shadow_issue} has a milestone")
+    if issue_state["state"] != "OPEN":
+        violations.append(
+            f"shadow issue #{args.shadow_issue} is not OPEN during replay "
+            f"(state={issue_state['state']!r})"
+        )
+    if args.shadow_pr is not None:
+        violations.extend(
+            check_pr_invariants(
+                args.repo,
+                args.shadow_pr,
+                shadow_base=args.shadow_base,
+                candidate=args.candidate,
+                head_repository=args.head_repo or args.repo,
+                shadow_issue=args.shadow_issue,
+            )
+        )
     # Bind the shadow-base ref to the immutable historical base (guards a force-push).
     if args.historical_base is not None:
         actual = read_remote_ref_sha(args.remote, args.shadow_base, args.repo_path)
@@ -879,8 +987,10 @@ def command_validate_invariants(args: argparse.Namespace) -> None:
         )
     if violations:
         fail(
-            f"shadow isolation drift for issue #{args.shadow_issue} / PR "
-            f"#{args.shadow_pr} in {args.repo}: " + "; ".join(violations)
+            f"shadow isolation drift for issue #{args.shadow_issue}"
+            + (f" / PR #{args.shadow_pr}" if args.shadow_pr is not None else "")
+            + f" in {args.repo}: "
+            + "; ".join(violations)
         )
     emit(
         {
@@ -963,6 +1073,18 @@ def command_cleanup(args: argparse.Namespace) -> None:
         ),
         context=f"close shadow issue #{args.shadow_issue}",
     )
+    issue_reread = read_issue_isolation(args.repo, args.shadow_issue)
+    if issue_reread["state"] != "CLOSED":
+        fail(
+            f"shadow issue #{args.shadow_issue} in {args.repo} is not CLOSED after close "
+            f"(state={issue_reread['state']!r})"
+        )
+    reason = issue_reread["state_reason"]
+    if isinstance(reason, str) and reason and reason.upper() != "COMPLETED":
+        fail(
+            f"shadow issue #{args.shadow_issue} in {args.repo} closed as {reason!r}, "
+            "not completed"
+        )
     if args.worktree is not None:
         run_git(
             ("worktree", "remove", str(args.worktree)),
@@ -1083,6 +1205,7 @@ def aggregate_codex(records: list[Any]) -> tuple[dict[str, ThreadUsage], ThreadU
     latest: ThreadUsage | None = None
     max_request_input: int | None = None
     cache_write_total: int | None = None
+    reasoning_exposed = False
     for record in records:
         candidate_id = _codex_thread_id(record)
         if candidate_id is not None:
@@ -1102,18 +1225,22 @@ def aggregate_codex(records: list[Any]) -> tuple[dict[str, ThreadUsage], ThreadU
             raw_cache_write, bool
         ):
             cache_write_total = int(raw_cache_write)
+        raw_reasoning = totals.get("reasoning_output_tokens")
+        reasoning_exposed = isinstance(raw_reasoning, (int, float)) and not isinstance(
+            raw_reasoning, bool
+        )
         latest = ThreadUsage(
             input_tokens=_int(totals.get("input_tokens")),
             cached_input_tokens=_int(totals.get("cached_input_tokens")),
             output_tokens=_int(totals.get("output_tokens")),
-            reasoning_tokens=_int(totals.get("reasoning_output_tokens")),
+            reasoning_tokens=_int(raw_reasoning),
             cache_write_tokens=cache_write_total,
             max_request_input_tokens=max_request_input,
         )
     threads: dict[str, ThreadUsage] = {}
     if latest is not None:
         threads[thread_id or "session"] = latest
-    return threads, ThreadUsage(cache_write_tokens=0), True
+    return threads, ThreadUsage(cache_write_tokens=0), reasoning_exposed
 
 
 ADAPTERS = {
@@ -1126,12 +1253,12 @@ def command_metrics(args: argparse.Namespace) -> None:
     adapter = ADAPTERS[args.harness]
     all_threads: dict[str, ThreadUsage] = {}
     unattributed = ThreadUsage(cache_write_tokens=0)
-    exposes_reasoning = False
+    reasoning_visibility: list[bool] = []
     for log in args.log:
         raw = read_text_file(log, context=f"{args.harness} session log")
         records = parse_jsonl(raw, context=f"{args.harness} session log {log}")
         threads, log_unattributed, reasoning = adapter(records)
-        exposes_reasoning = exposes_reasoning or reasoning
+        reasoning_visibility.append(reasoning)
         for key, usage in threads.items():
             all_threads[f"{log}::{key}"] = usage
         unattributed.input_tokens += log_unattributed.input_tokens
@@ -1189,7 +1316,7 @@ def command_metrics(args: argparse.Namespace) -> None:
         ),
         "unattributed_tokens": unattributed_total,
     }
-    if exposes_reasoning:
+    if reasoning_visibility and all(reasoning_visibility):
         payload["reasoning_tokens"] = totals.reasoning_tokens + unattributed.reasoning_tokens
     else:
         payload["reasoning_tokens"] = None
@@ -1227,7 +1354,7 @@ def resolve_reasoning_rate(entry: dict[str, Any]) -> float | None:
         return _rate(entry, "output")
     if treatment == "input":
         return _rate(entry, "input")
-    if treatment == "unpriced":
+    if treatment in {"unpriced", "included_in_output"}:
         return 0.0
     return None
 
@@ -1429,7 +1556,8 @@ def command_compare(args: argparse.Namespace) -> None:
 # failed stage is exempt (some bindings legitimately never came to exist).
 REQUIRED_REPORT_FIELDS: tuple[tuple[str, str], ...] = (
     ("run_id", "run id"),
-    ("harness", "harness and version"),
+    ("harness", "harness"),
+    ("runtime_version", "runtime version"),
     ("model", "model"),
     ("source_issue_url", "source issue link"),
     ("source_pr_url", "original PR link"),
@@ -1439,6 +1567,9 @@ REQUIRED_REPORT_FIELDS: tuple[tuple[str, str], ...] = (
     ("shadow_issue_url", "shadow issue link"),
     ("shadow_pr_url", "shadow PR link"),
     ("candidate_head", "reviewed candidate head SHA"),
+    ("execution_repository", "execution repository"),
+    ("execution_revision", "execution revision"),
+    ("rules_loaded", "rules loaded"),
     ("verification", "verification report or evidence link"),
 )
 
@@ -1464,6 +1595,26 @@ def validate_report_schema(data: dict[str, Any]) -> None:
             + ", ".join(missing)
             + " (set final_state to 'failed:<stage>' for an incomplete run)"
         )
+    typed_validators = (
+        ("source_issue_url", "source issue link", GITHUB_ISSUE_URL_RE),
+        ("source_pr_url", "original PR link", GITHUB_PR_URL_RE),
+        ("shadow_issue_url", "shadow issue link", GITHUB_ISSUE_URL_RE),
+        ("shadow_pr_url", "shadow PR link", GITHUB_PR_URL_RE),
+        ("source_merge_sha", "original PR merge SHA", FULL_SHA_RE),
+        ("historical_base", "historical base SHA", FULL_SHA_RE),
+        ("candidate_head", "reviewed candidate head SHA", FULL_SHA_RE),
+        ("execution_revision", "execution revision", FULL_SHA_RE),
+    )
+    for key, label, pattern in typed_validators:
+        value = str(data[key]).strip()
+        if not pattern.fullmatch(value):
+            fail(f"completed report {label} is malformed: {value!r}")
+    rules_loaded = data.get("rules_loaded")
+    if isinstance(rules_loaded, list):
+        if not rules_loaded or any(not str(item).strip() for item in rules_loaded):
+            fail("completed report rules loaded must name paths or use the string 'none'")
+    elif not isinstance(rules_loaded, str):
+        fail("completed report rules loaded must be a string or an array of paths")
     rows = data.get("comparison")
     if not isinstance(rows, list):
         fail("completed report comparison must be an array with every required row")
@@ -1525,7 +1676,9 @@ def render_report(data: dict[str, Any]) -> str:
     run_id = value("run_id")
     lines.append(f"## dev:shadow evaluation - {run_id}")
     lines.append(f"Run: {run_id}")
-    lines.append(f"Harness: {value('harness')}")
+    harness = value("harness")
+    runtime_version = value("runtime_version")
+    lines.append(f"Harness: {harness} {runtime_version}")
     lines.append(f"Model: {value('model')}")
     lines.append(f"Reasoning effort: {value('reasoning_effort')}")
     lines.append(f"Source issue: {value('source_issue_url')}")
@@ -1539,6 +1692,15 @@ def render_report(data: dict[str, Any]) -> str:
     lines.append(f"Shadow issue: {value('shadow_issue_url')}")
     lines.append(f"Shadow PR: {value('shadow_pr_url')}")
     lines.append(f"Candidate head: {value('candidate_head')}")
+    lines.append(f"Execution repository: {value('execution_repository')}")
+    lines.append(f"Execution revision: {value('execution_revision')}")
+    rules = data.get("rules_loaded")
+    rendered_rules = (
+        ", ".join(str(item) for item in rules)
+        if isinstance(rules, list)
+        else value("rules_loaded")
+    )
+    lines.append(f"Rules loaded: {rendered_rules}")
     lines.append(f"Final state: {value('final_state')}")
     lines.append("")
     lines.append("### Quality and delivery comparison")
@@ -1665,6 +1827,9 @@ def build_parser() -> argparse.ArgumentParser:
     open_pr.add_argument("--repo", required=True, type=repository)
     open_pr.add_argument("--base", required=True)
     open_pr.add_argument("--head", required=True)
+    open_pr.add_argument("--head-repo", type=repository)
+    open_pr.add_argument("--remote", default="origin")
+    open_pr.add_argument("--repo-path", type=Path, default=Path("."))
     open_pr.add_argument("--title", required=True)
     open_pr.add_argument("--body-file", required=True, type=Path)
     open_pr.add_argument("--shadow-issue", type=positive_int)
@@ -1675,9 +1840,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     invariants.add_argument("--repo", required=True, type=repository)
     invariants.add_argument("--shadow-issue", required=True, type=positive_int)
-    invariants.add_argument("--shadow-pr", required=True, type=positive_int)
+    invariants.add_argument("--shadow-pr", type=positive_int)
     invariants.add_argument("--shadow-base", required=True)
     invariants.add_argument("--candidate", required=True)
+    invariants.add_argument("--head-repo", type=repository)
     invariants.add_argument("--historical-base")
     invariants.add_argument("--remote", default="origin")
     invariants.add_argument("--repo-path", type=Path, default=Path("."))
