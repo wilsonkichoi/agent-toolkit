@@ -24,7 +24,8 @@ the planned-task queue.
 
 1. Resolve the source issue and merged PR in the canonical repository. A closing reference must
    bind the PR to the issue (`preflight` checks the PR's `closingIssuesReferences`); an explicit
-   `pr <source-pr>` still passes that check.
+   `pr <source-pr>` still passes that check. Preflight returns `source_snapshot_sha256`, which
+   later invariant checks use to prove the source issue and PR content did not change.
 2. Order source-PR commits by GitHub's commit sequence. For a normal single-root feature
    branch, the historical base is the sole parent of the first source-PR commit. A root commit
    (no parent), a merge commit (multiple parents), a missing parent, or a parent that is not an
@@ -55,8 +56,11 @@ the planned-task queue.
   issue and PR and stops on any drift. It binds identities and revisions, not just names: the
   `Refs` must target the actual shadow issue number; when given `--historical-base`, the remote
   shadow-base ref must still equal that immutable SHA (a force-push is caught); and when given
-  `--source-issue`/`--source-pr`/`--source-merge-sha`, the source issue must still be
-  completed and the source PR still merged at the same merge commit (source mutation is caught).
+  `--source-issue`/`--source-pr`/`--source-merge-sha`/`--source-snapshot-sha256`, the source
+  issue and PR must still match the SHA-256 snapshot returned by preflight. The snapshot covers
+  state, title, body, labels, issue assignment and milestone, closing references, PR branch
+  identities, head SHA, and merge commit; content mutation is caught even when completion state
+  and merge SHA remain unchanged.
 - On success, cleanup closes the draft PR unmerged, closes the shadow issue as a completed
   evaluation, removes the worktree, and **retains both remote shadow branches** for audit and
   reproducibility. On failure, artifacts stay open for inspection; nothing is deleted
@@ -89,6 +93,7 @@ subcommands re-read GitHub state and assert isolation before reporting success.
 | `open-shadow-pr` | Open the draft `do-not-merge` PR; reject a closing keyword, require `Refs #N`. |
 | `validate-invariants` | Re-read issue + PR, bind identities/revisions, assert isolation; stop on drift. |
 | `review-freshness` | Reject an approval whose commit is not the current candidate head (stale review). |
+| `fix-attempt` | Reject a one-based fix/review attempt above `max_fix_attempts`. |
 | `metrics` | Aggregate harness token usage per adapter without double-counting. |
 | `pricing` | Estimate API-equivalent cost from the versioned catalog, or `cost unavailable`. |
 | `compare` | Assemble the comparison table rows; missing data becomes `unavailable`. |
@@ -123,6 +128,9 @@ Across multiple logs (parent plus child rollouts), the adapter sums the per-file
 `unattributed` bucket and are still included in the totals, labeled `unattributed`, never
 guessed into a stage. When a harness or model exposes no reasoning category, `reasoning_tokens`
 is `null` and the comparison row reads `unavailable` - the adapter never fabricates a zero.
+The metrics payload also reports `max_request_input_tokens` when per-request usage is exposed and
+`cache_write_tokens` when the harness exposes cache creation. These values select pricing rules;
+unknown values stay `null`.
 
 Adding a harness is one adapter function keyed in `ADAPTERS` plus a fixture; nothing else in the
 script changes.
@@ -130,8 +138,10 @@ script changes.
 ## Evidence blobs
 
 `compare --original <file> --shadow <file>` reads two JSON objects. Each key is the comparison
-dimension lowercased with spaces and hyphens replaced by underscores; a missing key or a `null`
-value renders as `unavailable`. The recognized keys are:
+dimension lowercased with spaces and hyphens replaced by underscores. A measurement is an object
+with `value` and `evidence`; `value` may be `null` only when `evidence` gives the missing-data
+reason. Scalar values remain accepted for failed-run diagnostics, but they carry no evidence and
+cannot satisfy a completed report. The recognized keys are:
 
 ```
 functional_tests, dod_criteria_met, review_blockers, fix_and_review_cycles,
@@ -172,6 +182,13 @@ from the catalog, or a missing rate for a category that has non-zero tokens, yie
 `cost unavailable` with a reason - never a guessed value. Estimated API-equivalent cost is a
 list-price estimate, not the user's actual subscription charge; the report discloses this.
 
+Entries may also declare `cache_write`, `cached_input_is_subset`, and a `long_context` threshold
+with input/output multipliers. For such entries, `pricing` requires `--cache-write` and
+`--max-request-input` explicitly. OpenAI usage reports cached reads and cache writes as subsets of
+total input, so the helper subtracts those subsets before billing ordinary input. If the harness
+does not expose either required value, the result is `cost unavailable`; the helper never assumes
+zero cache writes or silently applies the base tier to a potentially long-context request.
+
 Keep the catalog current: add dated, sourced entries when published prices change, and bump
 `catalog_version`. Do not edit an entry's rates in place without updating `effective_date` and
 `source_url`.
@@ -190,7 +207,9 @@ Every report includes these, emitted by `report` automatically:
 
 ## Report schema enforcement
 
-A completed report (`final_state` not starting with `failed`) must carry every audit binding:
+A completed report must set `final_state` to exactly `evaluation-complete`, contain all 14 required
+comparison rows with original value, shadow value, and concrete evidence or a missing-data reason,
+and carry every audit binding:
 the run id, harness, model, source issue and PR links, the original PR merge SHA, the historical
 base, the information cutoff, the shadow issue and PR links, the reviewed candidate head SHA, and
 the verification evidence or verifier-report link. `report` fails instead of rendering

@@ -20,6 +20,7 @@ metadata from harness logs; `pricing` reads only a static catalog file.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import secrets
@@ -173,6 +174,13 @@ def emit(payload: dict[str, Any]) -> None:
     print(json.dumps(payload, sort_keys=True))
 
 
+def canonical_sha256(value: Any) -> str:
+    encoded = json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 # --------------------------------------------------------------------------- run-id
 
 
@@ -297,6 +305,75 @@ def command_historical_base(args: argparse.Namespace) -> None:
 # ----------------------------------------------------------------- preflight
 
 
+def normalized_reference_numbers(value: Any) -> list[int]:
+    if not isinstance(value, list):
+        return []
+    return sorted(
+        reference["number"]
+        for reference in value
+        if isinstance(reference, dict) and isinstance(reference.get("number"), int)
+    )
+
+
+def normalized_milestone(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    return {"number": value.get("number"), "title": value.get("title")}
+
+
+def normalized_assignees(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return sorted(
+        assignee["login"]
+        for assignee in value
+        if isinstance(assignee, dict) and isinstance(assignee.get("login"), str)
+    )
+
+
+def source_issue_snapshot(value: dict[str, Any]) -> dict[str, Any]:
+    context = "source issue snapshot"
+    return {
+        "state": value.get("state"),
+        "stateReason": value.get("stateReason"),
+        "title": value.get("title") or "",
+        "body": value.get("body") or "",
+        "labels": sorted(label_names(value.get("labels", []), context=context)),
+        "milestone": normalized_milestone(value.get("milestone")),
+        "assignees": normalized_assignees(value.get("assignees")),
+        "closedByPullRequestsReferences": normalized_reference_numbers(
+            value.get("closedByPullRequestsReferences")
+        ),
+    }
+
+
+def source_pr_snapshot(value: dict[str, Any]) -> dict[str, Any]:
+    context = "source PR snapshot"
+    merge_commit = value.get("mergeCommit")
+    merge_sha = merge_commit.get("oid") if isinstance(merge_commit, dict) else None
+    return {
+        "state": value.get("state"),
+        "merged": value.get("merged"),
+        "mergedAt": value.get("mergedAt"),
+        "mergeCommit": merge_sha,
+        "title": value.get("title") or "",
+        "body": value.get("body") or "",
+        "labels": sorted(label_names(value.get("labels", []), context=context)),
+        "baseRefName": value.get("baseRefName"),
+        "headRefName": value.get("headRefName"),
+        "headRefOid": value.get("headRefOid"),
+        "closingIssuesReferences": normalized_reference_numbers(
+            value.get("closingIssuesReferences")
+        ),
+    }
+
+
+def source_snapshot_sha256(
+    issue_snapshot: dict[str, Any], pr_snapshot: dict[str, Any]
+) -> str:
+    return canonical_sha256({"issue": issue_snapshot, "pr": pr_snapshot})
+
+
 def read_issue_completion(repo: str, issue: int) -> dict[str, Any]:
     context = f"source issue #{issue} in {repo}"
     raw = run_gh(
@@ -307,7 +384,8 @@ def read_issue_completion(repo: str, issue: int) -> dict[str, Any]:
             "--repo",
             repo,
             "--json",
-            "state,stateReason,title,closedByPullRequestsReferences",
+            "state,stateReason,title,body,labels,milestone,assignees,"
+            "closedByPullRequestsReferences",
         ),
         context=context,
     )
@@ -324,13 +402,12 @@ def read_issue_completion(repo: str, issue: int) -> dict[str, Any]:
             f"source issue #{issue} in {repo} closed as {reason!r}, not completed; "
             "dev:shadow replays completed work only"
         )
-    references = value.get("closedByPullRequestsReferences")
-    linked: list[int] = []
-    if isinstance(references, list):
-        for reference in references:
-            if isinstance(reference, dict) and isinstance(reference.get("number"), int):
-                linked.append(reference["number"])
-    return {"title": value.get("title") or "", "linked_prs": linked}
+    snapshot = source_issue_snapshot(value)
+    return {
+        "title": snapshot["title"],
+        "linked_prs": snapshot["closedByPullRequestsReferences"],
+        "snapshot": snapshot,
+    }
 
 
 def read_pr_binding(repo: str, pr: int, issue: int) -> dict[str, Any]:
@@ -343,7 +420,8 @@ def read_pr_binding(repo: str, pr: int, issue: int) -> dict[str, Any]:
             "--repo",
             repo,
             "--json",
-            "state,merged,mergedAt,mergeCommit,closingIssuesReferences,headRefOid",
+            "state,merged,mergedAt,mergeCommit,title,body,labels,baseRefName,"
+            "headRefName,closingIssuesReferences,headRefOid",
         ),
         context=context,
     )
@@ -354,21 +432,15 @@ def read_pr_binding(repo: str, pr: int, issue: int) -> dict[str, Any]:
             f"source PR #{pr} in {repo} is not merged (merged={merged!r}); "
             "dev:shadow replays merged pull requests only"
         )
-    closing = value.get("closingIssuesReferences")
-    bound = False
-    if isinstance(closing, list):
-        for reference in closing:
-            if isinstance(reference, dict) and reference.get("number") == issue:
-                bound = True
-    merge_commit = value.get("mergeCommit")
-    merge_sha = ""
-    if isinstance(merge_commit, dict) and isinstance(merge_commit.get("oid"), str):
-        merge_sha = merge_commit["oid"]
+    snapshot = source_pr_snapshot(value)
+    bound = issue in snapshot["closingIssuesReferences"]
+    merge_sha = snapshot["mergeCommit"] or ""
     return {
         "bound": bound,
         "merge_commit": merge_sha,
         "merged_at": value.get("mergedAt") or "",
         "head": value.get("headRefOid") or "",
+        "snapshot": snapshot,
     }
 
 
@@ -423,6 +495,9 @@ def command_preflight(args: argparse.Namespace) -> None:
             "first_commit": base["first_commit"],
             "cutoff": base["cutoff"],
             "cutoff_rule": base["cutoff_rule"],
+            "source_snapshot_sha256": source_snapshot_sha256(
+                completion["snapshot"], binding["snapshot"]
+            ),
         }
     )
 
@@ -683,7 +758,11 @@ def read_remote_ref_sha(remote: str, branch: str, repo_path: Path) -> str:
 
 
 def assert_source_unchanged(
-    repo: str, source_issue: int, source_pr: int, merge_sha: str
+    repo: str,
+    source_issue: int,
+    source_pr: int,
+    merge_sha: str,
+    expected_snapshot_sha256: str,
 ) -> list[str]:
     violations: list[str] = []
     completion_context = f"source issue #{source_issue} in {repo}"
@@ -695,7 +774,8 @@ def assert_source_unchanged(
             "--repo",
             repo,
             "--json",
-            "state,stateReason",
+            "state,stateReason,title,body,labels,milestone,assignees,"
+            "closedByPullRequestsReferences",
         ),
         context=completion_context,
     )
@@ -719,7 +799,8 @@ def assert_source_unchanged(
             "--repo",
             repo,
             "--json",
-            "merged,mergeCommit",
+            "state,merged,mergedAt,mergeCommit,title,body,labels,baseRefName,"
+            "headRefName,closingIssuesReferences,headRefOid",
         ),
         context=pr_context,
     )
@@ -727,18 +808,37 @@ def assert_source_unchanged(
     if pr.get("merged") is not True:
         violations.append(f"source PR #{source_pr} is no longer merged")
     merge_commit = pr.get("mergeCommit")
-    current_merge = (
-        merge_commit.get("oid") if isinstance(merge_commit, dict) else None
-    )
+    current_merge = merge_commit.get("oid") if isinstance(merge_commit, dict) else None
     if merge_sha and current_merge != merge_sha:
         violations.append(
             f"source PR #{source_pr} merge commit changed from {merge_sha} to "
             f"{current_merge!r}"
         )
+    current_snapshot = source_snapshot_sha256(
+        source_issue_snapshot(issue), source_pr_snapshot(pr)
+    )
+    if current_snapshot != expected_snapshot_sha256:
+        violations.append(
+            "source issue/PR content changed after preflight "
+            f"(snapshot {expected_snapshot_sha256} became {current_snapshot})"
+        )
     return violations
 
 
 def command_validate_invariants(args: argparse.Namespace) -> None:
+    source_values = (
+        args.source_issue,
+        args.source_pr,
+        args.source_merge_sha,
+        args.source_snapshot_sha256,
+    )
+    if any(value is not None for value in source_values) and not all(
+        value is not None for value in source_values
+    ):
+        fail(
+            "source invariant validation requires --source-issue, --source-pr, "
+            "--source-merge-sha, and --source-snapshot-sha256 together"
+        )
     violations: list[str] = []
     labels, has_milestone = read_issue_isolation(args.repo, args.shadow_issue)
     offending = status_labels(labels)
@@ -773,7 +873,8 @@ def command_validate_invariants(args: argparse.Namespace) -> None:
                 args.repo,
                 args.source_issue,
                 args.source_pr,
-                args.source_merge_sha or "",
+                args.source_merge_sha,
+                args.source_snapshot_sha256,
             )
         )
     if violations:
@@ -807,6 +908,22 @@ def command_review_freshness(args: argparse.Namespace) -> None:
             f"candidate head is {args.head}; re-review the new head before verifying"
         )
     emit({"fresh": True, "review_commit": args.review_commit, "head": args.head})
+
+
+def command_fix_attempt(args: argparse.Namespace) -> None:
+    """Reject a fix/review cycle beyond the configured orchestration bound."""
+    if args.attempt > args.max_attempts:
+        fail(
+            f"fix attempt {args.attempt} exceeds max_fix_attempts={args.max_attempts}; "
+            "stop with unresolved findings instead of dispatching another fixer"
+        )
+    emit(
+        {
+            "allowed": True,
+            "attempt": args.attempt,
+            "max_attempts": args.max_attempts,
+        }
+    )
 
 
 # ------------------------------------------------------------------- cleanup
@@ -872,6 +989,8 @@ class ThreadUsage:
     cached_input_tokens: int = 0
     output_tokens: int = 0
     reasoning_tokens: int = 0
+    cache_write_tokens: int | None = None
+    max_request_input_tokens: int | None = None
 
 
 def _int(value: Any) -> int:
@@ -886,7 +1005,7 @@ def aggregate_claude_code(records: list[Any]) -> tuple[dict[str, ThreadUsage], T
     pick a single final value from. Claude Code does not expose reasoning tokens.
     """
     threads: dict[str, ThreadUsage] = {}
-    unattributed = ThreadUsage()
+    unattributed = ThreadUsage(cache_write_tokens=0)
     for record in records:
         if not isinstance(record, dict) or record.get("type") != "assistant":
             continue
@@ -900,11 +1019,21 @@ def aggregate_claude_code(records: list[Any]) -> tuple[dict[str, ThreadUsage], T
         target = unattributed
         if isinstance(session, str) and session:
             key = f"{session}|{'sidechain' if record.get('isSidechain') else 'main'}"
-            target = threads.setdefault(key, ThreadUsage())
+            target = threads.setdefault(key, ThreadUsage(cache_write_tokens=0))
         target.input_tokens += _int(usage.get("input_tokens"))
-        target.input_tokens += _int(usage.get("cache_creation_input_tokens"))
+        cache_write = _int(usage.get("cache_creation_input_tokens"))
+        target.input_tokens += cache_write
         target.cached_input_tokens += _int(usage.get("cache_read_input_tokens"))
         target.output_tokens += _int(usage.get("output_tokens"))
+        target.cache_write_tokens = (target.cache_write_tokens or 0) + cache_write
+        request_input = (
+            _int(usage.get("input_tokens"))
+            + cache_write
+            + _int(usage.get("cache_read_input_tokens"))
+        )
+        target.max_request_input_tokens = max(
+            target.max_request_input_tokens or 0, request_input
+        )
     return threads, unattributed, False
 
 
@@ -952,6 +1081,8 @@ def aggregate_codex(records: list[Any]) -> tuple[dict[str, ThreadUsage], ThreadU
     """
     thread_id: str | None = None
     latest: ThreadUsage | None = None
+    max_request_input: int | None = None
+    cache_write_total: int | None = None
     for record in records:
         candidate_id = _codex_thread_id(record)
         if candidate_id is not None:
@@ -962,16 +1093,27 @@ def aggregate_codex(records: list[Any]) -> tuple[dict[str, ThreadUsage], ThreadU
         totals = info.get("total_token_usage")
         if not isinstance(totals, dict):
             continue
+        last = info.get("last_token_usage")
+        if isinstance(last, dict):
+            request_input = _int(last.get("input_tokens"))
+            max_request_input = max(max_request_input or 0, request_input)
+        raw_cache_write = totals.get("cache_creation_input_tokens")
+        if isinstance(raw_cache_write, (int, float)) and not isinstance(
+            raw_cache_write, bool
+        ):
+            cache_write_total = int(raw_cache_write)
         latest = ThreadUsage(
             input_tokens=_int(totals.get("input_tokens")),
             cached_input_tokens=_int(totals.get("cached_input_tokens")),
             output_tokens=_int(totals.get("output_tokens")),
             reasoning_tokens=_int(totals.get("reasoning_output_tokens")),
+            cache_write_tokens=cache_write_total,
+            max_request_input_tokens=max_request_input,
         )
     threads: dict[str, ThreadUsage] = {}
     if latest is not None:
         threads[thread_id or "session"] = latest
-    return threads, ThreadUsage(), True
+    return threads, ThreadUsage(cache_write_tokens=0), True
 
 
 ADAPTERS = {
@@ -983,7 +1125,7 @@ ADAPTERS = {
 def command_metrics(args: argparse.Namespace) -> None:
     adapter = ADAPTERS[args.harness]
     all_threads: dict[str, ThreadUsage] = {}
-    unattributed = ThreadUsage()
+    unattributed = ThreadUsage(cache_write_tokens=0)
     exposes_reasoning = False
     for log in args.log:
         raw = read_text_file(log, context=f"{args.harness} session log")
@@ -996,6 +1138,18 @@ def command_metrics(args: argparse.Namespace) -> None:
         unattributed.cached_input_tokens += log_unattributed.cached_input_tokens
         unattributed.output_tokens += log_unattributed.output_tokens
         unattributed.reasoning_tokens += log_unattributed.reasoning_tokens
+        if (
+            unattributed.cache_write_tokens is not None
+            and log_unattributed.cache_write_tokens is not None
+        ):
+            unattributed.cache_write_tokens += log_unattributed.cache_write_tokens
+        else:
+            unattributed.cache_write_tokens = None
+        if log_unattributed.max_request_input_tokens is not None:
+            unattributed.max_request_input_tokens = max(
+                unattributed.max_request_input_tokens or 0,
+                log_unattributed.max_request_input_tokens,
+            )
 
     totals = ThreadUsage()
     for usage in all_threads.values():
@@ -1003,6 +1157,20 @@ def command_metrics(args: argparse.Namespace) -> None:
         totals.cached_input_tokens += usage.cached_input_tokens
         totals.output_tokens += usage.output_tokens
         totals.reasoning_tokens += usage.reasoning_tokens
+    cache_write_values = [
+        usage.cache_write_tokens
+        for usage in [*all_threads.values(), unattributed]
+        if usage.cache_write_tokens is not None
+    ]
+    cache_write_known = all(
+        usage.cache_write_tokens is not None
+        for usage in [*all_threads.values(), unattributed]
+    )
+    max_request_values = [
+        usage.max_request_input_tokens
+        for usage in [*all_threads.values(), unattributed]
+        if usage.max_request_input_tokens is not None
+    ]
     unattributed_total = (
         unattributed.input_tokens
         + unattributed.cached_input_tokens
@@ -1015,6 +1183,10 @@ def command_metrics(args: argparse.Namespace) -> None:
         "input_tokens": totals.input_tokens + unattributed.input_tokens,
         "cached_input_tokens": totals.cached_input_tokens + unattributed.cached_input_tokens,
         "output_tokens": totals.output_tokens + unattributed.output_tokens,
+        "cache_write_tokens": sum(cache_write_values) if cache_write_known else None,
+        "max_request_input_tokens": (
+            max(max_request_values) if max_request_values else None
+        ),
         "unattributed_tokens": unattributed_total,
     }
     if exposes_reasoning:
@@ -1079,14 +1251,93 @@ def command_pricing(args: argparse.Namespace) -> None:
             }
         )
         return
+    cache_write_tokens = args.cache_write
+    cache_write_rate = _rate(entry, "cache_write")
+    if cache_write_rate is not None and cache_write_tokens is None:
+        emit(
+            {
+                "cost": UNAVAILABLE,
+                "reason": (
+                    f"catalog entry for {args.provider}/{args.model} prices cache writes; "
+                    "pass --cache-write with the observed token count (including explicit "
+                    "zero when the harness proves no cache writes)"
+                ),
+                "model": args.model,
+                "effective_date": entry.get("effective_date"),
+                "source_url": entry.get("source_url"),
+            }
+        )
+        return
+    cache_write_tokens = cache_write_tokens or 0
+
+    input_tokens = args.input
+    if entry.get("cached_input_is_subset") is True:
+        discounted = args.cached_input + cache_write_tokens
+        if discounted > input_tokens:
+            emit(
+                {
+                    "cost": UNAVAILABLE,
+                    "reason": (
+                        "cached-input plus cache-write tokens exceed total input tokens; "
+                        "OpenAI usage reports both as subsets of total input"
+                    ),
+                    "model": args.model,
+                    "effective_date": entry.get("effective_date"),
+                    "source_url": entry.get("source_url"),
+                }
+            )
+            return
+        input_tokens -= discounted
+
+    input_multiplier = 1.0
+    output_multiplier = 1.0
+    pricing_tier = "base"
+    long_context = entry.get("long_context")
+    if isinstance(long_context, dict):
+        threshold = long_context.get("threshold_input_tokens")
+        if not isinstance(threshold, int) or threshold < 0:
+            fail(
+                "pricing catalog long_context.threshold_input_tokens must be non-negative"
+            )
+        if args.max_request_input is None:
+            emit(
+                {
+                    "cost": UNAVAILABLE,
+                    "reason": (
+                        f"catalog entry for {args.provider}/{args.model} changes rates above "
+                        f"{threshold} input tokens; pass --max-request-input so the tier is "
+                        "explicit"
+                    ),
+                    "model": args.model,
+                    "effective_date": entry.get("effective_date"),
+                    "source_url": entry.get("source_url"),
+                }
+            )
+            return
+        if args.max_request_input > threshold:
+            input_multiplier = float(long_context.get("input_multiplier", 0))
+            output_multiplier = float(long_context.get("output_multiplier", 0))
+            if input_multiplier <= 0 or output_multiplier <= 0:
+                fail("pricing catalog long_context multipliers must be positive")
+            pricing_tier = "long_context"
+
     components = {
-        "input": (args.input, _rate(entry, "input")),
-        "cached_input": (args.cached_input, _rate(entry, "cached_input")),
-        "output": (args.output, _rate(entry, "output")),
-        "reasoning": (args.reasoning, resolve_reasoning_rate(entry)),
+        "input": (input_tokens, _rate(entry, "input"), input_multiplier),
+        "cached_input": (
+            args.cached_input,
+            _rate(entry, "cached_input"),
+            input_multiplier,
+        ),
+        "cache_write": (cache_write_tokens, cache_write_rate, input_multiplier),
+        "output": (args.output, _rate(entry, "output"), output_multiplier),
+        "reasoning": (
+            args.reasoning,
+            resolve_reasoning_rate(entry),
+            output_multiplier,
+        ),
     }
     total = 0.0
-    for name, (tokens, rate) in components.items():
+    for name, (tokens, rate, multiplier) in components.items():
         if tokens <= 0:
             continue
         if rate is None:
@@ -1103,7 +1354,7 @@ def command_pricing(args: argparse.Namespace) -> None:
                 }
             )
             return
-        total += tokens * rate / 1_000_000
+        total += tokens * rate * multiplier / 1_000_000
     emit(
         {
             "cost": round(total, 6),
@@ -1113,6 +1364,8 @@ def command_pricing(args: argparse.Namespace) -> None:
             "effective_date": entry.get("effective_date"),
             "source_url": entry.get("source_url"),
             "catalog_version": catalog.get("catalog_version"),
+            "pricing_tier": pricing_tier,
+            "max_request_input_tokens": args.max_request_input,
         }
     )
 
@@ -1129,6 +1382,16 @@ def compare_value(bucket: dict[str, Any], key: str) -> str:
     return str(value)
 
 
+def compare_measurement(bucket: dict[str, Any], key: str) -> tuple[str, str]:
+    raw = bucket.get(key)
+    if not isinstance(raw, dict):
+        return compare_value(bucket, key), ""
+    value = raw.get("value")
+    rendered = UNAVAILABLE if value is None or value == "" else str(value)
+    evidence = raw.get("evidence")
+    return rendered, str(evidence).strip() if evidence is not None else ""
+
+
 def command_compare(args: argparse.Namespace) -> None:
     original = parse_json_object(
         read_text_file(args.original, context="original evidence"),
@@ -1139,14 +1402,21 @@ def command_compare(args: argparse.Namespace) -> None:
         context=f"shadow evidence {args.shadow}",
     )
     rows: list[dict[str, str]] = []
-    for dimension, evidence in COMPARISON_DIMENSIONS:
+    for dimension, _default_evidence in COMPARISON_DIMENSIONS:
         key = dimension.lower().replace(" ", "_").replace("-", "_")
+        original_value, original_evidence = compare_measurement(original, key)
+        shadow_value, shadow_evidence = compare_measurement(shadow, key)
+        evidence_parts = []
+        if original_evidence:
+            evidence_parts.append(f"Original: {original_evidence}")
+        if shadow_evidence:
+            evidence_parts.append(f"Shadow: {shadow_evidence}")
         rows.append(
             {
                 "dimension": dimension,
-                "original": compare_value(original, key),
-                "shadow": compare_value(shadow, key),
-                "evidence": evidence,
+                "original": original_value,
+                "shadow": shadow_value,
+                "evidence": "; ".join(evidence_parts) or UNAVAILABLE,
             }
         )
     emit({"rows": rows})
@@ -1176,8 +1446,13 @@ REQUIRED_REPORT_FIELDS: tuple[tuple[str, str], ...] = (
 def validate_report_schema(data: dict[str, Any]) -> None:
     """A completed report must carry every audit binding; a failure report is exempt."""
     final_state = str(data.get("final_state", ""))
-    if final_state.startswith("failed"):
+    if final_state.startswith("failed:") and len(final_state) > len("failed:"):
         return
+    if final_state != "evaluation-complete":
+        fail(
+            "completed report final_state must be 'evaluation-complete'; use "
+            "'failed:<stage>' for a stopped run"
+        )
     missing = [
         label
         for key, label in REQUIRED_REPORT_FIELDS
@@ -1189,6 +1464,46 @@ def validate_report_schema(data: dict[str, Any]) -> None:
             + ", ".join(missing)
             + " (set final_state to 'failed:<stage>' for an incomplete run)"
         )
+    rows = data.get("comparison")
+    if not isinstance(rows, list):
+        fail("completed report comparison must be an array with every required row")
+    expected = {dimension for dimension, _ in COMPARISON_DIMENSIONS}
+    provided: dict[str, dict[str, Any]] = {}
+    duplicates: list[str] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            fail("completed report comparison rows must be objects")
+        dimension = row.get("dimension")
+        if not isinstance(dimension, str):
+            fail("completed report comparison row dimension must be a string")
+        if dimension in provided:
+            duplicates.append(dimension)
+        provided[dimension] = row
+    missing_dimensions = sorted(expected - set(provided))
+    unexpected_dimensions = sorted(set(provided) - expected)
+    if duplicates or missing_dimensions or unexpected_dimensions:
+        problems: list[str] = []
+        if missing_dimensions:
+            problems.append("missing: " + ", ".join(missing_dimensions))
+        if unexpected_dimensions:
+            problems.append("unexpected: " + ", ".join(unexpected_dimensions))
+        if duplicates:
+            problems.append("duplicate: " + ", ".join(sorted(set(duplicates))))
+        fail(
+            "completed report comparison rows do not match the required schema ("
+            + "; ".join(problems)
+            + ")"
+        )
+    for dimension in expected:
+        row = provided[dimension]
+        for field in ("original", "shadow", "evidence"):
+            if not str(row.get(field) or "").strip():
+                fail(f"completed report comparison row {dimension!r} has no {field}")
+        if str(row["evidence"]).strip().lower() == UNAVAILABLE:
+            fail(
+                f"completed report comparison row {dimension!r} has no evidence or "
+                "missing-data reason"
+            )
 
 
 def render_disclosures(extra: Sequence[str]) -> list[str]:
@@ -1369,6 +1684,7 @@ def build_parser() -> argparse.ArgumentParser:
     invariants.add_argument("--source-issue", type=positive_int)
     invariants.add_argument("--source-pr", type=positive_int)
     invariants.add_argument("--source-merge-sha")
+    invariants.add_argument("--source-snapshot-sha256")
     invariants.set_defaults(func=command_validate_invariants)
 
     freshness = sub.add_parser(
@@ -1378,6 +1694,14 @@ def build_parser() -> argparse.ArgumentParser:
     freshness.add_argument("--review-commit", required=True)
     freshness.add_argument("--head", required=True)
     freshness.set_defaults(func=command_review_freshness)
+
+    attempt = sub.add_parser(
+        "fix-attempt",
+        help="Reject a fix/review cycle beyond the configured attempt bound.",
+    )
+    attempt.add_argument("--attempt", required=True, type=positive_int)
+    attempt.add_argument("--max-attempts", required=True, type=positive_int)
+    attempt.set_defaults(func=command_fix_attempt)
 
     cleanup = sub.add_parser("cleanup", help="Close the shadow PR unmerged and the issue.")
     cleanup.add_argument("--repo", required=True, type=repository)
@@ -1397,6 +1721,8 @@ def build_parser() -> argparse.ArgumentParser:
     pricing.add_argument("--model", required=True)
     pricing.add_argument("--input", type=non_negative_int, default=0)
     pricing.add_argument("--cached-input", type=non_negative_int, default=0)
+    pricing.add_argument("--cache-write", type=non_negative_int)
+    pricing.add_argument("--max-request-input", type=non_negative_int)
     pricing.add_argument("--output", type=non_negative_int, default=0)
     pricing.add_argument("--reasoning", type=non_negative_int, default=0)
     pricing.set_defaults(func=command_pricing)

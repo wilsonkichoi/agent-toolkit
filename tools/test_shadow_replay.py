@@ -142,6 +142,23 @@ REQUIRED_DISCLOSURES = (
     "Reviewer and verifier judgments depend on the identified models.",
 )
 
+COMPARISON_DIMENSIONS = (
+    "Functional tests",
+    "DoD criteria met",
+    "Review blockers",
+    "Fix and review cycles",
+    "Files changed",
+    "Lines added and removed",
+    "Observable delivery time",
+    "Total run time",
+    "CI wait time",
+    "Input tokens",
+    "Cached input tokens",
+    "Output tokens",
+    "Reasoning tokens",
+    "Estimated API-equivalent cost",
+)
+
 
 class ShadowReplayTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -450,6 +467,7 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertEqual(payload["source_head"], "prhead1")
         self.assertEqual(payload["historical_base"], "base0")
         self.assertEqual(payload["first_commit"], "c1")
+        self.assertRegex(payload["source_snapshot_sha256"], r"^[0-9a-f]{64}$")
         self.assert_gh_repo_targeting(self.gh_calls())
         self.assertIn("prhead1", self.git_calls()[0])
 
@@ -1013,14 +1031,21 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertEqual(payload["output_tokens"], 65)
         self.assertIsNone(payload["reasoning_tokens"])
         self.assertEqual(payload["unattributed_tokens"], 0)
+        self.assertEqual(payload["cache_write_tokens"], 20)
+        self.assertEqual(payload["max_request_input_tokens"], 245)
         self.assertEqual(self.gh_calls(), [])
         self.assertEqual(self.git_calls(), [])
 
-    def _codex_token_event(self, **totals: int) -> dict[str, Any]:
+    def _codex_token_event(
+        self, *, last_input: int | None = None, **totals: int
+    ) -> dict[str, Any]:
         # Real Codex rollout envelope: type=event_msg, payload.type=token_count.
+        info: dict[str, Any] = {"total_token_usage": totals}
+        if last_input is not None:
+            info["last_token_usage"] = {"input_tokens": last_input}
         return {
             "type": "event_msg",
-            "payload": {"type": "token_count", "info": {"total_token_usage": totals}},
+            "payload": {"type": "token_count", "info": info},
         }
 
     def test_metrics_codex_keeps_last_cumulative_event(self) -> None:
@@ -1029,12 +1054,14 @@ class ShadowReplayTests(unittest.TestCase):
             [
                 {"type": "session_meta", "payload": {"id": "sess-1"}},
                 self._codex_token_event(
+                    last_input=100,
                     input_tokens=100,
                     cached_input_tokens=10,
                     output_tokens=20,
                     reasoning_output_tokens=5,
                 ),
                 self._codex_token_event(
+                    last_input=250,
                     input_tokens=300,
                     cached_input_tokens=30,
                     output_tokens=60,
@@ -1051,6 +1078,8 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertEqual(payload["cached_input_tokens"], 30)
         self.assertEqual(payload["output_tokens"], 60)
         self.assertEqual(payload["reasoning_tokens"], 15)
+        self.assertEqual(payload["max_request_input_tokens"], 250)
+        self.assertIsNone(payload["cache_write_tokens"])
 
     def test_metrics_codex_sums_across_logs(self) -> None:
         # One rollout file is one thread; parent + child sessions are separate logs, summed.
@@ -1132,7 +1161,90 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertEqual(payload["currency"], "USD")
         self.assertEqual(payload["model"], "claude-opus-4-8")
         self.assertEqual(payload["provider"], "anthropic")
-        self.assertEqual(payload["catalog_version"], "1")
+        self.assertEqual(payload["catalog_version"], "2")
+
+    def test_pricing_gpt_5_6_base_rates_handle_subsets_and_cache_writes(self) -> None:
+        result = self.run_cli(
+            "pricing",
+            "--provider",
+            "openai",
+            "--model",
+            "openai/gpt-5.6",
+            "--input",
+            "1000000",
+            "--cached-input",
+            "100000",
+            "--cache-write",
+            "50000",
+            "--output",
+            "100000",
+            "--reasoning",
+            "10000",
+            "--max-request-input",
+            "200000",
+        )
+        payload = self.payload(result)
+        # OpenAI input includes cached reads and cache writes as subsets:
+        # 850k*5 + 100k*0.5 + 50k*6.25 + 100k*30 + 10k*30.
+        self.assertAlmostEqual(payload["cost"], 7.9125)
+        self.assertEqual(payload["pricing_tier"], "base")
+        self.assertEqual(payload["catalog_version"], "2")
+
+    def test_pricing_gpt_5_6_applies_long_context_multipliers(self) -> None:
+        result = self.run_cli(
+            "pricing",
+            "--provider",
+            "openai",
+            "--model",
+            "openai/gpt-5.6",
+            "--input",
+            "1000000",
+            "--cached-input",
+            "100000",
+            "--cache-write",
+            "50000",
+            "--output",
+            "100000",
+            "--reasoning",
+            "10000",
+            "--max-request-input",
+            "272001",
+        )
+        payload = self.payload(result)
+        self.assertAlmostEqual(payload["cost"], 14.175)
+        self.assertEqual(payload["pricing_tier"], "long_context")
+
+    def test_pricing_gpt_5_6_requires_explicit_cache_writes(self) -> None:
+        result = self.run_cli(
+            "pricing",
+            "--provider",
+            "openai",
+            "--model",
+            "openai/gpt-5.6",
+            "--input",
+            "1000",
+            "--max-request-input",
+            "1000",
+        )
+        payload = self.payload(result)
+        self.assertEqual(payload["cost"], "unavailable")
+        self.assertIn("cache writes", payload["reason"])
+
+    def test_pricing_gpt_5_6_requires_explicit_context_tier(self) -> None:
+        result = self.run_cli(
+            "pricing",
+            "--provider",
+            "openai",
+            "--model",
+            "openai/gpt-5.6",
+            "--input",
+            "1000",
+            "--cache-write",
+            "0",
+        )
+        payload = self.payload(result)
+        self.assertEqual(payload["cost"], "unavailable")
+        self.assertIn("--max-request-input", payload["reason"])
 
     def test_pricing_unknown_model_is_unavailable(self) -> None:
         result = self.run_cli(
@@ -1200,11 +1312,24 @@ class ShadowReplayTests(unittest.TestCase):
     def test_compare_renders_missing_values_as_unavailable(self) -> None:
         original = self._compare_file(
             "original.json",
-            {"dod_criteria_met": "5/5", "input_tokens": 1000, "files_changed": None},
+            {
+                "dod_criteria_met": {
+                    "value": "5/5",
+                    "evidence": "https://example.test/original-dod",
+                },
+                "input_tokens": 1000,
+                "files_changed": None,
+            },
         )
         shadow = self._compare_file(
             "shadow.json",
-            {"dod_criteria_met": "5/5", "output_tokens": 2000},
+            {
+                "dod_criteria_met": {
+                    "value": "5/5",
+                    "evidence": "https://example.test/shadow-dod",
+                },
+                "output_tokens": 2000,
+            },
         )
         result = self.run_cli("compare", "--original", original, "--shadow", shadow)
         payload = self.payload(result)
@@ -1226,6 +1351,8 @@ class ShadowReplayTests(unittest.TestCase):
 
         # A null value renders as unavailable, same as a missing key.
         self.assertEqual(by_dimension["files_changed"]["original"], "unavailable")
+        self.assertIn("original-dod", by_dimension["dod_criteria_met"]["evidence"])
+        self.assertIn("shadow-dod", by_dimension["dod_criteria_met"]["evidence"])
 
     # ----------------------------------------------------------------- report
     def _report_data(self, **overrides: Any) -> dict[str, Any]:
@@ -1242,14 +1369,15 @@ class ShadowReplayTests(unittest.TestCase):
             "shadow_issue_url": "https://github.com/octo/demo/issues/99",
             "shadow_pr_url": "https://github.com/octo/demo/pull/100",
             "candidate_head": "head1",
-            "final_state": "verified",
+            "final_state": "evaluation-complete",
             "comparison": [
                 {
-                    "dimension": "dod_criteria_met",
+                    "dimension": dimension,
                     "original": "5/5",
                     "shadow": "5/5",
-                    "evidence": "all criteria met",
+                    "evidence": f"https://example.test/evidence#{index}",
                 }
+                for index, dimension in enumerate(COMPARISON_DIMENSIONS, start=1)
             ],
             "verification": "All DoD criteria satisfied.",
             "disclosures": ["Custom extra disclosure sentence for this run."],
@@ -1303,6 +1431,27 @@ class ShadowReplayTests(unittest.TestCase):
         data_file = self._write_report_data(data)
         result = self.run_cli("report", "--data", data_file)
         self.assert_failure(result)
+
+    def test_report_rejects_missing_final_state(self) -> None:
+        data = self._report_data()
+        del data["final_state"]
+        result = self.run_cli("report", "--data", self._write_report_data(data))
+        self.assert_failure(result)
+        self.assertIn("evaluation-complete", result.stderr)
+
+    def test_report_rejects_missing_comparison_row(self) -> None:
+        data = self._report_data()
+        data["comparison"] = data["comparison"][:-1]
+        result = self.run_cli("report", "--data", self._write_report_data(data))
+        self.assert_failure(result)
+        self.assertIn("missing", result.stderr)
+
+    def test_report_rejects_comparison_row_without_evidence(self) -> None:
+        data = self._report_data()
+        data["comparison"][0]["evidence"] = "unavailable"
+        result = self.run_cli("report", "--data", self._write_report_data(data))
+        self.assert_failure(result)
+        self.assertIn("evidence", result.stderr)
 
     def test_report_failed_state_exempts_bindings(self) -> None:
         # A failure report (final_state: failed:<stage>) renders even without every binding.
@@ -1361,6 +1510,8 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertIn("base0", result.stderr)
 
     def test_validate_invariants_binding_pass(self) -> None:
+        source_issue = {"state": "CLOSED", "stateReason": "COMPLETED"}
+        source_pr = {"merged": True, "mergeCommit": {"oid": "merge9"}}
         result = self.run_cli(
             "validate-invariants",
             "--repo",
@@ -1385,14 +1536,16 @@ class ShadowReplayTests(unittest.TestCase):
             "7",
             "--source-merge-sha",
             "merge9",
+            "--source-snapshot-sha256",
+            "b5da2ba87b7d73bad84e6f28213406a1cff72cbe9e87317910bbf2d6279b4fe4",
             gh={
                 "issue view": [
                     self.resp(self.clean_issue()),
-                    self.resp({"state": "CLOSED", "stateReason": "COMPLETED"}),
+                    self.resp(source_issue),
                 ],
                 "pr view": [
                     self.resp(self.clean_pr()),
-                    self.resp({"merged": True, "mergeCommit": {"oid": "merge9"}}),
+                    self.resp(source_pr),
                 ],
             },
             git={"ls-remote": [self.resp("base0\trefs/heads/B")]},
@@ -1402,6 +1555,8 @@ class ShadowReplayTests(unittest.TestCase):
 
     def test_validate_invariants_detects_changed_source_merge(self) -> None:
         # A mutated source PR (merge commit changed since preflight) fails the invariant.
+        source_issue = {"state": "CLOSED", "stateReason": "COMPLETED"}
+        current_pr = {"merged": True, "mergeCommit": {"oid": "different"}}
         result = self.run_cli(
             "validate-invariants",
             "--repo",
@@ -1420,18 +1575,67 @@ class ShadowReplayTests(unittest.TestCase):
             "7",
             "--source-merge-sha",
             "merge9",
+            "--source-snapshot-sha256",
+            "b5da2ba87b7d73bad84e6f28213406a1cff72cbe9e87317910bbf2d6279b4fe4",
             gh={
                 "issue view": [
                     self.resp(self.clean_issue()),
-                    self.resp({"state": "CLOSED", "stateReason": "COMPLETED"}),
+                    self.resp(source_issue),
                 ],
                 "pr view": [
                     self.resp(self.clean_pr()),
-                    self.resp({"merged": True, "mergeCommit": {"oid": "different"}}),
+                    self.resp(current_pr),
                 ],
             },
         )
         self.assert_failure(result)
+
+    def test_validate_invariants_detects_source_content_mutation(self) -> None:
+        original_issue = {
+            "state": "CLOSED",
+            "stateReason": "COMPLETED",
+            "title": "Original issue title",
+            "body": "Original issue body",
+            "labels": [{"name": "enhancement"}],
+        }
+        changed_issue = {**original_issue, "body": "Edited after preflight"}
+        source_pr = {
+            "state": "MERGED",
+            "merged": True,
+            "mergeCommit": {"oid": "merge9"},
+            "title": "Original PR title",
+            "body": "Original PR body",
+        }
+        result = self.run_cli(
+            "validate-invariants",
+            "--repo",
+            REPO,
+            "--shadow-issue",
+            "99",
+            "--shadow-pr",
+            "100",
+            "--shadow-base",
+            "B",
+            "--candidate",
+            "C",
+            "--source-issue",
+            "3",
+            "--source-pr",
+            "7",
+            "--source-merge-sha",
+            "merge9",
+            "--source-snapshot-sha256",
+            "5a9633438f13551bd8368cb33cef275fb37989be6873d8621f0d5509601c3dae",
+            gh={
+                "issue view": [
+                    self.resp(self.clean_issue()),
+                    self.resp(changed_issue),
+                ],
+                "pr view": [self.resp(self.clean_pr()), self.resp(source_pr)],
+            },
+        )
+        self.assert_failure(result)
+        self.assertIn("content changed", result.stderr)
 
     def test_validate_invariants_binds_refs_to_shadow_issue(self) -> None:
         # A body that references a different issue number no longer counts as the reference.
@@ -1454,6 +1658,18 @@ class ShadowReplayTests(unittest.TestCase):
         )
         self.assert_failure(result)
         self.assertIn("stale", result.stderr.lower())
+
+    # ---------------------------------------------------------- fix-attempt
+    def test_fix_attempt_allows_configured_bound(self) -> None:
+        result = self.run_cli("fix-attempt", "--attempt", "3", "--max-attempts", "3")
+        payload = self.payload(result)
+        self.assertTrue(payload["allowed"])
+        self.assertEqual(payload["attempt"], 3)
+
+    def test_fix_attempt_rejects_fourth_cycle_when_max_is_three(self) -> None:
+        result = self.run_cli("fix-attempt", "--attempt", "4", "--max-attempts", "3")
+        self.assert_failure(result)
+        self.assertIn("max_fix_attempts=3", result.stderr)
 
 
 if __name__ == "__main__":

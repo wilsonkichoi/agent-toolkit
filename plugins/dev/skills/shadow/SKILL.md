@@ -79,7 +79,8 @@ prepare → execute → review → (fix → fresh review)[0..max_fix_attempts] �
    closing reference, and a recoverable single-parent historical base, and prints the resolved
    `source_pr`, `merge_commit`, `historical_base`, and `cutoff`. Any failure stops before
    mutation. An explicit `pr <source-pr>` still passes the binding check; supply it only when
-   the issue maps to more than one merged PR (preflight reports that ambiguity).
+   the issue maps to more than one merged PR (preflight reports that ambiguity). Preserve the
+   returned `source_snapshot_sha256`; it binds the source issue and PR content read by preflight.
 2. Read the source issue packet (`gh issue view <n> --repo "$repo"`). Require an Objective and
    a Definition of Done; a missing section stops the run (do not draft or repair - this is an
    evaluation of finished work, not intake).
@@ -112,11 +113,12 @@ prepare → execute → review → (fix → fresh review)[0..max_fix_attempts] �
 Before each later stage and before terminal cleanup, re-read state with
 `shadow_replay.py validate-invariants --repo "$repo" --shadow-issue <n> --shadow-pr <m>
 --shadow-base <b> --candidate <c> --historical-base <base> --remote <push-remote>
---source-issue <src-issue> --source-pr <src-pr> --source-merge-sha <merge-sha>`. It re-reads
+--source-issue <src-issue> --source-pr <src-pr> --source-merge-sha <merge-sha>
+--source-snapshot-sha256 <preflight-snapshot>`. It re-reads
 both artifacts and binds identities, not just names: the `Refs` must target the actual shadow
 issue, the remote shadow-base ref must still equal the immutable historical base (guards a
-force-push), and the source issue and PR must still match their preflight snapshot (still
-completed/merged with the same merge commit). Any drift (a `status:*` label or milestone
+force-push), and the source issue and PR must still match their preflight snapshot, including
+state, title, body, labels, references, branch identities, and merge commit. Any drift (a `status:*` label or milestone
 appears, the PR loses draft/`do-not-merge`, its base/head changes, a closing keyword appears,
 the shadow-base ref moved, or a source artifact changed) stops the run.
 
@@ -146,7 +148,10 @@ candidate head SHA. The review verdict binds to that head SHA.
 
 On request-changes, dispatch one fresh fixer for the current findings batch, run tests, push
 to the candidate branch, then dispatch a fresh reviewer for the new head - the same
-orchestrator-owned chaining `dev:auto` uses, bounded by `max_fix_attempts`. Every fix push
+orchestrator-owned chaining `dev:auto` uses, bounded by `max_fix_attempts`. Before each fixer
+dispatch, increment the one-based attempt number and require
+`shadow_replay.py fix-attempt --attempt <n> --max-attempts <max_fix_attempts>` to succeed. The
+helper rejects any attempt above the configured bound. Every fix push
 invalidates the prior verdict; verification requires a fresh approval whose `Commit:` equals
 the new candidate head. Still request-changes after `max_fix_attempts`: stop, record the
 unresolved findings in the report, do not verify.
@@ -172,7 +177,10 @@ metrics come from the helper:
   and reports input, cached-input, output, and reasoning tokens plus an `unattributed` bucket.
   Reasoning is `null` when the harness does not expose it.
 - `shadow_replay.py pricing --provider <p> --model <m> --input N --cached-input N --output N
-  --reasoning N` estimates API-equivalent cost from the versioned catalog. Unknown pricing
+  --reasoning N [--cache-write N] [--max-request-input N]` estimates API-equivalent cost from
+  the versioned catalog. Models with cache-write or long-context pricing require those inputs
+  explicitly; missing harness metadata produces `cost unavailable` instead of silently applying
+  base rates. Unknown pricing
   prints `cost unavailable` with a reason; never substitute a guessed value.
 
 Timing boundaries (`docs/shadow.md` "Timing and token boundaries"): shadow delivery time runs
@@ -189,7 +197,8 @@ the dimensions into a single aggregate quality score.
    URL, the original PR merge SHA, reviewed candidate head SHA, comparison rows, verification
    evidence or the linked verifier report) and render it with
    `shadow_replay.py report --data <file>`. For a completed run the helper **enforces** the
-   audit bindings: a report missing the source issue/PR links, the original merge SHA, the
+   exact `final_state: evaluation-complete`, all 14 comparison rows with concrete evidence or a
+   missing-data reason, and the audit bindings: a report missing the source issue/PR links, the original merge SHA, the
    historical base, the shadow issue/PR links, the reviewed candidate head, or the verification
    evidence fails rather than rendering `unavailable` (a stopped run instead sets
    `final_state: failed:<stage>`, which is exempt). The report includes every required
