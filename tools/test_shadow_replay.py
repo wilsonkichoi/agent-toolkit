@@ -1410,18 +1410,20 @@ class ShadowReplayTests(unittest.TestCase):
             "1000000",
             "--cached-input",
             "1000000",
+            "--cache-write",
+            "1000000",
             "--output",
             "1000000",
             "--reasoning",
             "1000000",
         )
         payload = self.payload(result)
-        # 15.0 + 1.5 + 75.0 + reasoning-at-output 75.0
-        self.assertAlmostEqual(payload["cost"], 166.5)
+        # 5.0 + 0.5 + 10.0 + 25.0 + reasoning-at-output 25.0
+        self.assertAlmostEqual(payload["cost"], 65.5)
         self.assertEqual(payload["currency"], "USD")
         self.assertEqual(payload["model"], "claude-opus-4-8")
         self.assertEqual(payload["provider"], "anthropic")
-        self.assertEqual(payload["catalog_version"], "3")
+        self.assertEqual(payload["catalog_version"], "4")
 
     def test_pricing_gpt_5_6_base_rates_handle_subsets_and_cache_writes(self) -> None:
         result = self.run_cli(
@@ -1449,31 +1451,7 @@ class ShadowReplayTests(unittest.TestCase):
         # 850k*5 + 100k*0.5 + 50k*6.25 + 100k*30.
         self.assertAlmostEqual(payload["cost"], 7.6125)
         self.assertEqual(payload["pricing_tier"], "base")
-        self.assertEqual(payload["catalog_version"], "3")
-
-    def test_pricing_gpt_5_6_applies_long_context_multipliers(self) -> None:
-        result = self.run_cli(
-            "pricing",
-            "--provider",
-            "openai",
-            "--model",
-            "openai/gpt-5.6",
-            "--input",
-            "1000000",
-            "--cached-input",
-            "100000",
-            "--cache-write",
-            "50000",
-            "--output",
-            "100000",
-            "--reasoning",
-            "10000",
-            "--max-request-input",
-            "272001",
-        )
-        payload = self.payload(result)
-        self.assertAlmostEqual(payload["cost"], 13.725)
-        self.assertEqual(payload["pricing_tier"], "long_context")
+        self.assertEqual(payload["catalog_version"], "4")
 
     def test_pricing_gpt_5_6_requires_explicit_cache_writes(self) -> None:
         result = self.run_cli(
@@ -1490,22 +1468,6 @@ class ShadowReplayTests(unittest.TestCase):
         payload = self.payload(result)
         self.assertEqual(payload["cost"], "unavailable")
         self.assertIn("cache writes", payload["reason"])
-
-    def test_pricing_gpt_5_6_requires_explicit_context_tier(self) -> None:
-        result = self.run_cli(
-            "pricing",
-            "--provider",
-            "openai",
-            "--model",
-            "openai/gpt-5.6",
-            "--input",
-            "1000",
-            "--cache-write",
-            "0",
-        )
-        payload = self.payload(result)
-        self.assertEqual(payload["cost"], "unavailable")
-        self.assertIn("--max-request-input", payload["reason"])
 
     def test_pricing_unknown_model_is_unavailable(self) -> None:
         result = self.run_cli(
