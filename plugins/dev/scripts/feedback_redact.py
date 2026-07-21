@@ -38,23 +38,29 @@ CATEGORY_LABELS = {
 }
 
 SECRET_PATTERNS = [
-    re.compile(r"(?i)(?:api[_-]?key|token|secret|password|credential|auth)[=:]\s*\S+"),
+    re.compile(r"(?i)(?:api[_-]?key|token|secret|password|credential|auth)\s*[=:]\s*\S+"),
     re.compile(r"(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36,}"),
     re.compile(r"github_pat_[A-Za-z0-9_]{20,}"),
     re.compile(r"sk-proj-[A-Za-z0-9\-_]{20,}"),
     re.compile(r"sk-[A-Za-z0-9]{20,}"),
     re.compile(r"xoxb-[A-Za-z0-9\-]+"),
     re.compile(r"xoxp-[A-Za-z0-9\-]+"),
-    re.compile(r"-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----"),
+    re.compile(
+        r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"
+        r"[\s\S]*?"
+        r"-----END (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"
+    ),
     re.compile(r"AKIA[0-9A-Z]{16}"),
     re.compile(r"(?i)bearer\s+[A-Za-z0-9\-._~+/]+=*"),
     re.compile(r"[a-z+]+://[^\s:]+:[^\s@]+@[^\s]+"),
 ]
 
 HOME_PATH_RE = re.compile(r"/(?:Users|home)/[A-Za-z0-9_.\-]+/")
+WINDOWS_PATH_RE = re.compile(r"[A-Z]:\\(?:Users|Documents and Settings)\\[^\s\"'`,;)}\]]+")
 ABS_PATH_RE = re.compile(r"/(?:opt|var|etc|srv|tmp|usr/local)/[^\s\"'`,;)}\]]+")
-STANDALONE_REPO_RE = re.compile(
-    r"(?<![\w/.:<>])([A-Za-z][A-Za-z0-9_.\-]*/[A-Za-z][A-Za-z0-9_.\-]*)(?![/\w.\-])"
+GIT_HOSTING_URL_RE = re.compile(
+    r"(?:https?://|git@)"
+    r"(?:gitlab|bitbucket|codeberg|gitea)[^\s\"'`,;)}\]]+"
 )
 
 
@@ -66,23 +72,29 @@ def redact_secrets(text: str) -> str:
 
 
 def redact_home_paths(text: str) -> str:
-    """Replace /Users/<name>/ or /home/<name>/ with ~/, and other absolute paths."""
+    """Replace home paths, Windows user paths, and sensitive absolute paths."""
     text = HOME_PATH_RE.sub("~/", text)
+    text = WINDOWS_PATH_RE.sub("<redacted-path>", text)
     text = ABS_PATH_RE.sub("<redacted-path>", text)
     return text
 
 
-def redact_private_repos(text: str, public_repos: set[str] | None = None) -> str:
+def redact_private_repos(
+    text: str,
+    public_repos: set[str] | None = None,
+    private_repos: set[str] | None = None,
+) -> str:
     """Replace repository references that are not in the public set.
 
-    A 'repository reference' here is owner/repo appearing in a GitHub URL or as a
-    standalone owner/repo token. The target repo is always considered public.
+    Handles GitHub URLs (https://github.com/owner/repo), non-GitHub git hosting
+    URLs (gitlab, bitbucket, codeberg, gitea), SSH git URLs (git@host:owner/repo),
+    and explicitly declared private repository names.
     """
     if public_repos is None:
         public_repos = set()
     public_repos = public_repos | {TARGET_REPO}
 
-    def _replace_repo(match: re.Match[str]) -> str:
+    def _replace_github_url(match: re.Match[str]) -> str:
         repo = match.group(1)
         if repo in public_repos:
             return match.group(0)
@@ -91,30 +103,34 @@ def redact_private_repos(text: str, public_repos: set[str] | None = None) -> str
     github_url_re = re.compile(
         r"https://github\.com/([A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)"
     )
-    text = github_url_re.sub(_replace_repo, text)
+    text = github_url_re.sub(_replace_github_url, text)
 
-    def _replace_standalone(match: re.Match[str]) -> str:
-        repo = match.group(1)
-        if repo in public_repos:
-            return match.group(0)
-        if "/" not in repo:
-            return match.group(0)
-        parts = repo.split("/")
-        if len(parts) != 2 or not parts[0] or not parts[1]:
-            return match.group(0)
-        return match.group(0).replace(repo, "<private-repo>")
+    def _replace_hosting_url(match: re.Match[str]) -> str:
+        url = match.group(0)
+        for pub in public_repos:
+            if pub in url:
+                return url
+        return "<private-repo-url>"
 
-    text = STANDALONE_REPO_RE.sub(_replace_standalone, text)
+    text = GIT_HOSTING_URL_RE.sub(_replace_hosting_url, text)
+
+    if private_repos:
+        for repo in private_repos:
+            if repo not in public_repos:
+                text = text.replace(repo, "<private-repo>")
+
     return text
 
 
 def redact_text(
-    text: str, public_repos: set[str] | None = None
+    text: str,
+    public_repos: set[str] | None = None,
+    private_repos: set[str] | None = None,
 ) -> str:
     """Apply all redaction passes in order."""
     text = redact_secrets(text)
     text = redact_home_paths(text)
-    text = redact_private_repos(text, public_repos)
+    text = redact_private_repos(text, public_repos, private_repos)
     return text
 
 
@@ -127,18 +143,19 @@ def render_draft(
     references: str = "",
     implementation: str = "",
     public_repos: set[str] | None = None,
+    private_repos: set[str] | None = None,
 ) -> dict[str, str]:
     """Render a complete issue draft from structured fields.
 
     Applies redaction to the title and all body fields before rendering.
     Returns a dict with 'title', 'label', 'body', and 'command' keys.
     """
-    title = redact_text(title, public_repos)
-    objective = redact_text(objective, public_repos)
-    why = redact_text(why, public_repos)
-    definition_of_done = redact_text(definition_of_done, public_repos)
-    references = redact_text(references, public_repos) if references else ""
-    implementation = redact_text(implementation, public_repos) if implementation else ""
+    title = redact_text(title, public_repos, private_repos)
+    objective = redact_text(objective, public_repos, private_repos)
+    why = redact_text(why, public_repos, private_repos)
+    definition_of_done = redact_text(definition_of_done, public_repos, private_repos)
+    references = redact_text(references, public_repos, private_repos) if references else ""
+    implementation = redact_text(implementation, public_repos, private_repos) if implementation else ""
 
     label = CATEGORY_LABELS.get(category, "enhancement")
     sections = [
@@ -319,7 +336,8 @@ def cmd_redact(args: argparse.Namespace) -> None:
         text = sys.stdin.read()
 
     public = set(args.public_repo) if args.public_repo else None
-    result = redact_text(text, public)
+    private = set(args.private_repo) if args.private_repo else None
+    result = redact_text(text, public, private)
     print(result, end="")
 
 
@@ -336,6 +354,7 @@ def cmd_draft(args: argparse.Namespace) -> None:
             die(f"missing required field: {field}")
 
     public = set(data.get("public_repos", []))
+    private = set(data.get("private_repos", []))
     draft = render_draft(
         title=data["title"],
         category=data["category"],
@@ -345,6 +364,7 @@ def cmd_draft(args: argparse.Namespace) -> None:
         references=data.get("references", ""),
         implementation=data.get("implementation", ""),
         public_repos=public if public else None,
+        private_repos=private if private else None,
     )
     print(json.dumps(draft, indent=2))
 
@@ -377,6 +397,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         action="append",
         default=[],
         help="Repository known to be public (repeatable).",
+    )
+    redact_parser.add_argument(
+        "--private-repo",
+        action="append",
+        default=[],
+        help="Repository known to be private; all occurrences replaced (repeatable).",
     )
 
     draft_parser = subparsers.add_parser("draft", help="Render issue draft from JSON.")

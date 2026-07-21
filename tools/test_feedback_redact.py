@@ -142,19 +142,58 @@ class TestRedaction(unittest.TestCase):
         self.assertNotIn("dbuser:dbpass", result.stdout)
         self.assertIn("<REDACTED>", result.stdout)
 
-    def test_redacts_standalone_private_repo(self) -> None:
-        text = "tracker repository: acme/private-platform"
+    def test_redacts_password_assignment(self) -> None:
+        text = "password = hunter2"
         result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("hunter2", result.stdout)
+        self.assertIn("<REDACTED>", result.stdout)
+
+    def test_redacts_pem_private_key_body(self) -> None:
+        text = (
+            "-----BEGIN RSA PRIVATE KEY-----\n"
+            "MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWep4PATMUExVKP\n"
+            "-----END RSA PRIVATE KEY-----"
+        )
+        result = run_cli("redact", stdin=text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("MIIEpAIBAAK", result.stdout)
+        self.assertNotIn("END RSA PRIVATE KEY", result.stdout)
+        self.assertIn("<REDACTED>", result.stdout)
+
+    def test_redacts_declared_private_repo(self) -> None:
+        text = "tracker repository: acme/private-platform"
+        result = run_cli("redact", "--text", text, "--private-repo", "acme/private-platform")
         self.assertEqual(result.returncode, 0)
         self.assertNotIn("acme/private-platform", result.stdout)
         self.assertIn("<private-repo>", result.stdout)
 
-    def test_preserves_standalone_target_repo(self) -> None:
+    def test_preserves_target_repo(self) -> None:
         text = "filed in wilsonkichoi/agent-toolkit"
         result = run_cli("redact", "--text", text)
         self.assertEqual(result.returncode, 0)
         self.assertIn("wilsonkichoi/agent-toolkit", result.stdout)
-        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_redacts_gitlab_url(self) -> None:
+        text = "see https://gitlab.com/acme/private-platform/issues/5"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("gitlab.com/acme", result.stdout)
+        self.assertIn("<private-repo-url>", result.stdout)
+
+    def test_redacts_git_ssh_url(self) -> None:
+        text = "remote: git@gitlab.com:acme/private-platform.git"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("gitlab.com:acme", result.stdout)
+        self.assertIn("<private-repo-url>", result.stdout)
+
+    def test_redacts_windows_path(self) -> None:
+        text = r"config at C:\Users\alice\src\private-platform\config.yaml"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("alice", result.stdout)
+        self.assertIn("<redacted-path>", result.stdout)
 
     def test_redacts_non_home_absolute_path(self) -> None:
         text = "config at /opt/customer-alpha/config.yaml"
@@ -274,6 +313,7 @@ class TestDraft(unittest.TestCase):
         data = self._draft_input(
             title="Token sk-proj-abcdefghijklmnopqrstuv in acme/private-platform"
         )
+        data["private_repos"] = ["acme/private-platform"]
         result = run_cli("draft", stdin=json.dumps(data))
         self.assertEqual(result.returncode, 0)
         draft = json.loads(result.stdout)
@@ -525,6 +565,7 @@ class TestWorkflowContract(unittest.TestCase):
     The workflow is: access check -> (if authenticated) search -> draft -> submit.
     The CLI never submits; it renders a command the LLM executes after human approval.
     When access is unavailable, search is skipped and the draft is the final output.
+    These tests exercise the actual helper sequence, not isolated functions.
     """
 
     def test_draft_produces_command_but_does_not_execute(self) -> None:
@@ -541,8 +582,8 @@ class TestWorkflowContract(unittest.TestCase):
         self.assertIn("gh issue create", draft["command"])
         self.assertIn("--body-file", draft["command"])
 
-    def test_offline_draft_path_produces_complete_output(self) -> None:
-        """When access check shows no auth, draft still renders a complete issue."""
+    def test_offline_path_access_then_draft_no_search(self) -> None:
+        """Full offline path: access(unauth) -> skip search -> draft succeeds."""
         tmp_dir = tempfile.mkdtemp()
         try:
             fake_gh = os.path.join(tmp_dir, "gh")
@@ -550,6 +591,7 @@ class TestWorkflowContract(unittest.TestCase):
                 f.write("#!/bin/bash\nexit 1\n")
             os.chmod(fake_gh, 0o755)
             env = {"PATH": f"{tmp_dir}:{os.environ.get('PATH', '')}"}
+
             access = run_cli("access", env_override=env)
             self.assertEqual(access.returncode, 0)
             access_data = json.loads(access.stdout)
@@ -567,13 +609,51 @@ class TestWorkflowContract(unittest.TestCase):
             draft_data = json.loads(draft.stdout)
             self.assertIn("gh issue create", draft_data["command"])
             self.assertIn("## Objective", draft_data["body"])
+            self.assertIn("## Why", draft_data["body"])
+            self.assertIn("## Definition of Done", draft_data["body"])
             self.assertEqual(draft_data["title"], "Offline test issue")
         finally:
             import shutil
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
-    def test_draft_with_redaction_prevents_secret_in_command(self) -> None:
-        """A title with secrets gets redacted in both title and command output."""
+    def test_read_only_user_can_still_search(self) -> None:
+        """Authenticated user with READ can search; search succeeds."""
+        tmp_dir = tempfile.mkdtemp()
+        try:
+            fake_gh = os.path.join(tmp_dir, "gh")
+            script = textwrap.dedent("""\
+                #!/bin/bash
+                if echo "$@" | grep -q "auth status"; then
+                    exit 0
+                fi
+                if echo "$@" | grep -q "viewerPermission"; then
+                    echo "READ"
+                    exit 0
+                fi
+                if echo "$@" | grep -q "search issues"; then
+                    echo '[]'
+                    exit 0
+                fi
+                exit 1
+            """)
+            with open(fake_gh, "w") as f:
+                f.write(script)
+            os.chmod(fake_gh, 0o755)
+            env = {"PATH": f"{tmp_dir}:{os.environ.get('PATH', '')}"}
+
+            access = run_cli("access", env_override=env)
+            access_data = json.loads(access.stdout)
+            self.assertTrue(access_data["authenticated"])
+            self.assertFalse(access_data["has_write"])
+
+            search = run_cli("search", "test query", env_override=env)
+            self.assertEqual(search.returncode, 0)
+        finally:
+            import shutil
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    def test_draft_redacts_secrets_from_title_and_command(self) -> None:
+        """Secrets in the title are stripped from both output title and command."""
         data = {
             "title": "Token sk-proj-abcdefghijklmnopqrstuv leaks",
             "category": "bug",
@@ -586,6 +666,34 @@ class TestWorkflowContract(unittest.TestCase):
         draft = json.loads(result.stdout)
         self.assertNotIn("sk-proj-", draft["title"])
         self.assertNotIn("sk-proj-", draft["command"])
+
+    def test_draft_redacts_private_repos_from_title(self) -> None:
+        """Private repos declared in the input are stripped from the title."""
+        data = {
+            "title": "Bug in acme/private-platform tracker integration",
+            "category": "bug",
+            "objective": "Fix integration.",
+            "why": "Broken.",
+            "definition_of_done": "- [ ] Fixed",
+            "private_repos": ["acme/private-platform"],
+        }
+        result = run_cli("draft", stdin=json.dumps(data))
+        self.assertEqual(result.returncode, 0)
+        draft = json.loads(result.stdout)
+        self.assertNotIn("acme/private-platform", draft["title"])
+        self.assertNotIn("acme/private-platform", draft["body"])
+
+    def test_skill_requires_explicit_approval(self) -> None:
+        """The SKILL.md contains explicit-approval language in step 6."""
+        skill_path = (
+            REPOSITORY_ROOT
+            / "plugins/dev/skills/feedback/SKILL.md"
+        )
+        content = skill_path.read_text(encoding="utf-8")
+        self.assertIn("Requires explicit human approval", content)
+        self.assertIn(
+            "Do not submit on silence, ambiguity, or implicit", content
+        )
 
 
 if __name__ == "__main__":

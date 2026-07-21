@@ -74,11 +74,16 @@ REDACT_EOF
 ```
 
 Add `--public-repo <owner/repo>` for any repository whose visibility has been confirmed
-public. The helper strips:
+public. Add `--private-repo <owner/repo>` for any repository known to be private (the
+current project's tracker repository, execution repository, etc.); all occurrences of
+that name in the text will be replaced. The helper strips:
 
-- Secrets and credentials (API keys, tokens, passwords, connection strings)
-- Private repository names and URLs (replace with `<private-repo>`)
-- Local usernames and home directory paths (replace `/Users/<name>/` with `~/`)
+- Secrets and credentials (API keys, tokens, passwords, PEM private keys, connection strings)
+- Private repository URLs on any git hosting platform (GitHub, GitLab, Bitbucket, etc.)
+- Explicitly declared private repository names (all occurrences)
+- Unix home paths (`/Users/<name>/`, `/home/<name>/`) replaced with `~/`
+- Windows user paths (`C:\Users\<name>\...`) replaced with `<redacted-path>`
+- Sensitive absolute paths (`/opt/`, `/var/`, `/etc/`, `/srv/`, `/tmp/`, `/usr/local/`)
 
 Preserve (handled automatically by the helper):
 
@@ -104,11 +109,16 @@ First, check GitHub access:
 uv run <plugin-root>/scripts/feedback_redact.py access
 ```
 
-If the access check reports `authenticated: false` or `has_write: false`, skip the
-duplicate search (it will also fail without auth). Proceed directly to step 4, noting
-that the workflow will end with an offline draft (step 6 unavailable-access path).
+The access check returns `authenticated`, `has_write`, and `permission`.
 
-If authenticated, search for duplicates. Use only short, agent-chosen search terms
+- If `authenticated: false`: skip the duplicate search (no `gh` access at all).
+  Note that the workflow will end with an offline draft in step 6.
+- If `authenticated: true` but `has_write: false`: the user can still search
+  (the target repo is public). Proceed with the duplicate search below.
+  Submission will use the offline draft path (step 6) since the user cannot write.
+- If `authenticated: true` and `has_write: true`: full online path.
+
+When authenticated, search for duplicates. Use only short, agent-chosen search terms
 derived from the title and symptoms (never raw user text as an argument):
 
 ```bash
@@ -130,7 +140,7 @@ If a match is confirmed as a duplicate:
 
 ## 4. Select template
 
-Fetch the current issue templates from the target repository:
+If step 3 determined that `gh` is authenticated, fetch the current issue templates:
 
 ```bash
 gh api repos/wilsonkichoi/agent-toolkit/contents/.github/ISSUE_TEMPLATE \
@@ -143,11 +153,13 @@ maintainer-planned tasks; they enter through the external contribution channel a
 be promoted by a maintainer later.
 
 If the template set has changed (renamed, removed, new templates added), pick the
-closest match for a contribution. If none exists, use the default fields below.
+closest match for a contribution.
 
-Read the selected template to discover its current field names and required sections.
-Map the gathered context to those fields. The expected mapping (for the current
-`external-contribution.yml`):
+If `gh` is not authenticated (offline path), or if the template fetch fails, use
+the default fields below directly without a template fetch.
+
+Read the selected template (when available) to discover its current field names.
+Map the gathered context to those fields. The expected mapping:
 
 | Template field | Content |
 |---|---|
@@ -167,10 +179,11 @@ uv run <plugin-root>/scripts/feedback_redact.py draft --input /tmp/feedback-draf
 ```
 
 The JSON input must contain: `title`, `category`, `objective`, `why`,
-`definition_of_done`, and optionally `references`, `implementation`, and
-`public_repos` (list of confirmed-public repository names). The helper applies
-redaction to all fields (including the title) and returns JSON with `title`, `label`,
-`body`, and `command` fields.
+`definition_of_done`, and optionally `references`, `implementation`,
+`public_repos` (list of confirmed-public repository names), and `private_repos`
+(list of known-private repository names to redact). The helper applies redaction to
+all fields (including the title) and returns JSON with `title`, `label`, `body`, and
+`command` fields.
 
 Present the rendered draft to the user showing:
 
@@ -191,16 +204,16 @@ submit, or request changes."
 **Requires explicit human approval.** Do not submit on silence, ambiguity, or implicit
 confirmation. The user must clearly say yes, approve, submit, file it, or equivalent.
 
-If step 3 determined that GitHub access is unavailable (`authenticated: false` or
+If step 3 determined that the user cannot write (`authenticated: false` or
 `has_write: false`):
 - Present the complete issue draft in a copyable fenced block.
 - Include the `command` field from the draft helper output.
-- Stop. Report that GitHub access is unavailable and the user can file manually.
+- Stop. Report that GitHub write access is unavailable and the user can file manually.
   Do not retry or error-loop.
 
-On approval with working access, write the draft body to a temporary file and run the
-command from the draft helper output (which uses `--body-file <draft-file>`). Replace
-`<draft-file>` with the actual temporary file path.
+On approval with `has_write: true`, write the draft body to a temporary file and run
+the command from the draft helper output (which uses `--body-file <draft-file>`).
+Replace `<draft-file>` with the actual temporary file path.
 
 Return the created issue URL.
 
