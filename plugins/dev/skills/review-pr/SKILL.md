@@ -107,17 +107,36 @@ is approve or request-changes. It never starts fix mode within the same invocati
    if it is gone, use a temporary detached worktree (`git worktree add --detach`) and
    remove it afterwards.
 2. **Review against the rubric**, in this order:
-   - **DoD compliance:** for each criterion, does the diff plausibly satisfy it? Name any
-     criterion with no supporting change.
+   - **DoD compliance:** does the diff satisfy each criterion *at the criterion's stated
+     bar*? A criterion is met when the diff covers the cases the criterion names - for a
+     qualitative criterion, the common and enumerated cases. Residual completeness gaps
+     beyond that bar are SUGGESTIONs, not a BLOCKER, unless the gap defeats the criterion's
+     core purpose. Name any criterion with no supporting change.
    - **Spec compliance:** diff vs the packet's inlined excerpts and referenced sections.
      Deviations are findings even when the code "works".
-   - **Correctness:** a BLOCKER requires a concrete failure scenario (inputs/state → wrong
-     behavior), not a style objection.
+   - **Correctness:** a BLOCKER must (a) name the DoD or spec clause the diff violates, or a
+     regression the diff introduces versus the prior revision, *and* (b) give a concrete
+     failure scenario (inputs/state → wrong behavior). A failure scenario that maps to no
+     clause and no regression is at most a SUGGESTION. Style objections are NITs.
    - **Tests:** do they test the contract (DoD criteria, spec promises) rather than mirror
      the implementation? Were any assertions weakened to pass?
    - **Scope:** every changed line traces to the task. Unrelated refactors are findings.
    - **Security:** when the diff touches auth, input parsing, secrets, or permissions, check
      the obvious failure classes for that surface.
+
+   **Severity and downstream gates.** Before promoting a finding to BLOCKER, account for the
+   controls the task already ships. A defect fully caught by a mandatory downstream gate the
+   task defines - an explicit human-approval step, `dev:verify` - is at most a SUGGESTION
+   unless it defeats that gate. BLOCKER is for what reaches merge or a user uncaught, not for
+   every constructible imperfection.
+
+   **Re-review convergence.** When a prior `dev:review-pr` verdict already exists on this PR,
+   read it first (`gh pr view <n> --comments` and prior review bodies). This pass may raise
+   only: (a) regressions the fix introduced, (b) genuinely new findings, or (c) prior findings
+   still unaddressed. Do not re-raise a category you already pushed on by substituting a fresh
+   edge case of the same finding, and do not contradict a resolution a prior pass directed. If
+   the only remaining findings are same-category refinements of already-addressed ones, the
+   verdict is `approve` with those refinements recorded as SUGGESTIONs.
 3. **Post the review** via `gh pr review <n>` with `--request-changes` if any BLOCKER exists,
    else `--approve`. GitHub rejects both flags on the author's own PR (`Can not approve your
    own pull request`) - unavoidable when one account is both implementer and reviewer, e.g.

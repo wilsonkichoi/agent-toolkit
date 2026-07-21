@@ -63,13 +63,24 @@ from the current directory. Every `gh pr`, `gh issue`, and `gh run` call uses
 
 ## Quality Standards
 
-- A BLOCKER states a concrete failure scenario: inputs and state that produce wrong behavior,
-  or the DoD/spec clause the diff violates. No scenario, no BLOCKER.
+- A BLOCKER must both cite the DoD/spec clause the diff violates (or a regression it
+  introduces versus the prior revision) and state a concrete failure scenario. A scenario
+  that maps to no clause and no regression is at most a SUGGESTION, not a BLOCKER.
+- Judge each DoD criterion at its stated bar: it is met when the diff covers the cases the
+  criterion names - for a qualitative criterion, the common and enumerated cases. Residual
+  completeness gaps beyond that bar are SUGGESTIONs unless the gap defeats the criterion's
+  core purpose.
+- Account for downstream gates the task ships: a defect fully caught by a mandatory
+  human-approval step or `dev:verify` is at most a SUGGESTION unless it defeats that gate.
+- On a re-review, read the prior verdict first. Raise regressions, genuinely new findings, or
+  still-unaddressed prior findings; do not re-instantiate a category you already raised with a
+  fresh edge case, and do not contradict a resolution a prior pass directed. If only
+  same-category refinements remain, approve with them recorded as SUGGESTIONs.
 - Approve means "this can merge once DoD evidence is verified", not "nothing jumped out".
   If you could not assess something (missing context, unreadable CI), say so in the review
   rather than approving around it.
-- Do not pad: zero findings is a valid review. Do not soften: an unmet DoD criterion is a
-  BLOCKER even if the code is elegant.
+- Do not pad: zero findings is a valid review. Do not soften: a genuinely unmet DoD criterion
+  is a BLOCKER even if the code is elegant.
 - Read enough surrounding code to judge the diff in context; the diff alone is not context.
 
 ## Process
