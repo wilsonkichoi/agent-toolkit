@@ -121,6 +121,27 @@ class TestRedaction(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn("<REDACTED>", result.stdout)
 
+    def test_redacts_github_pat(self) -> None:
+        text = "github=github_pat_abcdefghijklmnopqrstuv123456"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("github_pat_", result.stdout)
+        self.assertIn("<REDACTED>", result.stdout)
+
+    def test_redacts_sk_proj_token(self) -> None:
+        text = "openai=sk-proj-abcdefghijklmnopqrstuv"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("sk-proj-", result.stdout)
+        self.assertIn("<REDACTED>", result.stdout)
+
+    def test_redacts_connection_string(self) -> None:
+        text = "db: postgresql://dbuser:dbpass@db.internal/app"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("dbuser:dbpass", result.stdout)
+        self.assertIn("<REDACTED>", result.stdout)
+
 
 class TestDraft(unittest.TestCase):
     """Tests for the draft subcommand covering template rendering."""
@@ -221,6 +242,13 @@ class TestDraft(unittest.TestCase):
         draft = json.loads(result.stdout)
         self.assertIn("wilsonkichoi/agent-toolkit", draft["command"])
 
+    def test_command_uses_single_quotes_for_title(self) -> None:
+        data = self._draft_input(title="Bug with $HOME and $(whoami)")
+        result = run_cli("draft", stdin=json.dumps(data))
+        self.assertEqual(result.returncode, 0)
+        draft = json.loads(result.stdout)
+        self.assertIn("--title '", draft["command"])
+
 
 class TestDuplicateSearch(unittest.TestCase):
     """Tests for the search subcommand covering duplicate detection.
@@ -295,6 +323,21 @@ class TestDuplicateSearch(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         items = json.loads(result.stdout)
         self.assertEqual(items, [])
+
+    def test_search_fails_when_all_queries_error(self) -> None:
+        """When every gh call fails (rate limit, auth), search exits nonzero."""
+        script = textwrap.dedent(f"""\
+            #!/bin/bash
+            echo "rate limit exceeded" >&2
+            exit 1
+        """)
+        with open(self._fake_gh_path, "w") as f:
+            f.write(script)
+        os.chmod(self._fake_gh_path, 0o755)
+        env = {"PATH": f"{self._tmp_dir}:{os.environ.get('PATH', '')}"}
+        result = run_cli("search", "some query", env_override=env)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("error:", result.stderr)
 
 
 class TestGitHubAccess(unittest.TestCase):

@@ -52,20 +52,39 @@ argument; ask if ambiguous.
 
 ## 2. Redact
 
-Before rendering any draft, strip:
+Before rendering any draft, run the bundled redaction helper on every text field that will
+appear in the issue body. On Claude Code the script is under
+`${CLAUDE_PLUGIN_ROOT}/scripts/feedback_redact.py`; on Codex it is
+`../../scripts/feedback_redact.py` relative to this skill's directory.
+
+```bash
+uv run <plugin-root>/scripts/feedback_redact.py redact --text "<field value>"
+```
+
+For multiple fields, pipe the assembled text via stdin:
+
+```bash
+echo "<assembled text>" | uv run <plugin-root>/scripts/feedback_redact.py redact
+```
+
+Add `--public-repo <owner/repo>` for any repository whose visibility has been confirmed
+public. The helper strips:
 
 - Secrets and credentials (API keys, tokens, passwords, connection strings)
 - Private repository names and URLs (replace with `<private-repo>`)
-- Private issue and PR content (titles, bodies) from the current project
 - Local usernames and home directory paths (replace `/Users/<name>/` with `~/`)
-- Unnecessary absolute paths (use relative paths or `<project-root>/`)
 
-Preserve:
+Preserve (handled automatically by the helper):
 
 - Public `wilsonkichoi/agent-toolkit` links (issues, PRs, files)
-- Public repository names when their visibility is confirmed
+- Declared public repository names
 - Error messages and stack traces (after secret stripping)
 - Skill names, command invocations, and configuration field names
+
+Additionally, when assembling context, do not include:
+
+- Private issue and PR content (titles, bodies) from the current project
+- Unnecessary absolute paths (use relative paths or `<project-root>/`)
 
 If a piece of context is needed for the report but cannot be safely included, describe
 its shape without revealing the value (e.g. "a Linear project key" instead of the actual
@@ -73,19 +92,17 @@ key).
 
 ## 3. Search for duplicates
 
-Search open and recently closed issues in `wilsonkichoi/agent-toolkit` for likely
-duplicates. Run at least two queries with different keyword strategies:
+Use the bundled search helper to find likely duplicates across open and closed issues:
 
 ```bash
-gh search issues --repo wilsonkichoi/agent-toolkit --state open "<keywords from title>"
-gh search issues --repo wilsonkichoi/agent-toolkit "<keywords from symptoms>"
+uv run <plugin-root>/scripts/feedback_redact.py search "<keywords from title>" "<keywords from symptoms>"
 ```
 
-Also check closed issues for recent fixes that may have regressed:
-
-```bash
-gh search issues --repo wilsonkichoi/agent-toolkit --state closed "<keywords>"
-```
+The helper searches both open and closed issues in `wilsonkichoi/agent-toolkit`,
+deduplicates results, and returns JSON with number, title, state, and url per match.
+If the search fails (rate limit, auth error, network), the helper exits nonzero with an
+error message. Do not proceed to draft or submit if the duplicate search could not
+complete; report the failure to the user.
 
 Present any likely matches to the user with their number, title, state, and URL.
 If a match is confirmed as a duplicate:
@@ -120,51 +137,50 @@ Fill the template fields:
 
 ## 5. Draft
 
-Render the complete issue as it would appear when filed:
+Use the bundled draft helper to render the complete issue body:
+
+```bash
+echo '<json>' | uv run <plugin-root>/scripts/feedback_redact.py draft
+```
+
+The JSON input must contain: `title`, `category`, `objective`, `why`,
+`definition_of_done`, and optionally `references` and `implementation`. The helper
+returns JSON with `title`, `label`, `body`, and `command` fields.
+
+Present the rendered draft to the user showing:
 
 ```
-Title: <concise title>
-Labels: <category label>
+Title: <from helper output>
+Labels: <from helper output>
 Template: external-contribution
 
 ---
-## Objective
-<filled>
-
-## Why
-<filled>
-
-## Definition of Done
-<filled>
-
-## Relevant references
-<filled, or "None">
-
-## Suggested implementation
-<filled, or "None">
+<body from helper output>
 ```
 
-Present the draft to the user. State clearly: "This will create an issue in
-`wilsonkichoi/agent-toolkit`. Approve to submit, or request changes."
+State clearly: "This will create an issue in `wilsonkichoi/agent-toolkit`. Approve to
+submit, or request changes."
 
 ## 6. Submit
 
 **Requires explicit human approval.** Do not submit on silence, ambiguity, or implicit
 confirmation. The user must clearly say yes, approve, submit, file it, or equivalent.
 
-If GitHub authentication is unavailable or write access is denied:
-- Present the complete issue draft in a copyable fenced block.
-- Include the `gh` command that would create it.
-- Stop. Do not retry or error-loop.
-
-On approval with working access:
+Before attempting submission, check access:
 
 ```bash
-gh issue create --repo wilsonkichoi/agent-toolkit \
-  --title "<title>" \
-  --label "<label>" \
-  --body "<body>"
+uv run <plugin-root>/scripts/feedback_redact.py access
 ```
+
+If GitHub authentication is unavailable or write access is denied (the helper returns
+`has_write: false`):
+- Present the complete issue draft in a copyable fenced block.
+- Include the `command` field from the draft helper output.
+- Stop. Do not retry or error-loop.
+
+On approval with working access, write the draft body to a temporary file and run the
+command from the draft helper output (which uses `--body-file <draft-file>`). Replace
+`<draft-file>` with the actual path.
 
 Return the created issue URL.
 

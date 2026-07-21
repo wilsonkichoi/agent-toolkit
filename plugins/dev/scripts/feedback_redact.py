@@ -40,12 +40,15 @@ CATEGORY_LABELS = {
 SECRET_PATTERNS = [
     re.compile(r"(?i)(?:api[_-]?key|token|secret|password|credential|auth)[=:]\s*\S+"),
     re.compile(r"(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36,}"),
+    re.compile(r"github_pat_[A-Za-z0-9_]{20,}"),
+    re.compile(r"sk-proj-[A-Za-z0-9\-_]{20,}"),
     re.compile(r"sk-[A-Za-z0-9]{20,}"),
     re.compile(r"xoxb-[A-Za-z0-9\-]+"),
     re.compile(r"xoxp-[A-Za-z0-9\-]+"),
     re.compile(r"-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----"),
     re.compile(r"AKIA[0-9A-Z]{16}"),
     re.compile(r"(?i)bearer\s+[A-Za-z0-9\-._~+/]+=*"),
+    re.compile(r"[a-z+]+://[^\s:]+:[^\s@]+@[^\s]+"),
 ]
 
 HOME_PATH_RE = re.compile(r"/(?:Users|home)/[A-Za-z0-9_.\-]+/")
@@ -125,10 +128,10 @@ def render_draft(
     body = "\n\n".join(sections)
 
     command = (
-        f'gh issue create --repo {TARGET_REPO}'
-        f' --title "{_shell_escape(title)}"'
-        f' --label "{label}"'
-        f' --body-file <draft-file>'
+        f"gh issue create --repo {TARGET_REPO}"
+        f" --title '{_shell_escape(title)}'"
+        f" --label '{label}'"
+        f" --body-file <draft-file>"
     )
 
     return {
@@ -139,19 +142,29 @@ def render_draft(
     }
 
 
+class SearchError(RuntimeError):
+    """Raised when duplicate search cannot complete reliably."""
+
+
 def search_duplicates(keywords: list[str]) -> list[dict[str, Any]]:
     """Search for duplicate issues in the target repository.
 
     Returns a list of candidate matches with number, title, state, and url.
     Requires `gh` CLI to be authenticated.
+
+    Raises SearchError if gh is unavailable or every query fails (rate limit,
+    auth error, timeout), so callers cannot mistake a failed search for
+    "no duplicates found".
     """
     results: list[dict[str, Any]] = []
     seen_numbers: set[int] = set()
+    errors: list[str] = []
+    successes = 0
 
     for state in ("open", "closed"):
         for query in keywords:
             try:
-                output = subprocess.run(
+                proc = subprocess.run(
                     [
                         "gh", "search", "issues",
                         "--repo", TARGET_REPO,
@@ -163,18 +176,45 @@ def search_duplicates(keywords: list[str]) -> list[dict[str, Any]]:
                     capture_output=True,
                     text=True,
                     timeout=30,
-                ).stdout
-            except (subprocess.TimeoutExpired, FileNotFoundError):
+                )
+            except subprocess.TimeoutExpired:
+                errors.append(f"timeout: state={state} query={query!r}")
                 continue
+            except FileNotFoundError:
+                raise SearchError("gh binary not found")
+
+            if proc.returncode != 0:
+                errors.append(
+                    f"gh exit {proc.returncode}: state={state} query={query!r}: "
+                    f"{proc.stderr.strip()}"
+                )
+                continue
+
+            output = proc.stdout.strip()
+            if not output:
+                successes += 1
+                continue
+
             try:
-                items = json.loads(output) if output.strip() else []
-            except json.JSONDecodeError:
+                items = json.loads(output)
+            except json.JSONDecodeError as exc:
+                errors.append(
+                    f"JSON parse error: state={state} query={query!r}: {exc}"
+                )
                 continue
+
+            successes += 1
             for item in items:
                 num = item.get("number")
                 if num and num not in seen_numbers:
                     seen_numbers.add(num)
                     results.append(item)
+
+    if successes == 0:
+        raise SearchError(
+            f"All duplicate searches failed ({len(errors)} errors): "
+            + "; ".join(errors[:5])
+        )
 
     return results
 
@@ -224,8 +264,9 @@ def check_gh_access() -> dict[str, Any]:
 
 
 def _shell_escape(text: str) -> str:
-    """Escape double quotes for shell embedding."""
-    return text.replace("\\", "\\\\").replace('"', '\\"')
+    """Escape text for safe embedding in single-quoted shell strings."""
+    return text.replace("'", "'\\''")
+
 
 
 def die(message: str) -> NoReturn:
@@ -271,7 +312,10 @@ def cmd_draft(args: argparse.Namespace) -> None:
 
 def cmd_search(args: argparse.Namespace) -> None:
     """Subcommand: search for duplicates."""
-    results = search_duplicates(args.keywords)
+    try:
+        results = search_duplicates(args.keywords)
+    except SearchError as exc:
+        die(str(exc))
     print(json.dumps(results, indent=2))
 
 
