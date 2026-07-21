@@ -56,9 +56,11 @@
         "worktree",
         "agile",
         "evaluation",
-        "shadow-replay"
+        "shadow-replay",
+        "feedback",
+        "bug-report"
       ],
-      "version": "0.0.59"
+      "version": "0.0.60"
     }
   ]
 }
