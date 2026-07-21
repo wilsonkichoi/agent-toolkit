@@ -552,7 +552,12 @@ def command_open_shadow_pr(args: argparse.Namespace) -> None:
             "shadow PR body contains a closing keyword (Closes/Fixes/Resolves #N); "
             "a shadow PR must reference its issue with 'Refs #N', never auto-close it"
         )
-    if not REFS_RE.search(body):
+    if args.shadow_issue is not None:
+        if not refs_target_re(args.shadow_issue).search(body):
+            fail(
+                f"shadow PR body must reference the shadow issue with 'Refs #{args.shadow_issue}'"
+            )
+    elif not REFS_RE.search(body):
         fail("shadow PR body must reference the shadow issue with 'Refs #<shadow-issue>'")
     raw = run_gh(
         (
@@ -586,7 +591,11 @@ def command_open_shadow_pr(args: argparse.Namespace) -> None:
         context=f"label shadow PR #{pr_number} do-not-merge",
     )
     violations = check_pr_invariants(
-        args.repo, pr_number, shadow_base=args.base, candidate=args.head
+        args.repo,
+        pr_number,
+        shadow_base=args.base,
+        candidate=args.head,
+        shadow_issue=args.shadow_issue,
     )
     if violations:
         fail(
@@ -616,8 +625,17 @@ def read_pr_state(repo: str, pr: int) -> dict[str, Any]:
     return parse_json_object(raw, context=context)
 
 
+def refs_target_re(issue: int) -> re.Pattern[str]:
+    return re.compile(rf"\bRefs\b\s*#{issue}\b")
+
+
 def check_pr_invariants(
-    repo: str, pr: int, *, shadow_base: str, candidate: str
+    repo: str,
+    pr: int,
+    *,
+    shadow_base: str,
+    candidate: str,
+    shadow_issue: int | None = None,
 ) -> list[str]:
     value = read_pr_state(repo, pr)
     context = f"shadow pull request #{pr} in {repo}"
@@ -642,8 +660,81 @@ def check_pr_invariants(
     body = value.get("body") or ""
     if CLOSING_KEYWORD_RE.search(body):
         violations.append("PR body contains a closing keyword (Closes/Fixes/Resolves)")
-    if not REFS_RE.search(body):
+    # Bind the reference to the actual shadow issue, not any incidental "Refs #N".
+    if shadow_issue is not None:
+        if not refs_target_re(shadow_issue).search(body):
+            violations.append(
+                f"PR body no longer references the shadow issue with 'Refs #{shadow_issue}'"
+            )
+    elif not REFS_RE.search(body):
         violations.append("PR body no longer references the shadow issue with 'Refs #N'")
+    return violations
+
+
+def read_remote_ref_sha(remote: str, branch: str, repo_path: Path) -> str:
+    context = f"remote ref {branch!r} on {remote!r}"
+    raw = run_git(
+        ("-C", str(repo_path), "ls-remote", remote, f"refs/heads/{branch}"),
+        context=f"read {context}",
+    ).strip()
+    if not raw:
+        fail(f"{context} does not exist; the immutable shadow-base ref is gone")
+    return raw.split()[0]
+
+
+def assert_source_unchanged(
+    repo: str, source_issue: int, source_pr: int, merge_sha: str
+) -> list[str]:
+    violations: list[str] = []
+    completion_context = f"source issue #{source_issue} in {repo}"
+    issue_raw = run_gh(
+        (
+            "issue",
+            "view",
+            str(source_issue),
+            "--repo",
+            repo,
+            "--json",
+            "state,stateReason",
+        ),
+        context=completion_context,
+    )
+    issue = parse_json_object(issue_raw, context=completion_context)
+    if str(issue.get("state", "")).upper() != "CLOSED":
+        violations.append(
+            f"source issue #{source_issue} is no longer closed "
+            f"(state={issue.get('state')!r})"
+        )
+    reason = issue.get("stateReason")
+    if isinstance(reason, str) and reason and reason.upper() != "COMPLETED":
+        violations.append(
+            f"source issue #{source_issue} is no longer completed (reason={reason!r})"
+        )
+    pr_context = f"source pull request #{source_pr} in {repo}"
+    pr_raw = run_gh(
+        (
+            "pr",
+            "view",
+            str(source_pr),
+            "--repo",
+            repo,
+            "--json",
+            "merged,mergeCommit",
+        ),
+        context=pr_context,
+    )
+    pr = parse_json_object(pr_raw, context=pr_context)
+    if pr.get("merged") is not True:
+        violations.append(f"source PR #{source_pr} is no longer merged")
+    merge_commit = pr.get("mergeCommit")
+    current_merge = (
+        merge_commit.get("oid") if isinstance(merge_commit, dict) else None
+    )
+    if merge_sha and current_merge != merge_sha:
+        violations.append(
+            f"source PR #{source_pr} merge commit changed from {merge_sha} to "
+            f"{current_merge!r}"
+        )
     return violations
 
 
@@ -664,8 +755,27 @@ def command_validate_invariants(args: argparse.Namespace) -> None:
             args.shadow_pr,
             shadow_base=args.shadow_base,
             candidate=args.candidate,
+            shadow_issue=args.shadow_issue,
         )
     )
+    # Bind the shadow-base ref to the immutable historical base (guards a force-push).
+    if args.historical_base is not None:
+        actual = read_remote_ref_sha(args.remote, args.shadow_base, args.repo_path)
+        if actual != args.historical_base:
+            violations.append(
+                f"remote shadow-base {args.shadow_base!r} points at {actual}, "
+                f"expected the immutable historical base {args.historical_base}"
+            )
+    # Prove the source issue and PR still match their preflight snapshot.
+    if args.source_issue is not None and args.source_pr is not None:
+        violations.extend(
+            assert_source_unchanged(
+                args.repo,
+                args.source_issue,
+                args.source_pr,
+                args.source_merge_sha or "",
+            )
+        )
     if violations:
         fail(
             f"shadow isolation drift for issue #{args.shadow_issue} / PR "
@@ -679,6 +789,24 @@ def command_validate_invariants(args: argparse.Namespace) -> None:
             "shadow_pr": args.shadow_pr,
         }
     )
+
+
+# ------------------------------------------------------- review freshness
+
+
+def command_review_freshness(args: argparse.Namespace) -> None:
+    """Guard the verify gate: an approval binds to exactly one candidate head.
+
+    Every fix push advances the candidate head, so an approval whose commit is not the
+    current head is stale and its verdict does not carry to the new commits. The skill
+    calls this before verification; a stale approval requires a fresh review first.
+    """
+    if args.review_commit != args.head:
+        fail(
+            f"stale review: approval targets {args.review_commit} but the current "
+            f"candidate head is {args.head}; re-review the new head before verifying"
+        )
+    emit({"fresh": True, "review_commit": args.review_commit, "head": args.head})
 
 
 # ------------------------------------------------------------------- cleanup
@@ -780,41 +908,70 @@ def aggregate_claude_code(records: list[Any]) -> tuple[dict[str, ThreadUsage], T
     return threads, unattributed, False
 
 
+def _codex_token_info(record: Any) -> dict[str, Any] | None:
+    """Return a token_count event's `info`, handling both real and direct shapes.
+
+    Real Codex rollouts wrap events: `{"type":"event_msg","payload":{"type":"token_count",
+    "info":{...}}}`. A flattened `{"type":"token_count","info":{...}}` shape is also
+    accepted so callers can feed already-unwrapped records.
+    """
+    if not isinstance(record, dict):
+        return None
+    if record.get("type") == "event_msg":
+        payload = record.get("payload")
+        if isinstance(payload, dict) and payload.get("type") == "token_count":
+            info = payload.get("info")
+            return info if isinstance(info, dict) else None
+        return None
+    if record.get("type") == "token_count":
+        info = record.get("info")
+        return info if isinstance(info, dict) else None
+    return None
+
+
+def _codex_thread_id(record: Any) -> str | None:
+    """Extract a session/thread id from a session-meta record, if present."""
+    if not isinstance(record, dict):
+        return None
+    if record.get("type") in {"session_meta", "SessionMeta"}:
+        payload = record.get("payload")
+        if isinstance(payload, dict) and isinstance(payload.get("id"), str):
+            return payload["id"]
+        if isinstance(record.get("id"), str):
+            return record["id"]
+    return None
+
+
 def aggregate_codex(records: list[Any]) -> tuple[dict[str, ThreadUsage], ThreadUsage, bool]:
     """Codex rollouts emit cumulative token_count events; keep the final one per thread.
 
     Summing every cumulative event would multiply usage by the number of events, so the
-    adapter keeps the last cumulative total per thread. Codex exposes reasoning tokens.
+    adapter keeps the LAST cumulative total in the rollout. One rollout file is one thread;
+    its session id (from the session-meta record) labels the thread when present, else the
+    file is a single unnamed thread. Codex exposes reasoning tokens.
     """
-    threads: dict[str, ThreadUsage] = {}
-    unattributed = ThreadUsage()
+    thread_id: str | None = None
+    latest: ThreadUsage | None = None
     for record in records:
-        if not isinstance(record, dict) or record.get("type") != "token_count":
-            continue
-        info = record.get("info")
-        if not isinstance(info, dict):
+        candidate_id = _codex_thread_id(record)
+        if candidate_id is not None:
+            thread_id = candidate_id
+        info = _codex_token_info(record)
+        if info is None:
             continue
         totals = info.get("total_token_usage")
         if not isinstance(totals, dict):
             continue
-        thread_id = record.get("thread_id") or info.get("thread_id")
-        usage = ThreadUsage(
+        latest = ThreadUsage(
             input_tokens=_int(totals.get("input_tokens")),
             cached_input_tokens=_int(totals.get("cached_input_tokens")),
             output_tokens=_int(totals.get("output_tokens")),
             reasoning_tokens=_int(totals.get("reasoning_output_tokens")),
         )
-        if isinstance(thread_id, str) and thread_id:
-            threads[thread_id] = usage
-        else:
-            # No thread identity: this cumulative total cannot be de-duplicated against a
-            # thread, so treat each such log's final event as its own bucket by keeping the
-            # last one seen per log file (callers pass one log per invocation segment).
-            unattributed.input_tokens = usage.input_tokens
-            unattributed.cached_input_tokens = usage.cached_input_tokens
-            unattributed.output_tokens = usage.output_tokens
-            unattributed.reasoning_tokens = usage.reasoning_tokens
-    return threads, unattributed, True
+    threads: dict[str, ThreadUsage] = {}
+    if latest is not None:
+        threads[thread_id or "session"] = latest
+    return threads, ThreadUsage(), True
 
 
 ADAPTERS = {
@@ -998,6 +1155,42 @@ def command_compare(args: argparse.Namespace) -> None:
 # -------------------------------------------------------------------- report
 
 
+# Audit-binding fields a completed report must carry. A report whose final_state names a
+# failed stage is exempt (some bindings legitimately never came to exist).
+REQUIRED_REPORT_FIELDS: tuple[tuple[str, str], ...] = (
+    ("run_id", "run id"),
+    ("harness", "harness and version"),
+    ("model", "model"),
+    ("source_issue_url", "source issue link"),
+    ("source_pr_url", "original PR link"),
+    ("source_merge_sha", "original PR merge SHA"),
+    ("historical_base", "historical base SHA"),
+    ("cutoff", "information cutoff"),
+    ("shadow_issue_url", "shadow issue link"),
+    ("shadow_pr_url", "shadow PR link"),
+    ("candidate_head", "reviewed candidate head SHA"),
+    ("verification", "verification report or evidence link"),
+)
+
+
+def validate_report_schema(data: dict[str, Any]) -> None:
+    """A completed report must carry every audit binding; a failure report is exempt."""
+    final_state = str(data.get("final_state", ""))
+    if final_state.startswith("failed"):
+        return
+    missing = [
+        label
+        for key, label in REQUIRED_REPORT_FIELDS
+        if not str(data.get(key) or "").strip()
+    ]
+    if missing:
+        fail(
+            "report is missing required audit bindings for a completed evaluation: "
+            + ", ".join(missing)
+            + " (set final_state to 'failed:<stage>' for an incomplete run)"
+        )
+
+
 def render_disclosures(extra: Sequence[str]) -> list[str]:
     disclosures = list(REQUIRED_DISCLOSURES)
     for item in extra:
@@ -1021,7 +1214,11 @@ def render_report(data: dict[str, Any]) -> str:
     lines.append(f"Model: {value('model')}")
     lines.append(f"Reasoning effort: {value('reasoning_effort')}")
     lines.append(f"Source issue: {value('source_issue_url')}")
-    lines.append(f"Source PR: {value('source_pr_url')}")
+    merge_sha = value("source_merge_sha", "")
+    source_pr = value("source_pr_url")
+    lines.append(
+        f"Source PR: {source_pr}" + (f" (merge {merge_sha})" if merge_sha else "")
+    )
     lines.append(f"Historical base: {value('historical_base')}")
     lines.append(f"Information cutoff: {value('cutoff')}")
     lines.append(f"Shadow issue: {value('shadow_issue_url')}")
@@ -1065,6 +1262,7 @@ def command_report(args: argparse.Namespace) -> None:
         read_text_file(args.data, context="report data"),
         context=f"report data {args.data}",
     )
+    validate_report_schema(data)
     report = render_report(data)
     if args.out is None or str(args.out) == "-":
         sys.stdout.write(report)
@@ -1154,6 +1352,7 @@ def build_parser() -> argparse.ArgumentParser:
     open_pr.add_argument("--head", required=True)
     open_pr.add_argument("--title", required=True)
     open_pr.add_argument("--body-file", required=True, type=Path)
+    open_pr.add_argument("--shadow-issue", type=positive_int)
     open_pr.set_defaults(func=command_open_shadow_pr)
 
     invariants = sub.add_parser(
@@ -1164,7 +1363,21 @@ def build_parser() -> argparse.ArgumentParser:
     invariants.add_argument("--shadow-pr", required=True, type=positive_int)
     invariants.add_argument("--shadow-base", required=True)
     invariants.add_argument("--candidate", required=True)
+    invariants.add_argument("--historical-base")
+    invariants.add_argument("--remote", default="origin")
+    invariants.add_argument("--repo-path", type=Path, default=Path("."))
+    invariants.add_argument("--source-issue", type=positive_int)
+    invariants.add_argument("--source-pr", type=positive_int)
+    invariants.add_argument("--source-merge-sha")
     invariants.set_defaults(func=command_validate_invariants)
+
+    freshness = sub.add_parser(
+        "review-freshness",
+        help="Reject an approval whose commit is not the current candidate head.",
+    )
+    freshness.add_argument("--review-commit", required=True)
+    freshness.add_argument("--head", required=True)
+    freshness.set_defaults(func=command_review_freshness)
 
     cleanup = sub.add_parser("cleanup", help="Close the shadow PR unmerged and the issue.")
     cleanup.add_argument("--repo", required=True, type=repository)

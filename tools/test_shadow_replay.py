@@ -1016,34 +1016,30 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertEqual(self.gh_calls(), [])
         self.assertEqual(self.git_calls(), [])
 
+    def _codex_token_event(self, **totals: int) -> dict[str, Any]:
+        # Real Codex rollout envelope: type=event_msg, payload.type=token_count.
+        return {
+            "type": "event_msg",
+            "payload": {"type": "token_count", "info": {"total_token_usage": totals}},
+        }
+
     def test_metrics_codex_keeps_last_cumulative_event(self) -> None:
         log = self._log_file(
             "codex.jsonl",
             [
-                {
-                    "type": "token_count",
-                    "thread_id": "t1",
-                    "info": {
-                        "total_token_usage": {
-                            "input_tokens": 100,
-                            "cached_input_tokens": 10,
-                            "output_tokens": 20,
-                            "reasoning_output_tokens": 5,
-                        }
-                    },
-                },
-                {
-                    "type": "token_count",
-                    "thread_id": "t1",
-                    "info": {
-                        "total_token_usage": {
-                            "input_tokens": 300,
-                            "cached_input_tokens": 30,
-                            "output_tokens": 60,
-                            "reasoning_output_tokens": 15,
-                        }
-                    },
-                },
+                {"type": "session_meta", "payload": {"id": "sess-1"}},
+                self._codex_token_event(
+                    input_tokens=100,
+                    cached_input_tokens=10,
+                    output_tokens=20,
+                    reasoning_output_tokens=5,
+                ),
+                self._codex_token_event(
+                    input_tokens=300,
+                    cached_input_tokens=30,
+                    output_tokens=60,
+                    reasoning_output_tokens=15,
+                ),
             ],
         )
         result = self.run_cli("metrics", "--harness", "codex", "--log", log)
@@ -1056,39 +1052,28 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertEqual(payload["output_tokens"], 60)
         self.assertEqual(payload["reasoning_tokens"], 15)
 
-    def test_metrics_codex_sums_across_threads_and_logs(self) -> None:
+    def test_metrics_codex_sums_across_logs(self) -> None:
+        # One rollout file is one thread; parent + child sessions are separate logs, summed.
         log_a = self._log_file(
             "codex_a.jsonl",
             [
-                {
-                    "type": "token_count",
-                    "thread_id": "t1",
-                    "info": {
-                        "total_token_usage": {
-                            "input_tokens": 300,
-                            "cached_input_tokens": 30,
-                            "output_tokens": 60,
-                            "reasoning_output_tokens": 15,
-                        }
-                    },
-                }
+                self._codex_token_event(
+                    input_tokens=300,
+                    cached_input_tokens=30,
+                    output_tokens=60,
+                    reasoning_output_tokens=15,
+                )
             ],
         )
         log_b = self._log_file(
             "codex_b.jsonl",
             [
-                {
-                    "type": "token_count",
-                    "thread_id": "t2",
-                    "info": {
-                        "total_token_usage": {
-                            "input_tokens": 100,
-                            "cached_input_tokens": 5,
-                            "output_tokens": 10,
-                            "reasoning_output_tokens": 5,
-                        }
-                    },
-                }
+                self._codex_token_event(
+                    input_tokens=100,
+                    cached_input_tokens=5,
+                    output_tokens=10,
+                    reasoning_output_tokens=5,
+                )
             ],
         )
         result = self.run_cli(
@@ -1101,40 +1086,28 @@ class ShadowReplayTests(unittest.TestCase):
         self.assertEqual(payload["output_tokens"], 70)
         self.assertEqual(payload["reasoning_tokens"], 20)
 
-    def test_metrics_unattributed_records_bucketed_and_totaled(self) -> None:
+    def test_metrics_claude_code_unattributed_records_bucketed_and_totaled(self) -> None:
+        # A claude-code assistant record with no sessionId is unattributable; its tokens
+        # go to the unattributed bucket but are still included in the grand totals.
         log = self._log_file(
-            "codex_unattr.jsonl",
+            "cc_unattr.jsonl",
             [
                 {
-                    "type": "token_count",
-                    "thread_id": "t1",
-                    "info": {
-                        "total_token_usage": {
-                            "input_tokens": 100,
-                            "cached_input_tokens": 0,
-                            "output_tokens": 10,
-                            "reasoning_output_tokens": 0,
-                        }
-                    },
+                    "type": "assistant",
+                    "sessionId": "s1",
+                    "message": {"usage": {"input_tokens": 100, "output_tokens": 10}},
                 },
                 {
-                    "type": "token_count",
-                    "info": {
-                        "total_token_usage": {
-                            "input_tokens": 40,
-                            "cached_input_tokens": 0,
-                            "output_tokens": 4,
-                            "reasoning_output_tokens": 0,
-                        }
-                    },
+                    "type": "assistant",
+                    "message": {"usage": {"input_tokens": 40, "output_tokens": 4}},
                 },
             ],
         )
-        result = self.run_cli("metrics", "--harness", "codex", "--log", log)
+        result = self.run_cli("metrics", "--harness", "claude-code", "--log", log)
         payload = self.payload(result)
         self.assertGreater(payload["unattributed_tokens"], 0)
-        # Unattributed usage is still included in the grand totals.
-        self.assertGreaterEqual(payload["input_tokens"], 140)
+        self.assertEqual(payload["input_tokens"], 140)
+        self.assertEqual(payload["output_tokens"], 14)
 
     # ---------------------------------------------------------------- pricing
     def test_pricing_known_model_exact_cost(self) -> None:
@@ -1263,6 +1236,7 @@ class ShadowReplayTests(unittest.TestCase):
             "reasoning_effort": "high",
             "source_issue_url": "https://github.com/octo/demo/issues/3",
             "source_pr_url": "https://github.com/octo/demo/pull/7",
+            "source_merge_sha": "merge9",
             "historical_base": "base0",
             "cutoff": "2026-01-01T00:00:00Z",
             "shadow_issue_url": "https://github.com/octo/demo/issues/99",
@@ -1303,13 +1277,40 @@ class ShadowReplayTests(unittest.TestCase):
             self.assertIn(disclosure, markdown)
         self.assertIn("Custom extra disclosure sentence for this run.", markdown)
 
-    def test_report_renders_missing_top_level_value_as_unavailable(self) -> None:
+    def test_report_renders_missing_optional_value_as_unavailable(self) -> None:
+        # reasoning_effort is not an audit binding, so its absence renders "unavailable"
+        # rather than failing schema validation.
+        data = self._report_data()
+        del data["reasoning_effort"]
+        data_file = self._write_report_data(data)
+        result = self.run_cli("report", "--data", data_file)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Reasoning effort: unavailable", result.stdout)
+
+    def test_report_rejects_missing_required_binding(self) -> None:
+        # A completed report missing an audit binding (reviewed candidate head) must fail,
+        # not silently render "unavailable" and let cleanup close the artifacts.
         data = self._report_data()
         del data["candidate_head"]
         data_file = self._write_report_data(data)
         result = self.run_cli("report", "--data", data_file)
+        self.assert_failure(result)
+        self.assertIn("candidate head", result.stderr.lower())
+
+    def test_report_rejects_missing_source_merge_sha(self) -> None:
+        data = self._report_data()
+        del data["source_merge_sha"]
+        data_file = self._write_report_data(data)
+        result = self.run_cli("report", "--data", data_file)
+        self.assert_failure(result)
+
+    def test_report_failed_state_exempts_bindings(self) -> None:
+        # A failure report (final_state: failed:<stage>) renders even without every binding.
+        data = {"run_id": "r1", "final_state": "failed:execute"}
+        data_file = self._write_report_data(data)
+        result = self.run_cli("report", "--data", data_file)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("unavailable", result.stdout)
+        self.assertIn("## dev:shadow evaluation - r1", result.stdout)
 
     def test_report_out_writes_file_and_prints_path(self) -> None:
         data_file = self._write_report_data(self._report_data())
@@ -1326,6 +1327,133 @@ class ShadowReplayTests(unittest.TestCase):
         )
         for disclosure in REQUIRED_DISCLOSURES:
             self.assertIn(disclosure, written)
+
+
+    # ----------------------------------------------- validate-invariants binding
+    def test_validate_invariants_detects_forced_shadow_base(self) -> None:
+        # A force-push moving the immutable shadow-base ref off the historical base fails,
+        # even though branch names and PR fields still look correct.
+        result = self.run_cli(
+            "validate-invariants",
+            "--repo",
+            REPO,
+            "--shadow-issue",
+            "99",
+            "--shadow-pr",
+            "100",
+            "--shadow-base",
+            "B",
+            "--candidate",
+            "C",
+            "--historical-base",
+            "base0",
+            "--remote",
+            "origin",
+            "--repo-path",
+            str(self.root),
+            gh={
+                "issue view": [self.resp(self.clean_issue())],
+                "pr view": [self.resp(self.clean_pr())],
+            },
+            git={"ls-remote": [self.resp("deadbeef\trefs/heads/B")]},
+        )
+        self.assert_failure(result)
+        self.assertIn("base0", result.stderr)
+
+    def test_validate_invariants_binding_pass(self) -> None:
+        result = self.run_cli(
+            "validate-invariants",
+            "--repo",
+            REPO,
+            "--shadow-issue",
+            "99",
+            "--shadow-pr",
+            "100",
+            "--shadow-base",
+            "B",
+            "--candidate",
+            "C",
+            "--historical-base",
+            "base0",
+            "--remote",
+            "origin",
+            "--repo-path",
+            str(self.root),
+            "--source-issue",
+            "3",
+            "--source-pr",
+            "7",
+            "--source-merge-sha",
+            "merge9",
+            gh={
+                "issue view": [
+                    self.resp(self.clean_issue()),
+                    self.resp({"state": "CLOSED", "stateReason": "COMPLETED"}),
+                ],
+                "pr view": [
+                    self.resp(self.clean_pr()),
+                    self.resp({"merged": True, "mergeCommit": {"oid": "merge9"}}),
+                ],
+            },
+            git={"ls-remote": [self.resp("base0\trefs/heads/B")]},
+        )
+        payload = self.payload(result)
+        self.assertTrue(payload["ok"])
+
+    def test_validate_invariants_detects_changed_source_merge(self) -> None:
+        # A mutated source PR (merge commit changed since preflight) fails the invariant.
+        result = self.run_cli(
+            "validate-invariants",
+            "--repo",
+            REPO,
+            "--shadow-issue",
+            "99",
+            "--shadow-pr",
+            "100",
+            "--shadow-base",
+            "B",
+            "--candidate",
+            "C",
+            "--source-issue",
+            "3",
+            "--source-pr",
+            "7",
+            "--source-merge-sha",
+            "merge9",
+            gh={
+                "issue view": [
+                    self.resp(self.clean_issue()),
+                    self.resp({"state": "CLOSED", "stateReason": "COMPLETED"}),
+                ],
+                "pr view": [
+                    self.resp(self.clean_pr()),
+                    self.resp({"merged": True, "mergeCommit": {"oid": "different"}}),
+                ],
+            },
+        )
+        self.assert_failure(result)
+
+    def test_validate_invariants_binds_refs_to_shadow_issue(self) -> None:
+        # A body that references a different issue number no longer counts as the reference.
+        result = self._validate(self.clean_issue(), self.clean_pr(body="Refs #4242\n"))
+        self.assert_failure(result)
+
+    # ------------------------------------------------------- review-freshness
+    def test_review_freshness_accepts_matching_head(self) -> None:
+        result = self.run_cli(
+            "review-freshness", "--review-commit", "abc123", "--head", "abc123"
+        )
+        payload = self.payload(result)
+        self.assertTrue(payload["fresh"])
+        self.assertEqual(self.gh_calls(), [])
+
+    def test_review_freshness_rejects_stale_approval(self) -> None:
+        # A fix push advanced the head; the old approval SHA no longer verifies the head.
+        result = self.run_cli(
+            "review-freshness", "--review-commit", "oldsha", "--head", "newsha"
+        )
+        self.assert_failure(result)
+        self.assertIn("stale", result.stderr.lower())
 
 
 if __name__ == "__main__":

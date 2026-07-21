@@ -102,15 +102,23 @@ prepare → execute → review → (fix → fresh review)[0..max_fix_attempts] �
      (never harness worktree isolation - it creates an untracked branch no cleanup step knows
      about, exactly as `dev:execute` step 2 forbids).
    - `shadow_replay.py open-shadow-pr --repo "$repo" --base shadow-base/<source-id>/<run-id>
-     --head shadow/<source-id>/<run-id> --title "[SHADOW] <source title>" --body-file <file>`
-     opens the draft PR (base is the shadow-base branch, not `main`, so the diff is only replay
-     work), labels it `do-not-merge`, and asserts the body uses `Refs #<shadow-issue>`, never
-     `Closes`. The helper rejects a closing keyword in the body before creating the PR.
+     --head shadow/<source-id>/<run-id> --title "[SHADOW] <source title>"
+     --body-file <file> --shadow-issue <shadow-issue>` opens the draft PR (base is the
+     shadow-base branch, not `main`, so the diff is only replay work), labels it
+     `do-not-merge`, and asserts the body references the actual shadow issue with
+     `Refs #<shadow-issue>`, never `Closes`. The helper rejects a closing keyword in the body
+     before creating the PR.
 
 Before each later stage and before terminal cleanup, re-read state with
 `shadow_replay.py validate-invariants --repo "$repo" --shadow-issue <n> --shadow-pr <m>
---shadow-base <b> --candidate <c>`. Any drift (a `status:*` label or milestone appears, the PR
-loses draft/`do-not-merge`, its base/head changes, or a closing keyword appears) stops the run.
+--shadow-base <b> --candidate <c> --historical-base <base> --remote <push-remote>
+--source-issue <src-issue> --source-pr <src-pr> --source-merge-sha <merge-sha>`. It re-reads
+both artifacts and binds identities, not just names: the `Refs` must target the actual shadow
+issue, the remote shadow-base ref must still equal the immutable historical base (guards a
+force-push), and the source issue and PR must still match their preflight snapshot (still
+completed/merged with the same merge commit). Any drift (a `status:*` label or milestone
+appears, the PR loses draft/`do-not-merge`, its base/head changes, a closing keyword appears,
+the shadow-base ref moved, or a source artifact changed) stops the run.
 
 ### 2. Execute
 
@@ -145,12 +153,13 @@ unresolved findings in the report, do not verify.
 
 ### 5. Verify
 
-After a current-head approval, dispatch a fresh `verifier` (or a generic worker carrying the
-verify contract, same rule as review) to gather evidence for every source Definition-of-Done
+Before verifying, gate on `shadow_replay.py review-freshness --review-commit <approval sha>
+--head <current candidate head>`: an approval whose commit is not the current head is stale
+(a fix push advanced the head after the review) and stops the run for a fresh review. Only
+after a fresh approval, dispatch a fresh `verifier` (or a generic worker carrying the verify
+contract, same rule as review) to gather evidence for every source Definition-of-Done
 criterion. The verifier exposes no merge path: `dev:shadow` never calls a merge command and
-never transitions the shadow issue through planned-task states. A stale approval (its `Commit:`
-not equal to the current candidate head) is not verification evidence; get a fresh review
-first.
+never transitions the shadow issue through planned-task states.
 
 ### 6. Compare
 
@@ -177,8 +186,13 @@ the dimensions into a single aggregate quality score.
 ### 7. Report and stop
 
 1. Assemble the report data (run identity, harness/model/effort, every source/shadow/base/issue
-   URL, reviewed SHA, comparison rows, verification evidence or the linked verifier report) and
-   render it with `shadow_replay.py report --data <file>`. The report includes every required
+   URL, the original PR merge SHA, reviewed candidate head SHA, comparison rows, verification
+   evidence or the linked verifier report) and render it with
+   `shadow_replay.py report --data <file>`. For a completed run the helper **enforces** the
+   audit bindings: a report missing the source issue/PR links, the original merge SHA, the
+   historical base, the shadow issue/PR links, the reviewed candidate head, or the verification
+   evidence fails rather than rendering `unavailable` (a stopped run instead sets
+   `final_state: failed:<stage>`, which is exempt). The report includes every required
    disclosure (same-repository replay is not blind; the source body is current not historical;
    original token/cost data may be missing; GitHub timestamps are observable, not continuous
    work; estimated cost is not the subscription charge; reviewer/verifier judgments depend on

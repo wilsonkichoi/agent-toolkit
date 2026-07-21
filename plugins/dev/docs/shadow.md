@@ -52,7 +52,11 @@ the planned-task queue.
   replay work) and whose head is the candidate branch. It carries `do-not-merge` and references
   the shadow issue with `Refs #<shadow-issue>`, never `Closes`.
 - Before each lifecycle stage and before terminal cleanup, `validate-invariants` re-reads the
-  issue and PR and stops on any drift.
+  issue and PR and stops on any drift. It binds identities and revisions, not just names: the
+  `Refs` must target the actual shadow issue number; when given `--historical-base`, the remote
+  shadow-base ref must still equal that immutable SHA (a force-push is caught); and when given
+  `--source-issue`/`--source-pr`/`--source-merge-sha`, the source issue must still be
+  completed and the source PR still merged at the same merge commit (source mutation is caught).
 - On success, cleanup closes the draft PR unmerged, closes the shadow issue as a completed
   evaluation, removes the worktree, and **retains both remote shadow branches** for audit and
   reproducibility. On failure, artifacts stay open for inspection; nothing is deleted
@@ -83,7 +87,8 @@ subcommands re-read GitHub state and assert isolation before reporting success.
 | `create-shadow-issue` | Idempotently ensure labels, create the `[SHADOW]` issue, assert no `status:*`/milestone. |
 | `create-branches` | Create and push the shadow-base and candidate branches at the validated base. |
 | `open-shadow-pr` | Open the draft `do-not-merge` PR; reject a closing keyword, require `Refs #N`. |
-| `validate-invariants` | Re-read issue + PR and assert every isolation invariant; stop on drift. |
+| `validate-invariants` | Re-read issue + PR, bind identities/revisions, assert isolation; stop on drift. |
+| `review-freshness` | Reject an approval whose commit is not the current candidate head (stale review). |
 | `metrics` | Aggregate harness token usage per adapter without double-counting. |
 | `pricing` | Estimate API-equivalent cost from the versioned catalog, or `cost unavailable`. |
 | `compare` | Assemble the comparison table rows; missing data becomes `unavailable`. |
@@ -105,16 +110,19 @@ multiplies usage by the event count; the adapter must know which shape its harne
   `input_tokens` and `cache_creation_input_tokens` → input; `cache_read_input_tokens` → cached
   input; `output_tokens` → output. Claude Code does not expose reasoning tokens, so
   `reasoning_tokens` is `null`.
-- **`codex`** — rollout JSONL. Each `{"type":"token_count","info":{"total_token_usage":{...}}}`
-  record carries *cumulative* totals, so the adapter keeps the **last** event per `thread_id`
-  (never sums them). Field mapping: `input_tokens` → input; `cached_input_tokens` → cached
-  input; `output_tokens` → output; `reasoning_output_tokens` → reasoning.
+- **`codex`** — rollout JSONL. Token events use the real Codex envelope
+  `{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{...}}}}`
+  (a flattened `{"type":"token_count","info":{...}}` is also accepted). These totals are
+  *cumulative*, so the adapter keeps the **last** event in the rollout (never sums them). One
+  rollout file is one thread; its session id (from the `session_meta` record) labels the thread
+  when present. Field mapping: `input_tokens` → input; `cached_input_tokens` → cached input;
+  `output_tokens` → output; `reasoning_output_tokens` → reasoning.
 
-Across multiple logs (parent plus child threads), the adapter sums the per-thread finals. Usage
-that carries no thread identity is placed in an `unattributed` bucket and included in the totals,
-labeled `unattributed`, never guessed into a stage. When a harness or model exposes no reasoning
-category, `reasoning_tokens` is `null` and the comparison row reads `unavailable` - the adapter
-never fabricates a zero.
+Across multiple logs (parent plus child rollouts), the adapter sums the per-file finals. A
+`claude-code` assistant record with no `sessionId` is unattributable; its tokens go to an
+`unattributed` bucket and are still included in the totals, labeled `unattributed`, never
+guessed into a stage. When a harness or model exposes no reasoning category, `reasoning_tokens`
+is `null` and the comparison row reads `unavailable` - the adapter never fabricates a zero.
 
 Adding a harness is one adapter function keyed in `ADAPTERS` plus a fixture; nothing else in the
 script changes.
@@ -179,6 +187,17 @@ Every report includes these, emitted by `report` automatically:
 - GitHub timestamps are observable workflow timestamps, not continuous agent work.
 - Estimated API-equivalent cost is not the user's actual subscription charge.
 - Reviewer and verifier judgments depend on the identified models.
+
+## Report schema enforcement
+
+A completed report (`final_state` not starting with `failed`) must carry every audit binding:
+the run id, harness, model, source issue and PR links, the original PR merge SHA, the historical
+base, the information cutoff, the shadow issue and PR links, the reviewed candidate head SHA, and
+the verification evidence or verifier-report link. `report` fails instead of rendering
+`unavailable` for a missing binding, so a malformed run cannot produce a green report and then
+close the artifacts as evaluation-complete. A stopped run sets `final_state: failed:<stage>`,
+which is exempt from binding enforcement. Legitimately missing measurement data (original tokens,
+cost) still renders as `unavailable`; only the identity/audit bindings are mandatory.
 
 ## Stop conditions
 
