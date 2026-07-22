@@ -180,8 +180,9 @@ Push the branch and open a PR:
 
 - Title: `<task-id>: <task title>`.
 - Body: Objective, the DoD as a checklist, spec references, and the task link - for the
-  GitHub backend include `Closes #<n>` (safe: only `dev:verify` merges, so auto-close cannot
-  bypass verification). For Linear, the `task/<id>-` branch prefix auto-links the issue.
+  GitHub backend include `Closes #<n>` (safe: lifecycle merges occur only in `dev:verify`, so
+  auto-close cannot bypass verification). For Linear, the `task/<id>-` branch prefix auto-links
+  the issue.
 - Record the PR URL on the task (comment, or `pr:` field on the local backend).
 
 In active fork routing, push with `git push -u origin task/<id>-<slug>` and create the PR

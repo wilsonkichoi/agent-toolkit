@@ -53,7 +53,7 @@ for the complete local-marketplace workflow.
 | Plugin | Description |
 |---|---|
 | `utils` | Research, knowledge synthesis, LLM Wiki maintenance, retrospectives, and security scanning |
-| `dev` | Product discovery, architecture, tracker-backed planning, implementation, review, verification, status, retrospectives, historical-replay evaluation, and structured feedback filing |
+| `dev` | Product discovery, architecture, tracker-backed planning, implementation, review, verification, standalone GitHub PR merge/cleanup operations, status, retrospectives, historical-replay evaluation, and structured feedback filing |
 
 Plugin-specific documentation is in [plugins/utils/README.md](plugins/utils/README.md) and
 [plugins/dev/README.md](plugins/dev/README.md).

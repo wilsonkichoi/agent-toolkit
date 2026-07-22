@@ -1,9 +1,10 @@
 # dev
 
-AI-assisted product development lifecycle for Claude Code and Codex: an external tracker (Linear,
-GitHub Issues, or local files) is the single source of truth for tasks, execution is
-PR-native (worktree → PR → CI → review → verified merge), and every task is a self-contained
-packet a fresh session can execute without prior context.
+AI-assisted product development lifecycle for Claude Code and Codex, plus lightweight standalone
+GitHub PR merge and cleanup operations. For lifecycle tasks, an external tracker (Linear, GitHub
+Issues, or local files) is the single source of truth, execution is PR-native (worktree → PR → CI
+→ review → verified merge), and every task is a self-contained packet a fresh session can execute
+without prior context.
 
 Replaces [agentic_development_workflow](https://github.com/wilsonkichoi/agentic_development_workflow).
 This README is the index; the operating guide (prerequisites, `.agent-toolkit/dev.md` config
@@ -59,7 +60,8 @@ and `Rules loaded:` list in lifecycle artifacts.
 | `/dev:execute` | Claim one task → git worktree → implement → tests (via the `test-writer` agent, contract-only context) → PR → CI to green → visual self-check + local preview instructions (when DoD has visual criteria; the executor inspects touched pages against the comparison target before hand-off) → work-summary comment → `In Review`. Never merges. Safeguards: `work_in_progress_limit`, `max_fix_attempts`, packet validation for hand-written tickets, and verified write-then-read lifecycle transitions for planned GitHub tasks. |
 | `/dev:auto` | Unattended per-task pipeline: target one task (`/dev:auto DOG-14`) or drain a milestone (`/dev:auto milestone 2 [max N tasks]`) through execute → independent review → bounded fix loop → verify → merge → record-only retro. A task target is strictly single-task and never falls through. Requires `auto_merge: true` (standing approval); merges only review-approved work whose criteria are mechanically evidenced or carry a recorded human sign-off; a manual DoD criterion with neither stops for a human. |
 | `/dev:review-pr` | Independent one-pass review of a task PR against its packet and spec: severity-ranked findings, verdict posted via `gh pr review`, then stop. Each manual fix invocation snapshots and applies one current findings batch on the same branch, tests, pushes, replies per finding, requests or records the need for re-review, then stops. It never runs the fresh review itself. Delegates review to the `reviewer` agent when the session implemented the PR. Automatic review/fix chaining belongs only to `/dev:auto` and is bounded by `max_fix_attempts`. |
-| `/dev:verify` | The merge gate: evidence per DoD criterion (run tests, cite CI, perform manual steps), verification report on the PR, then human-approved merge, task → `Done`, worktree cleanup. Only thing allowed to merge. Human-gate (manual/visual) criteria pass only on a recorded sign-off (a comment authored by the human) or live confirmation - PR-body checkboxes are display only, checked solely by verify. Rejects stale approvals: the approving review must target the current PR HEAD, so a post-review fix push forces a fresh review before merge. Delegates evidence gathering to the `verifier` agent when the session implemented the PR; the human gate and merge stay in the session. Approval never waives the record: the report and checkbox updates land on the PR before the merge. |
+| `/dev:merge-pr` | Lightweight standalone GitHub operation: merge a PR, clean up an already-merged PR's worktree/branches, or do both. It does not read tracker state, task packets, DoD, project-bootstrap rules, or `dev:verify`; it calls one deterministic helper and returns its JSON receipt. |
+| `/dev:verify` | The lifecycle merge gate: evidence per DoD criterion (run tests, cite CI, perform manual steps), verification report on the PR, then human-approved merge, task → `Done`, worktree cleanup. It is the only lifecycle skill allowed to merge or set `Done`; standalone operations use `/dev:merge-pr` outside the lifecycle. Human-gate (manual/visual) criteria pass only on a recorded sign-off (a comment authored by the human) or live confirmation - PR-body checkboxes are display only, checked solely by verify. Rejects stale approvals: the approving review must target the current PR HEAD, so a post-review fix push forces a fresh review before merge. Delegates evidence gathering to the `verifier` agent when the session implemented the PR; the human gate and merge stay in the session. Approval never waives the record: the report and checkbox updates land on the PR before the merge. |
 | `/dev:retro` | Mines PR review threads, CI history, tracker comments, session transcripts, and lifecycle-contract compliance (did each step produce what its skill mandates, including steps run in the current session) for completed tasks, then closes the memory loop: evidence-cited learnings promoted into the configured memory (`rules_dir` files, `.agent-toolkit/rules/` by default, or a `memory_target` MCP system), applied on approval. Defects or follow-up work the retro uncovers route to the tracker via `/dev:backlog`, never to memory notes; the retro comment posts before the promotion gate so the record survives an abandoned session. |
 | `/dev:status` | Read-only dashboard: milestone progress, open PRs + CI state, WIP vs limit, blocked tasks, next claimable tasks, plus consistency checks (state lies, abandoned claims, missed cleanups). |
 | `/dev:shadow` | Unattended historical-replay evaluation (`/dev:shadow #<issue> [pr <n>]`): reconstruct a completed issue's historical base, re-implement it with the active session's model through execute → review → bounded fix → verify, then compare against the original on tests, DoD coverage, review findings, scope, time, tokens, and estimated API-equivalent cost. The draft PR opens only after the first candidate commit and binds the resolved head repository, including fork-qualified heads. Posts an audit report on an isolated `[SHADOW]` issue. Never merges; never mutates the source issue or original PR. GitHub source only in v0. |
@@ -115,6 +117,57 @@ review and verify. GitHub routing accepts that record only when its author, PR U
 execution revision bind it to the current PR; later comments from other issue participants cannot
 reclassify planned work. Planned review also requires the canonical issue to have exactly
 `status:in-review`; review never repairs an incomplete execute handoff.
+
+## GitHub PR merge and cleanup
+
+`scripts/github_pr.py` exposes independent `merge`, `cleanup`, and `merge-cleanup` operations.
+The `dev:merge-pr` skill is the lightweight ad hoc entry point; it does not enter the tracker-backed
+dev lifecycle. `dev:verify` calls the same executable only after its evidence report and human
+approval are complete.
+
+The helper validates the PR state, mergeability, checks, exact HEAD SHA, repository remotes,
+worktrees, and branch SHAs. `merge` never touches local worktrees or branches. `cleanup` requires
+GitHub to report the PR as merged. `merge-cleanup` validates cleanup inputs before merging and is
+safe to rerun after an interrupted cleanup. Every operation emits a compact JSON receipt.
+
+Direct human use from an agent-toolkit checkout.
+
+Merge only:
+
+```bash
+uv run plugins/dev/scripts/github_pr.py merge \
+  --repo owner/repository \
+  --pr 123 \
+  --merge-policy squash
+```
+
+Clean up only after the PR is merged:
+
+```bash
+uv run plugins/dev/scripts/github_pr.py cleanup \
+  --repo owner/repository \
+  --pr 123 \
+  --checkout /path/to/repository \
+  --delete-remote-branch \
+  --push-remote origin
+```
+
+Merge and clean up:
+
+```bash
+uv run plugins/dev/scripts/github_pr.py merge-cleanup \
+  --repo owner/repository \
+  --pr 123 \
+  --checkout /path/to/repository \
+  --merge-policy squash \
+  --delete-remote-branch \
+  --push-remote origin
+```
+
+Add `--worktree /path/to/pr-worktree` when the PR branch is checked out in a separate worktree.
+Use `--base-remote upstream` when the canonical base lives on `upstream`. Omit remote deletion for
+an external contributor's branch. `--expected-head <full-sha>` adds an explicit caller-supplied
+revision binding; every merge still uses GitHub's `--match-head-commit` guard.
 
 **Secondary intake channel.** A non-`github`-primary project can accept isolated GitHub issues
 and drive-by PRs as a second channel (`secondary_intake: github`): promote them into the

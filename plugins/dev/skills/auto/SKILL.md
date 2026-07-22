@@ -203,12 +203,10 @@ orchestrator holds the implementer's report, so it is not independent.
    `Merge authorization: required`, the full criterion table, and `Final result:`. Post the
    tracker copy from the agent's returned body on backends the agent cannot write to. A stale
    or malformed report is a stop, never merge evidence. All criteria met, each
-   mechanically evidenced or carrying a recorded human sign-off → merge per `merge_policy`,
-   transition `Done`, clean up worktree (remove the task worktree before any branch
-   deletion - a branch checked out in a worktree cannot be deleted, so `--delete-branch`
-   on the merge fails until the worktree is gone). Any criterion unmet, or manual without
-   a recorded sign-off → post the verification report, leave `In Review`, stop and tell
-   the human exactly what needs them.
+   mechanically evidenced or carrying a recorded human sign-off → run `dev:verify` section 4's
+   deterministic `github_pr.py merge-cleanup` operation, transition `Done`, and record the merge.
+   Any criterion unmet, or manual without a recorded sign-off → post the verification report,
+   leave `In Review`, stop and tell the human exactly what needs them.
 6. **Retro (record-only)** - run `dev:retro` for the task with promotions in proposal mode:
    post the retro comment including proposed rule promotions, but never write to the
    configured `rules_dir` or `.agent-toolkit/dev.md` (legacy safety-net fallback when both
