@@ -108,7 +108,6 @@ Repository authoring rules and required checks are in [AGENTS.md](AGENTS.md).
 .claude-plugin/          # Claude Code marketplace manifest
 .agents/plugins/         # Codex marketplace manifest
 .codex/agents/           # generated project-scoped Codex agents
-bootstrap/               # optional Claude Code environment bootstrapper
 dist/codex/agents/       # generated copy-me Codex agents for other projects
 plugins/utils/           # utility plugin sources
 plugins/dev/             # development-lifecycle plugin sources
