@@ -77,6 +77,12 @@ Primary-GitHub planned-task lifecycle writes share
 Do not duplicate label validation or treat a missing `status:*` label as external-contribution
 routing inside individual skills.
 
+Standalone GitHub PR merge and branch cleanup share `plugins/dev/scripts/github_pr.py` and the
+`dev:merge-pr` skill. The helper exposes independent `merge`, `cleanup`, and `merge-cleanup`
+operations and has no tracker dependency. `dev:verify` may call the same helper only after its own
+evidence and approval gates. Do not reproduce the helper's guarded `gh`/`git` sequence in skills
+or agent instructions.
+
 Manual `dev:review-pr` invocations are single-pass lifecycle actions. Review mode posts one
 verdict and stops; fix mode applies one current findings batch, requests or records the need for
 re-review, and stops. Only `dev:auto` may chain separate review and fix invocations, and its loop

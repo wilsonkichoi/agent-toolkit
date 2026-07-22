@@ -419,6 +419,47 @@ def check_github_task_lifecycle() -> None:
         raise CheckFailure(f"GitHub task lifecycle tests failed:\n{details}")
 
 
+def check_github_pr_helper() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools/test_github_pr_merge.py")],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        details = "\n".join(
+            part.strip() for part in (result.stdout, result.stderr) if part.strip()
+        )
+        raise CheckFailure(f"GitHub PR helper tests failed:\n{details}")
+
+    required_by_file = {
+        ROOT / "AGENTS.md": (
+            "plugins/dev/scripts/github_pr.py",
+            "`merge`, `cleanup`, and `merge-cleanup`",
+        ),
+        ROOT / "plugins/dev/README.md": (
+            "## GitHub PR merge and cleanup",
+            "Direct human use",
+        ),
+        ROOT / "plugins/dev/skills/merge-pr/SKILL.md": (
+            "scripts/github_pr.py",
+            "No dev lifecycle",
+            "merge-cleanup",
+        ),
+        ROOT / "plugins/dev/skills/verify/SKILL.md": (
+            "scripts/github_pr.py",
+            "--expected-head",
+        ),
+        ROOT / "plugins/dev/skills/auto/SKILL.md": ("github_pr.py merge-cleanup",),
+    }
+    for path, required_values in required_by_file.items():
+        content = path.read_text(encoding="utf-8")
+        for required in required_values:
+            if required not in content:
+                raise fail(path, f"GitHub PR helper adoption must contain {required!r}")
+
+
 def check_shadow_replay() -> None:
     result = subprocess.run(
         [sys.executable, str(ROOT / "tools/test_shadow_replay.py")],
@@ -664,6 +705,7 @@ CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("generator-drift", check_generator_drift),
     ("project-rule-resolver", check_project_rule_resolver),
     ("github-task-lifecycle", check_github_task_lifecycle),
+    ("github-pr-helper", check_github_pr_helper),
     ("shadow-replay", check_shadow_replay),
     ("feedback-redact", check_feedback_redact),
     ("github-lifecycle-adoption", check_github_lifecycle_adoption),

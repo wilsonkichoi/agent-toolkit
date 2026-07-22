@@ -2,9 +2,10 @@
 name: verify
 description: >
   This skill should be used when the user asks to "verify the task", "check the definition of
-  done", "merge the PR", "close out task <id>", or invokes /dev:verify. Gathers evidence for
-  every Definition of Done criterion, posts a verification report, and only then, on explicit
-  human approval, merges the PR and transitions the task to Done.
+  done", "merge the dev task PR", "close out task <id>", or invokes /dev:verify. Gathers
+  evidence for every Definition of Done criterion, posts a verification report, and only then,
+  on explicit human approval, merges the PR and transitions the task to Done. For standalone
+  ad hoc PR merge or branch cleanup requests, use dev:merge-pr instead.
 argument-hint: "[task-id | pr-number]"
 ---
 
@@ -213,42 +214,46 @@ complete ("merge now" mid-verification, approval given while discussing evidence
 the record first: post the report (section 3) and make live confirmations durable
 (section 2 - evidence cell naming who confirmed and when, plus the human-gate checkbox in
 the PR body). The merged PR must carry the verification report and a fully-recorded DoD
-checklist; a task comment on the tracker is not visible to PR readers. Merge is always the
-last write before cleanup. On approval:
+checklist; a task comment on the tracker is not visible to PR readers.
 
-0. Check mergeability first, not just CI: `gh pr view <n> --json mergeable,mergeStateStatus`.
-   Sibling PRs that branched before an earlier one merged conflict exactly here (green CI,
-   unmergeable). If conflicting or behind: rebase the task branch onto the resolved base
-   (`upstream/main` in active fork routing, otherwise `origin/main`) in its
-   worktree, push, let CI re-run to green - and if resolving conflicts changed hunks the
-   review already read, get a re-review before merging.
-1. Merge per `merge_policy`: `gh pr merge <n> --repo "$github_primary_repo" --squash` (or
-   `--merge`) in active fork routing, with the existing unscoped target only in non-opt-in
-   modes. Do NOT pass
-   `--delete-branch`: the task branch is always still checked out in its worktree at this
-   point (`dev:execute` created it; cleanup is step 4), so the local delete fails and the
-   remote delete is skipped with it - the merge succeeds but the remote branch silently
-   leaks. All branch deletion happens in step 4, after the worktree is gone. No GitHub
-   remote: merge locally instead - `git checkout main` then `git merge --squash` + commit
-   (or `git merge --no-ff` per policy); branch deletion likewise waits for step 4.
-2. Transition the task to `Done` (GitHub backend: confirm the linked issue auto-closed as
+For a GitHub PR, the post-approval invocation is:
+
+```bash
+uv run <plugin-root>/scripts/github_pr.py merge-cleanup \
+  --repo <canonical-owner/repo> \
+  --pr <number> \
+  --checkout <base-checkout> \
+  --expected-head <full-verified-sha> \
+  --merge-policy <squash|merge> \
+  --base-remote <origin|upstream> \
+  --worktree <task-worktree> \
+  --delete-remote-branch \
+  --push-remote <push-remote>
+```
+
+On Claude Code the helper is `${CLAUDE_PLUGIN_ROOT}/scripts/github_pr.py`; on Codex it is
+`../../scripts/github_pr.py` relative to this `SKILL.md`. For a same-repository or
+maintainer-owned branch, pass the remote-deletion flags. Omit them for an external contributor's
+branch.
+
+On approval:
+
+0. Run the helper once. It rechecks the report-bound HEAD, mergeability, check state, clean base
+   checkout, worktree binding, and local/remote branch SHAs before merging. It merges with
+   `--match-head-commit`, verifies `MERGED`, removes the named worktree, fast-forwards the local
+   base, and deletes only the exact verified local and optional remote branches. Treat its JSON
+   receipt as the merge and cleanup evidence. Do not repeat its `gh`/`git` sequence or fall back to
+   manual commands. If it reports a conflicting or behind PR, rebase in the task worktree, push,
+   wait for CI, and obtain a fresh review when conflict resolution changed reviewed hunks. Rerun
+   the identical helper invocation after an interruption; a merged PR skips the merge and resumes
+   cleanup. With no GitHub remote, retain the existing local merge and cleanup path.
+1. Transition the task to `Done` (GitHub backend: confirm the linked issue auto-closed as
    completed, close it explicitly if not, and remove the now-stale `status:*` label -
    `gh issue edit <n> --remove-label status:in-review` - since `Closes #N` auto-close does
    not touch labels and a closed issue must carry none).
    For an external contribution there is no queue transition: confirm or perform canonical
    issue closure only, and never add or remove queue labels.
-3. Comment the merge commit / PR URL on the task or canonical contribution issue.
-4. Clean up, in order: `git worktree remove` the task worktree (this frees the branch),
-   then `rmdir ../<repo>-worktrees 2>/dev/null || true` (removes the container dir when
-   this was the last worktree in it; `rmdir` refuses non-empty dirs, so it is safe while
-   sibling task worktrees exist), then delete the branch - `git branch -d task/<id>-<slug>`
-   plus, with a remote, `git push origin --delete task/<id>-<slug>` - then update local
-   `main`. Confirm the remote branch is actually gone
-   (`git ls-remote --heads origin task/<id>-<slug>` prints nothing): this leak is silent
-   and easy to miss. Exception: for an external cross-repository PR, the fork branch belongs
-   to the contributor. A maintainer may remove a local verification worktree or temporary
-   local ref, but must not delete the contributor-owned remote branch; fork branch cleanup
-   remains the contributor's responsibility.
+2. Comment the helper's merge commit / PR URL on the task or canonical contribution issue.
 
 Declined or deferred: leave everything as-is and report what the human decided.
 
@@ -256,5 +261,5 @@ Declined or deferred: leave everything as-is and report what the human decided.
 
 A spike verifies differently: evidence is the ADR in `docs/adr/` plus the recommendation
 comment on the task. No merge - the spike branch is throwaway. Confirm both artifacts exist,
-transition to `Done`, delete the branch and worktree (same cleanup as step 4 above,
-including the empty-container `rmdir`).
+transition to `Done`, then remove its worktree and local branch. Remove the empty worktree
+container directory when this was its final worktree.

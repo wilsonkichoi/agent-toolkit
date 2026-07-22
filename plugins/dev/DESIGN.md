@@ -419,6 +419,26 @@ tasks, malformed labels, successful verified transitions, and failed or unobserv
 Repository validation runs those tests and checks that execute, review, and verify retain the
 shared transition and classification contracts.
 
+## Deterministic GitHub PR operations (dev 0.0.62, 2026-07-22)
+
+PR merge and branch cleanup are useful both inside and outside the tracker-backed lifecycle. The
+old model-driven sequence spent context on repeated `gh`/`git` choreography and could partially
+complete when a worktree still held the branch. Coupling the solution only to `dev:verify` would
+exclude ad hoc work; placing it in another plugin would create an optional cross-plugin dependency.
+
+The dependency-free `scripts/github_pr.py` command is the single implementation and exposes three
+independent operations: `merge`, `cleanup`, and `merge-cleanup`. `merge` has no local-checkout side
+effects. `cleanup` requires GitHub to report the PR as merged. `merge-cleanup` validates cleanup
+inputs before mutation and resumes safely after an interrupted merge. All merge paths bind the
+current PR head through `--match-head-commit`; cleanup validates remote identity, worktree state,
+and exact local/remote branch SHAs before deletion.
+
+`dev:merge-pr` is the lightweight ad hoc skill. It explicitly skips tracker config, task packets,
+project bootstrap, DoD evidence, and delegated agents. `dev:verify` calls the same executable only
+after its independent evidence and human-approval gates. The helper contains no lifecycle policy,
+so neither entry point owns a second copy or depends on the other skill. Network-free tests cover
+all three operations and their destructive-action guards.
+
 ## Secondary intake channel (GitHub-native work on a non-GitHub-primary project)
 
 Added after Milestone 2 dogfooding surfaced a real gap: a project whose primary tracker is

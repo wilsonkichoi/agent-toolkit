@@ -21,7 +21,7 @@ Four rules explain every skill's behavior:
    and inlined spec excerpts travel with the task, so a fresh session can execute it without
    prior context.
 3. **The quality loop is PR-native.** PR + CI + PR review comments are the review medium; no
-   custom review files. `dev:execute` never merges; `dev:verify` is the only merger.
+   custom review files. `dev:execute` never merges; `dev:verify` is the only lifecycle merger.
 4. **The memory loop is closed.** Execution produces evidence (PR threads, CI history,
    work-summary comments); `dev:retro` distills it; approved learnings land as rule files
    under `rules_dir` (default `.agent-toolkit/rules/`). Task-scoped lifecycle skills resolve
