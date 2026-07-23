@@ -42,7 +42,11 @@ This conflicts with two checked-in contracts. The repository has no `docs/PRD.md
 ## Evidence
 
 All four reproductions below run against the plugin resolver at the evidence revision. The exact
-fixture script is in [Appendix A](#appendix-a-reproduction-script); each block is verbatim output.
+fixture script is in [Appendix A](#appendix-a-reproduction-script). Every quoted line is verbatim
+resolver output, with two presentational edits: the three-line header the resolver always prints
+(`Tracker repository:`, `Execution repository:`, `Execution revision:`) is elided, because it
+carries only the temporary fixture path and its commit; and where the process exit status is part
+of the claim, it is annotated as a trailing `exit=0` that the resolver itself does not print.
 
 ### E1. A non-matching gotcha is reported as skipped
 
@@ -87,12 +91,12 @@ project"](https://code.claude.com/docs/en/memory), "Import additional files") st
 > Import parsing skips Markdown code spans and fenced code blocks. To mention a path in your
 > CLAUDE.md without importing it, wrap it in backticks.
 
-This repository's own chain is three hops of the four available: `CLAUDE.md` (whose entire body is
-`@AGENTS.md`) → `AGENTS.md` line 6 (`Dev workflow (agent-toolkit dev plugin):
+This repository's own chain spends three of the four available hops: `CLAUDE.md` (whose entire body
+is `@AGENTS.md`) → `AGENTS.md` line 9 (`Dev workflow (agent-toolkit dev plugin):
 @.agent-toolkit/dev.md`) → `.agent-toolkit/dev.md` → the `@` lines under its `## Rules` section.
 Observed directly: a Claude Code session opened in this repository receives the full text of
 `AGENTS.md` **and** `.agent-toolkit/dev.md`, including the `## Rules` heading, as launch context
-without any tool call. Rule files sit at hop four, inside the documented limit.
+without any tool call. Rule files are reached on the third hop, inside the documented limit.
 
 The repository already asserts this as intended behavior, in
 `plugins/dev/skills/setup/SKILL.md` (step 4, "Add the reference line"):
