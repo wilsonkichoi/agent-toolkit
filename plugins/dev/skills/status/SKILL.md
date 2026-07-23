@@ -102,14 +102,19 @@ Flag, do not fix:
 - Missing reference line: the configured `context_file` contains no reference to
   `.agent-toolkit/dev.md` → sessions start without the dev config and rules; suggest
   re-running `dev:setup` (it adds the single line and touches nothing else).
-- Unregistered rules: files exist in `rules_dir` that the `## Rules` section of
-  `.agent-toolkit/dev.md` does not import → invisible to future sessions; suggest adding
-  the missing import lines.
-- Invalid rule graph or metadata: run the plugin's `scripts/resolve_project_rules.py` with
-  empty task text and no changed paths. Import cycles, imports outside `rules_dir`, invalid
-  tiers, and trigger-free gotchas are configuration errors; report them. Unmatched gotchas
-  in `Rules skipped:` are healthy, not missing rules.
+- Unclassified rule files: run the plugin's `scripts/resolve_project_rules.py` with empty
+  task text and no changed paths. Discovery hard-stops when any Markdown file under
+  `rules_dir` carries no frontmatter, no `tier`, malformed frontmatter, an unknown tier, a
+  trigger-free `tier: gotcha`, or an `@` import line - the diagnostic names every offending
+  path. Report them and suggest `dev:setup`, which performs the migration. This blocks every
+  task-scoped lifecycle skill in the project, so report it as an error, not an observation.
+  Unmatched gotchas in `Rules skipped:` are healthy, not missing rules, and files under
+  `Rules excluded:` are `tier: none` non-rules their author marked deliberately.
+- Resolver warnings: report anything under the resolver's `Warnings:` section. Leftover `@`
+  import lines under the dev config's `## Rules` section and a `rules_dir` inside a harness
+  auto-load path (`.claude/rules/`) both over-include context without breaking correctness;
+  suggest `dev:setup` for the former.
 - Legacy memory config: `context_file` set with no `rules_dir` (the 0.0.42-0.0.53 mixed
   config, rules consolidated inside the context file) → reads keep working, but `dev:retro`
-  holds new promotions as proposals until the config migrates (no import chain exists for
-  rule files); suggest running `dev:setup` to migrate and write explicit fields.
+  holds new promotions as proposals until the config migrates (no `rules_dir` exists for
+  discovery to read); suggest running `dev:setup` to migrate and write explicit fields.

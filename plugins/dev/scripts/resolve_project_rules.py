@@ -27,6 +27,12 @@ CONFIG_PATHS = (
 IMPORT_RE = re.compile(r"^\s*@(?P<path>\S+)\s*$")
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---(?:\n|\Z)", re.DOTALL)
 TRIGGER_NAMES = ("paths", "objective", "definition_of_done")
+HARNESS_AUTOLOAD_DIRS = (Path(".claude/rules"), Path.home() / ".claude/rules")
+UNCLASSIFIED_REMEDY = (
+    "Remedy per file: declare `tier: doctrine`, or `tier: gotcha` with at least one "
+    "trigger, to load it as a rule; or declare `tier: none` to mark it a non-rule that "
+    "stays in place."
+)
 
 
 class ResolutionError(ValueError):
@@ -48,6 +54,8 @@ class Resolution:
     project_instructions: tuple[str, ...]
     rules_loaded: tuple[RuleResult, ...]
     rules_skipped: tuple[RuleResult, ...]
+    rules_excluded: tuple[RuleResult, ...]
+    warnings: tuple[str, ...]
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -265,49 +273,80 @@ def gotcha_matches(
     return tuple(dict.fromkeys(matches))
 
 
-def resolve_rule_files(
-    config: Path,
-    config_text: str,
-    execution_repo: Path,
-    rules_dir: Path,
-) -> tuple[Path, ...]:
-    roots = rules_section_imports(config_text)
-    resolved: list[Path] = []
-    visited: set[Path] = set()
-    active: list[Path] = []
+def discover_rule_files(execution_repo: Path, rules_dir: Path) -> tuple[Path, ...]:
+    """Enumerate every Markdown file under rules_dir, deepest paths included.
 
-    def visit(path: Path) -> None:
-        if path in active:
-            cycle = " -> ".join(
-                relative_to_repo(item, execution_repo) for item in (*active, path)
-            )
-            raise ResolutionError(f"rule import cycle: {cycle}")
-        if path in visited:
+    Discovery, not registration, is what makes a rule file reachable: a file that exists
+    on disk can never be silently absent from resolution. A symlink whose target leaves
+    the execution repository is a hard stop, which carries forward the path-escape
+    guarantee the retired import graph enforced on each edge.
+    """
+    if not rules_dir.is_dir():
+        return ()
+    discovered: list[Path] = []
+    visited_directories: set[Path] = set()
+
+    def walk(directory: Path) -> None:
+        resolved_directory = directory.resolve()
+        if resolved_directory in visited_directories:
             return
-        try:
-            path.relative_to(rules_dir)
-        except ValueError as error:
-            raise ResolutionError(
-                f"rule import is outside configured rules_dir: {relative_to_repo(path, execution_repo)}"
-            ) from error
-        text = read_text(path)
-        imports = all_imports(text)
-        active.append(path)
-        if imports:
-            if scalar(frontmatter(text), "tier"):
-                raise ResolutionError(
-                    f"rule index cannot also declare tier: {relative_to_repo(path, execution_repo)}"
-                )
-            for reference in imports:
-                visit(resolve_project_path(reference, path, execution_repo))
-        else:
-            resolved.append(path)
-        active.pop()
-        visited.add(path)
+        visited_directories.add(resolved_directory)
+        for entry in sorted(directory.iterdir()):
+            if entry.is_symlink():
+                relative_to_repo(entry.resolve(), execution_repo)
+            if entry.is_dir():
+                walk(entry)
+            elif entry.is_file() and entry.suffix == ".md":
+                discovered.append(entry)
 
-    for reference in roots:
-        visit(resolve_project_path(reference, config, execution_repo))
-    return tuple(resolved)
+    walk(rules_dir)
+    return tuple(
+        sorted(discovered, key=lambda path: relative_to_repo(path, execution_repo))
+    )
+
+
+def classify_rule(rule_text: str) -> tuple[str | None, str, str]:
+    """Return the declared tier, why an unclassified file failed, and its metadata.
+
+    Anything that is not an explicit `doctrine`, a `gotcha` carrying a trigger, or `none`
+    is unclassified; silence is never read as consent.
+    """
+    metadata_match = FRONTMATTER_RE.match(rule_text)
+    if metadata_match is None:
+        reason = (
+            "malformed frontmatter" if rule_text.startswith("---\n") else "no frontmatter"
+        )
+        return None, reason, ""
+    metadata = metadata_match.group("body")
+    declared_tier = scalar(metadata, "tier")
+    if declared_tier is None:
+        return None, "frontmatter does not declare tier", metadata
+    if declared_tier in ("doctrine", "none"):
+        return declared_tier, "", metadata
+    if declared_tier != "gotcha":
+        return None, f"unknown tier {declared_tier!r}", metadata
+    if not any(trigger_metadata(metadata).values()):
+        return None, "tier: gotcha declares no trigger", metadata
+    return declared_tier, "", metadata
+
+
+def harness_autoload_warning(execution_repo: Path, rules_dir: Path) -> str | None:
+    relative_rules_dir = relative_to_repo(rules_dir, execution_repo)
+    for autoload_dir in HARNESS_AUTOLOAD_DIRS:
+        candidate = (
+            execution_repo / autoload_dir if not autoload_dir.is_absolute()
+            else autoload_dir
+        )
+        if rules_dir == candidate or candidate in rules_dir.parents:
+            return (
+                f"rules_dir {relative_rules_dir} is inside the harness native auto-load "
+                f"path {autoload_dir.as_posix()}; a harness loads those files at session "
+                "start regardless of tier, so gotcha rules reported under 'Rules skipped:' "
+                "and files marked 'tier: none' may still be in context. Over-inclusion is "
+                "reported, never a stop; move rules_dir to .agent-toolkit/rules/ to get "
+                "parity."
+            )
+    return None
 
 
 def resolve(
@@ -366,34 +405,65 @@ def resolve(
         for path in (context_file, config)
         if path is not None
     )
-    terminal_rules = resolve_rule_files(config, config_text, execution_repo, rules_dir)
+    discovered_rules = discover_rule_files(execution_repo, rules_dir)
     loaded: list[RuleResult] = []
     skipped: list[RuleResult] = []
-    for rule_path in terminal_rules:
-        rule_text = read_text(rule_path)
-        metadata_match = FRONTMATTER_RE.match(rule_text)
+    excluded: list[RuleResult] = []
+    unclassified: list[str] = []
+    with_imports: list[str] = []
+    classified: list[tuple[str, str, str]] = []
+
+    for rule_path in discovered_rules:
         relative_rule = relative_to_repo(rule_path, execution_repo)
-        if metadata_match is None and rule_text.startswith("---\n"):
-            raise ResolutionError(f"invalid rule frontmatter: {relative_rule}")
-        metadata = metadata_match.group("body") if metadata_match else ""
-        declared_tier = scalar(metadata, "tier")
-        if metadata_match is not None and declared_tier is None:
-            raise ResolutionError(
-                f"terminal rule frontmatter must declare tier: {relative_rule}"
-            )
-        tier = declared_tier or "doctrine"
-        if tier == "doctrine":
-            reason = "tier:doctrine" if declared_tier else "legacy-default:doctrine"
-            loaded.append(RuleResult(relative_rule, tier, (reason,)))
+        rule_text = read_text(rule_path)
+        if all_imports(rule_text):
+            with_imports.append(relative_rule)
             continue
-        if tier != "gotcha":
-            raise ResolutionError(f"invalid rule tier {tier!r}: {relative_rule}")
-        triggers = trigger_metadata(metadata)
-        if not any(triggers.values()):
-            raise ResolutionError(f"gotcha rule has no triggers: {relative_rule}")
-        matches = gotcha_matches(triggers, objective, definition_of_done, changed_paths)
-        result = RuleResult(relative_rule, tier, matches)
-        (loaded if matches else skipped).append(result)
+        tier, reason, metadata = classify_rule(rule_text)
+        if tier is None:
+            unclassified.append(f"{relative_rule} ({reason})")
+        else:
+            classified.append((relative_rule, tier, metadata))
+
+    if with_imports:
+        raise ResolutionError(
+            "rule file contains an `@` import line; rule files are terminal under "
+            "discovery, so an import cannot be resolved and its target would load "
+            f"unclassified: {', '.join(with_imports)}. Remedy per file: inline the "
+            "imported content, or split it into its own tiered file under rules_dir."
+        )
+    if unclassified:
+        raise ResolutionError(
+            "rules_dir contains unclassified Markdown; discovery loads every Markdown "
+            "file under rules_dir, so an unclassified file is a hard stop rather than a "
+            f"silently dropped rule: {', '.join(unclassified)}. {UNCLASSIFIED_REMEDY}"
+        )
+
+    for relative_rule, tier, metadata in classified:
+        if tier == "none":
+            excluded.append(RuleResult(relative_rule, tier, ("tier:none",)))
+        elif tier == "doctrine":
+            loaded.append(RuleResult(relative_rule, tier, ("tier:doctrine",)))
+        else:
+            matches = gotcha_matches(
+                trigger_metadata(metadata), objective, definition_of_done, changed_paths
+            )
+            result = RuleResult(relative_rule, tier, matches)
+            (loaded if matches else skipped).append(result)
+
+    warnings: list[str] = []
+    autoload_warning = harness_autoload_warning(execution_repo, rules_dir)
+    if autoload_warning:
+        warnings.append(autoload_warning)
+    leftover_imports = rules_section_imports(config_text)
+    if leftover_imports:
+        warnings.append(
+            f"{relative_to_repo(config, execution_repo)} still carries "
+            f"{len(leftover_imports)} `@` import line(s) under `## Rules`: "
+            f"{', '.join(leftover_imports)}. Discovery ignores them, but a harness that "
+            "expands imports still loads those files unconditionally, defeating gotcha "
+            "triggers. Run dev:setup to remove them."
+        )
 
     return Resolution(
         tracker_repository=str(tracker_repo),
@@ -402,6 +472,8 @@ def resolve(
         project_instructions=instruction_paths,
         rules_loaded=tuple(loaded),
         rules_skipped=tuple(skipped),
+        rules_excluded=tuple(excluded),
+        warnings=tuple(warnings),
     )
 
 
@@ -426,6 +498,14 @@ def render_text(result: Resolution) -> str:
         for rule in result.rules_skipped
     )
     if not result.rules_skipped:
+        lines.append("- none")
+    lines.append("Rules excluded:")
+    lines.extend(f"- {rule.path} [tier:none]" for rule in result.rules_excluded)
+    if not result.rules_excluded:
+        lines.append("- none")
+    lines.append("Warnings:")
+    lines.extend(f"- {warning}" for warning in result.warnings)
+    if not result.warnings:
         lines.append("- none")
     return "\n".join(lines)
 

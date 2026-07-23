@@ -31,4 +31,6 @@ rules_dir: .agent-toolkit/rules/
 
 ## Rules
 
-<!-- managed by dev:retro: one `@.agent-toolkit/rules/<slug>.md` import line per promoted rule -->
+<!-- Rule files are discovered under `rules_dir`; this section is not a registry.
+     Add a rule by writing `<rules_dir>/<slug>.md` with `tier` frontmatter -
+     see plugins/dev/runtime_contracts/project-bootstrap.md. -->
