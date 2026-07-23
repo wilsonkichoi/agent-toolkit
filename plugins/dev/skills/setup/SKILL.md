@@ -109,19 +109,50 @@ migration is safe but optional. Full consumer-migration steps:
    the config) in the same commit; leave historical records as they are.
 3. Set `rules_dir` explicitly. Default `.agent-toolkit/rules/`; keep an existing location
    (e.g. `.claude/rules/`) as the value instead when the project - or anything downstream of
-   it, such as a template it ships - already depends on that path. Moving rule files is
-   optional; registering them is not.
-4. Register every rule file as an import line in the `## Rules` section of
-   `.agent-toolkit/dev.md`. Add `tier: doctrine` frontmatter for an always-applicable rule, or
-   `tier: gotcha` plus deterministic `paths`, `objective`, and/or `definition_of_done`
-   triggers. Legacy terminal rules without metadata load as doctrine until retro next updates
-   them. See `runtime_contracts/project-bootstrap.md`.
+   it, such as a template it ships - already depends on that path, accepting the harness
+   auto-load parity caveat in `runtime_contracts/project-bootstrap.md`. Moving rule files is
+   optional; classifying them is not.
+4. Run the rule-discovery migration below. Rules are discovered, not registered, so every
+   Markdown file under `rules_dir` must declare its own `tier` - and until every one does, the
+   resolver hard-stops and every task-scoped lifecycle skill in the project is blocked.
 5. Ensure the configured `context_file` carries the single reference line
    (`@.agent-toolkit/dev.md`). Rules previously consolidated into `AGENTS.md` may stay there
    (the project owns that file and its content) or move back out to `rules_dir` files - the
    project's call, never the plugin's.
 6. Verify with `dev:status`: its consistency checks cover duplicate configs, a missing
-   reference line, unregistered rules, and the legacy mixed config.
+   reference line, unclassified rule files, resolver warnings, and the legacy mixed config.
+
+### Rule-discovery migration
+
+Projects configured before 0.0.64 kept a registry of `@` import lines under the dev config's
+`## Rules` section, and an unclassified rule file silently loaded as doctrine. Neither holds
+now. Migrate with the bundled helper, which reports its plan before it writes:
+
+```bash
+uv run <plugin-root>/scripts/migrate_rules.py --repo <project-dir>
+uv run <plugin-root>/scripts/migrate_rules.py --repo <project-dir> --apply
+```
+
+On Claude Code `<plugin-root>` is `${CLAUDE_PLUGIN_ROOT}`; on Codex the script is
+`../../scripts/migrate_rules.py` relative to this skill's directory. Run the dry form first and
+show the user the plan. The helper is idempotent - re-running it on a migrated project reports
+no changes - and it covers the migration cases without guessing:
+
+- **Registry entries** under `## Rules` are removed, in both the 0.0.56+ bare `@path` form and
+  the pre-0.0.56 descriptive or backticked list form that no consumer ever resolved.
+- **Registered files lacking a tier** are stamped `tier: doctrine` - the tier the registry
+  implied for every entry, so post-migration behavior matches what the project had. A file with
+  existing frontmatter keeps its keys; the tier is inserted.
+- **A project with no registry entries** is left untouched.
+- **Unregistered or unfixable files** (no frontmatter, malformed frontmatter, an unknown tier, a
+  trigger-free gotcha, an `@` import line) are reported as decisions, never rewritten. Present
+  each named file to the user with both options - declare a tier to keep it as a rule, or
+  `tier: none` to keep it in place as a non-rule - or move it out of `rules_dir`. Do not choose
+  for them; an unmarked file staying unmarked is a blocked resolver, which is the intended
+  failure direction.
+
+Report every file the helper changed and every decision still outstanding. Finish by running
+`resolve_project_rules.py` against the project to confirm it exits 0.
 
 **Template and framework repos:** a repo that others clone or instantiate must not ship its own
 dev-plugin state to consumers - adopting this plugin is each project's decision, never
@@ -148,8 +179,9 @@ Project conventions the fields cannot capture go here as free text.
 
 ## Rules
 
-<!-- managed by dev:retro: one `@.agent-toolkit/rules/<slug>.md` import line per promoted rule;
-     rule tier/trigger frontmatter follows runtime_contracts/project-bootstrap.md -->
+<!-- Rule files are discovered under `rules_dir`; this section is not a registry.
+     Add a rule by writing `<rules_dir>/<slug>.md` with `tier` frontmatter -
+     see runtime_contracts/project-bootstrap.md. -->
 ```
 
 When Q6 enables fork contributions, add both fields below. Do not add either field when the
@@ -205,9 +237,11 @@ Add one line to the configured `context_file` so every session loads the dev con
 Dev workflow (agent-toolkit dev plugin): @.agent-toolkit/dev.md
 ```
 
-On Claude Code the `@` import inlines `dev.md` (config frontmatter, conventions body, and
-the rule imports its `## Rules` section carries) at session start; on other harnesses the
-same line reads as an instruction with a path to follow. This line is the only edit setup
+On Claude Code the `@` import inlines `dev.md` (config frontmatter and conventions body) at
+session start; on other harnesses the same line reads as an instruction with a path to follow.
+It does not reach rule files, and must not: rules are discovered by the resolver at the task's
+execution revision, so gotchas that do not apply stay out of context on every harness. This
+line is the only edit setup
 makes to a project context file. Brownfield: append it; touch nothing else. Greenfield (no
 context file at all): create a lean one (< 50 lines) stating the project name, pointing to
 `docs/PRD.md`, `docs/SPEC.md`, `docs/ROADMAP.md`, `docs/adr/`, and naming the tracker

@@ -210,9 +210,9 @@ orchestrator holds the implementer's report, so it is not independent.
    Any criterion unmet, or manual without a recorded sign-off → post the verification report,
    leave `In Review`, stop and tell the human exactly what needs them.
 6. **Retro (record-only)** - run `dev:retro` for the task with promotions in proposal mode:
-   post the retro comment including proposed rule promotions, but never write to the
-   configured `rules_dir` or `.agent-toolkit/dev.md` (legacy safety-net fallback when both
-   memory fields are absent: `.claude/rules/` and `CLAUDE.md`) unattended. Standing
+   post the retro comment including proposed rule promotions, but never write a rule file into
+   the configured `rules_dir` (legacy safety-net fallback when both memory fields are absent:
+   `.claude/rules/`) unattended. Standing
    instructions change only with a human in the loop; proposals accumulate for a later
    `dev:retro milestone N` pass.
 7. **Next** - for milestone/no-target queue mode, loop to step 1. For task-id mode, stop

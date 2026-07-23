@@ -113,10 +113,10 @@ Promotion targets, by `memory_target` in `.agent-toolkit/dev.md` (default `files
 
 - **`files`:** write one atomic rule per file in `<rules_dir>/<slug>.md` (a rule future
   sessions must obey; `rules_dir` from `.agent-toolkit/dev.md`, default
-  `.agent-toolkit/rules/` when the field is absent), then register it: append an
-  `@<rules_dir><slug>.md` import line to the `## Rules` section of `.agent-toolkit/dev.md`.
-  Every session reaches the rules through the context file's single reference line to
-  `dev.md`; an unregistered rule file is invisible. Pointers and summaries that are not
+  `.agent-toolkit/rules/` when the field is absent). Writing the file with `tier` frontmatter
+  is the whole promotion - the resolver discovers every Markdown file under `rules_dir`, so
+  there is no registration step and never an `@` import line to append. Do not edit the
+  `## Rules` section; it is not a registry. Pointers and summaries that are not
   rules go in the `dev.md` conventions body. Never write rules or summaries into
   `AGENTS.md`/`CLAUDE.md` themselves - those files are project-owned, and the plugin's only
   line there is the `dev:setup` reference line. Legacy configs: when the config still lives
@@ -124,8 +124,8 @@ Promotion targets, by `memory_target` in `.agent-toolkit/dev.md` (default `files
   `.claude/rules/` + `CLAUDE.md` (the pre-port behavior, kept as a safety net); when it
   sets `context_file` but omits `rules_dir` (the 0.0.42-0.0.53 mixed config that
   consolidated rules inside the context file), do NOT write rule files: no
-  `.agent-toolkit/dev.md` or reference line exists there, so a new rule file would be
-  unregistered and invisible to every future session. Leave existing consolidated rules
+  `.agent-toolkit/dev.md` exists there, so `rules_dir` is undefined and a new rule file has
+  no discoverable home. Leave existing consolidated rules
   where they are, list the promotions in the retro comment as "proposed, blocked on config
   migration", and tell the user to run `dev:setup` (it performs the migration); apply the
   promotions only once the migrated config exists.
@@ -136,12 +136,12 @@ Promotion targets, by `memory_target` in `.agent-toolkit/dev.md` (default `files
   target (`rules_dir`, legacy fallback `.claude/rules/`) - files are the only target every
   future session is guaranteed to load.
 
-Every new or updated file rule follows `runtime_contracts/project-bootstrap.md` metadata. Use
+Every new or updated file rule follows `runtime_contracts/project-bootstrap.md` discovery. Use
 `tier: doctrine` only when the rule applies to every lifecycle invocation. Otherwise use
 `tier: gotcha` with the narrowest deterministic `paths`, `objective`, and/or
 `definition_of_done` triggers that cover the cited failure. Do not create a trigger-free
-gotcha. Legacy metadata-free rules remain valid and load as doctrine, but any rule retro
-touches must be migrated explicitly.
+gotcha, and never write an unclassified file into `rules_dir`: discovery hard-stops on it, so
+an unclassified promotion breaks every later lifecycle run in the project.
 
 Standards for a promotable learning: evidence-cited (link the PR finding / CI run / comment),
 generalizable beyond the one task, and actionable as an instruction ("run X before Y"), never
@@ -151,7 +151,7 @@ applied" - stopping the turn to ask is how a drafted retro ends up existing only
 Apply on approval, then append the follow-up comment per section 4.
 
 **Commit applied promotions immediately** (with the user's consent, as with every gate): one
-dedicated commit on `main` for the rule and `dev.md` changes, before any next task starts -
+dedicated commit on `main` for the rule files, before any next task starts -
 and with a remote, push it: task worktrees branch from local `main`, so an unpushed
 promotion commit silently rides into the next task's PR diff. Task
 worktrees check out `main`'s committed HEAD, so an uncommitted rule is invisible to the next

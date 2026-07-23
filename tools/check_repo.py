@@ -404,6 +404,51 @@ def check_project_rule_resolver() -> None:
         raise CheckFailure(f"project rule resolver tests failed:\n{details}")
 
 
+def check_rule_migration() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools/test_migrate_rules.py")],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise fail(
+            ROOT / "tools/test_migrate_rules.py",
+            "rule-migration tests failed\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}",
+        )
+
+
+def check_rule_discovery_contract() -> None:
+    """Rules are discovered, never registered; no surface may teach otherwise."""
+    bootstrap = ROOT / "plugins/dev/runtime_contracts/project-bootstrap.md"
+    bootstrap_content = " ".join(bootstrap.read_text(encoding="utf-8").split())
+    for required in (
+        "Every Markdown file under the configured `rules_dir`",
+        "`tier: none`",
+        "Under-inclusion is a hard stop",
+        "an `@` import line inside a discovered file",
+    ):
+        if required not in bootstrap_content:
+            raise fail(bootstrap, f"rule-discovery contract must state {required!r}")
+
+    # A whole-line bare `@<path>.md` is registry syntax. The only legitimate one is the
+    # context file's reference line, which always carries prose before the path.
+    registry_line = re.compile(r"(?m)^\s*@\S+\.md\s*$")
+    surfaces = [ROOT / "AGENTS.md", ROOT / "README.md"]
+    surfaces.extend(sorted((ROOT / "plugins/dev").rglob("*.md")))
+    for path in surfaces:
+        content = path.read_text(encoding="utf-8")
+        match = registry_line.search(content)
+        if match:
+            raise fail(
+                path,
+                "surface teaches rule registration with a bare import line "
+                f"{match.group(0).strip()!r}; rules are discovered under rules_dir",
+            )
+
+
 def check_github_task_lifecycle() -> None:
     result = subprocess.run(
         [sys.executable, str(ROOT / "tools/test_github_task_lifecycle.py")],
@@ -722,6 +767,8 @@ CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("agent-sources-and-outputs", check_agent_sources_and_outputs),
     ("generator-drift", check_generator_drift),
     ("project-rule-resolver", check_project_rule_resolver),
+    ("rule-migration", check_rule_migration),
+    ("rule-discovery-contract", check_rule_discovery_contract),
     ("github-task-lifecycle", check_github_task_lifecycle),
     ("github-pr-helper", check_github_pr_helper),
     ("shadow-replay", check_shadow_replay),

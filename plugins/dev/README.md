@@ -211,10 +211,11 @@ Four rules explain every skill's behavior:
    custom review files. `dev:execute` never merges; `dev:verify` is the only lifecycle merger.
 4. **The memory loop is closed.** Execution produces evidence (PR threads, CI history,
    work-summary comments); `dev:retro` distills it; approved learnings land as rule files
-   under `rules_dir` (default `.agent-toolkit/rules/`). Task-scoped lifecycle skills resolve
-   the execution repository at the expected task or PR revision and load those rules through
-   the deterministic [project bootstrap](runtime_contracts/project-bootstrap.md), independent of harness import
-   expansion.
+   under `rules_dir` (default `.agent-toolkit/rules/`). Writing the file is the whole
+   promotion - task-scoped lifecycle skills resolve the execution repository at the expected
+   task or PR revision and *discover* every rule file there through the deterministic
+   [project bootstrap](runtime_contracts/project-bootstrap.md), independent of harness import
+   expansion. There is no registry to fall out of sync with the directory.
 
 ## Prerequisites
 
@@ -240,8 +241,9 @@ Four rules explain every skill's behavior:
 
 Written by `dev:setup`, committed and team-shared. Structured fields live in YAML
 frontmatter; the markdown body holds free-text conventions skills cannot parse (e.g. "all API
-changes need a migration note in the PR body") plus a `## Rules` section importing the
-promoted rule files under `rules_dir`. `.agent-toolkit/dev.local.md` (gitignored) overrides
+changes need a migration note in the PR body"). Rule files are discovered under `rules_dir`, so
+the config carries no rule registry: a `## Rules` section holding `@` import lines is a retired
+pre-0.0.64 form that `dev:setup` migrates away. `.agent-toolkit/dev.local.md` (gitignored) overrides
 fields per developer. Everything the plugin owns lives under `.agent-toolkit/`; the project's
 context file carries a single reference line to `dev.md` and is otherwise never touched.
 Legacy locations: `.agent/dev.md`, then `.claude/dev.md` - every skill reads
@@ -262,7 +264,7 @@ until its config file migrates.
 | `max_fix_attempts` | `3` | `execute`, `auto` | CI-fix or review-fix cycles before the task goes `Blocked` with a diagnostic comment |
 | `max_tasks_per_run` | `5` | `execute` loop mode, `auto` | Batch cap per unattended run |
 | `auto_merge` | `false` | `auto`, `verify` | Standing merge approval for `dev:auto`; see Unattended operation |
-| `rules_dir` | `.agent-toolkit/rules/` | task-scoped lifecycle skills, `retro`, `status` | Directory of promoted rule files, one per rule, each registered from the dev config's `## Rules` section and selected by the project-bootstrap tier/trigger contract; point it at an existing convention (e.g. `.claude/rules/`) when the project already has one |
+| `rules_dir` | `.agent-toolkit/rules/` | task-scoped lifecycle skills, `retro`, `status` | Directory of promoted rule files, one per rule. Every Markdown file under it, at any depth, is discovered and must declare its own `tier` (`doctrine`, `gotcha` + triggers, or `none`); an unclassified file is a hard stop. Point it at an existing convention (e.g. `.claude/rules/`) when the project already has one, accepting the parity caveat below |
 | `context_file` | `AGENTS.md` | task-scoped lifecycle skills, `setup`, `status` | Project-owned context file loaded from the resolved execution repository; it carries the single `@.agent-toolkit/dev.md` reference line (`CLAUDE.md` on Claude-only projects), and the plugin writes nothing else there |
 | `memory_target` | `files` | `retro` | Where promotions land: the configured `rules_dir` files, or a memory MCP system (see Third-party memory systems below) |
 | `github_primary_repo` | - | every skill in fork-configured projects | Canonical `owner/repo` that owns primary GitHub issues and PRs; only valid with `tracker: github` and `fork_contributions: true` |
@@ -270,6 +272,47 @@ until its config file migrates.
 | `secondary_intake` | - | `execute`, `review-pr`, `verify`, `backlog`, `status` | Opt into GitHub as an isolated-work channel on a non-github-primary project (`github`); see Secondary intake channel below |
 | `github_repo` | - | secondary-channel skills | `owner/repo` the secondary issues/PRs live in; only with `secondary_intake: github` |
 | `audit_trail` | `link` | secondary-channel skills | `link`: the PR/issue is the record. `mirror` (per-merge primary ticket) is reserved, not built |
+
+### Rule files: discovery, not registration
+
+Every Markdown file under `rules_dir`, at any depth, is a rule file. Adding a rule is dropping
+the file in; nothing points at it, and nothing can fall out of sync with the directory. Each
+file declares what it is in its own frontmatter:
+
+| Frontmatter | Behavior |
+|---|---|
+| `tier: doctrine` | Loaded on every lifecycle invocation |
+| `tier: gotcha` + at least one `paths` / `objective` / `definition_of_done` trigger | Loaded only when a trigger matches; otherwise reported under `Rules skipped:` |
+| `tier: none` | Not a rule - a README, an index, maintainer notes. Reported under `Rules excluded:` |
+
+Anything else - no frontmatter, no `tier`, an unterminated frontmatter block, an unknown tier, a
+trigger-free gotcha, or an `@` import line inside the file - **hard-stops the resolver**, naming
+every offending path. That is deliberate: a rule that should have loaded and did not is a silent
+correctness hole, while a rule that loaded needlessly only costs context. Under-inclusion stops;
+over-inclusion is warned about. Full contract:
+[runtime_contracts/project-bootstrap.md](runtime_contracts/project-bootstrap.md).
+
+**Upgrading from 0.0.63 or earlier.** Before 0.0.64 the `## Rules` section of the dev config was
+a registry of `@` import lines. It no longer is, and a rule file without `tier` frontmatter no
+longer defaults to doctrine - so a project carrying pre-0.0.64 rules hard-stops on its next
+lifecycle run until it migrates. Run `dev:setup`: it deletes the `@` entries, stamps
+`tier: doctrine` on unclassified rule files (the tier the registry implied for every registered
+entry, so behavior is unchanged), asks per remaining file whether it should be `tier: none` or
+move out of `rules_dir`, and reports every file it touches. It is idempotent; re-running it on a
+migrated project changes nothing. Repositories with no rules need no action. `dev:setup` drives
+the bundled helper, which also runs standalone - it reports its plan first and only writes with
+`--apply`:
+
+```bash
+uv run plugins/dev/scripts/migrate_rules.py --repo <project-dir>
+```
+
+**Parity caveat for `rules_dir: .claude/rules/`.** Claude Code auto-loads that directory at
+session start regardless of this plugin's `tier` frontmatter, so a skipped gotcha or a
+`tier: none` file can still be in a Claude Code session's context while the bootstrap record
+correctly reports it as not loaded. No registry model can prevent this; the resolver reports it
+as a warning and keeps going. `.agent-toolkit/rules/` is the location that gives every harness
+the same answer.
 
 ## Task lifecycle and ownership
 
@@ -313,7 +356,7 @@ which branches from `main`).
 | Spec + roadmap review | `architect` | `dev:plan` |
 | Plan dry run | `plan` | Packets pushed to the tracker at `Todo` |
 | Merge | `verify` | Merge per policy, task → `Done`, cleanup (carve-out: `auto_merge`, below) |
-| Rule promotion | `retro` | Learnings written to the configured `rules_dir` and registered in `dev.md` (legacy safety-net fallback when both memory fields are absent: `.claude/rules/` / CLAUDE.md) |
+| Rule promotion | `retro` | Learnings written as tiered rule files in the configured `rules_dir`, where discovery finds them (legacy safety-net fallback when both memory fields are absent: `.claude/rules/` / CLAUDE.md) |
 | `Backlog → Todo`, `Wont Do` | `backlog` | Task enters or leaves the committed queue |
 
 ## Manual review action boundaries
@@ -650,16 +693,15 @@ comment. The same shape covers Asana, Shortcut, Notion databases, etc.
 
 The plugin's only memory integration point is `dev:retro`'s promotion step. Default
 (`memory_target: files`, or field absent): learnings become `<rules_dir>/<slug>.md` files
-(default `.agent-toolkit/rules/`), each registered as an import line in
-`.agent-toolkit/dev.md` and reached by every session through the context file's single
-reference line - git-shared, zero latency.
+(default `.agent-toolkit/rules/`), each declaring its own `tier` and discovered by the
+project bootstrap - git-shared, zero latency, no registration step.
 
 Teams already running a memory system set `memory_target` in `.agent-toolkit/dev.md` frontmatter
 and retro stores learnings through that system's MCP tools instead:
 
 | `memory_target` | System | Storage | Recall path | Tradeoff vs files |
 |---|---|---|---|---|
-| `files` (default) | plain markdown | `rules_dir` (default `.agent-toolkit/rules/`) | task-scoped lifecycle skills run the deterministic project bootstrap against the execution repository; harness import expansion is optional | in git, zero latency, project-scoped only |
+| `files` (default) | plain markdown | `rules_dir` (default `.agent-toolkit/rules/`) | task-scoped lifecycle skills run the deterministic project bootstrap against the execution repository, discovering every tiered file under `rules_dir`; no harness import expansion is involved | in git, zero latency, project-scoped only |
 | `mem0` | Mem0 managed API | Mem0 cloud | Mem0 plugin injection / MCP search | cross-tool + cross-machine; data off-machine; managed service |
 | `openbrain` | OB1 / OpenBrain | self-owned Supabase pgvector | MCP search from any connected tool | cross-tool, self-owned; setup cost, query latency |
 | `memsearch` | MemSearch (Zilliz) | local markdown + Milvus shadow index | hook-injected semantic matches per prompt | local + cross-CLI-tool; machine-local only |

@@ -80,13 +80,12 @@ class ResolveProjectRulesTests(unittest.TestCase):
     def write_config(
         self,
         repository: Path,
-        imports: list[str],
         *,
         config_path: str = ".agent-toolkit/dev.md",
         context_file: str = "AGENTS.md",
         rules_dir: str = ".agent-toolkit/rules/",
+        rules_section: str = "",
     ) -> Path:
-        import_lines = "\n".join(f"@{path}" for path in imports)
         return self.write(
             repository,
             config_path,
@@ -97,7 +96,7 @@ class ResolveProjectRulesTests(unittest.TestCase):
             "---\n\n"
             "# Development configuration\n\n"
             "## Rules\n\n"
-            f"{import_lines}\n",
+            f"{rules_section}\n",
         )
 
     def resolver_process(
@@ -151,13 +150,14 @@ class ResolveProjectRulesTests(unittest.TestCase):
         expected_error: str,
         *arguments: str,
         execution_revision: str | None = None,
-    ) -> None:
+    ) -> str:
         result = self.resolver_process(
             *arguments,
             execution_revision=execution_revision,
         )
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn(expected_error, result.stderr)
+        return result.stderr
 
     def loaded_rules_by_name(self, result: dict[str, Any]) -> dict[str, dict[str, Any]]:
         return {Path(rule["path"]).name: rule for rule in result["rules_loaded"]}
@@ -167,11 +167,23 @@ class ResolveProjectRulesTests(unittest.TestCase):
     ) -> dict[str, dict[str, Any]]:
         return {Path(rule["path"]).name: rule for rule in result["rules_skipped"]}
 
+    def excluded_rules_by_name(
+        self, result: dict[str, Any]
+    ) -> dict[str, dict[str, Any]]:
+        return {Path(rule["path"]).name: rule for rule in result["rules_excluded"]}
+
     def execution_path(self, reported_path: str) -> Path:
         path = Path(reported_path)
         if not path.is_absolute():
             path = self.execution_repository / path
         return path.resolve()
+
+    def write_doctrine(self, relative_path: str, body: str = "Doctrine body.") -> Path:
+        return self.write(
+            self.execution_repository,
+            relative_path,
+            f"---\ntier: doctrine\n---\n\n{body}\n",
+        )
 
     def test_cross_repository_uses_execution_instructions_and_path_gotcha(self) -> None:
         tracker_agents = self.write(
@@ -179,10 +191,7 @@ class ResolveProjectRulesTests(unittest.TestCase):
             "AGENTS.md",
             "Tracker instructions must not be selected.\n",
         )
-        self.write_config(
-            self.tracker_repository,
-            [".agent-toolkit/rules/tracker-shell.md"],
-        )
+        self.write_config(self.tracker_repository)
         tracker_rule = self.write(
             self.tracker_repository,
             ".agent-toolkit/rules/tracker-shell.md",
@@ -204,11 +213,6 @@ class ResolveProjectRulesTests(unittest.TestCase):
         )
         execution_config = self.write_config(
             self.execution_repository,
-            [
-                ".project-rules/baseline.md",
-                ".project-rules/shell-safety.md",
-                ".project-rules/docs-only.md",
-            ],
             config_path=".agent/dev.md",
             rules_dir=".project-rules/",
         )
@@ -289,7 +293,7 @@ class ResolveProjectRulesTests(unittest.TestCase):
 
     def test_execution_checkout_must_match_expected_task_revision(self) -> None:
         self.write(self.execution_repository, "AGENTS.md", "Main instructions.\n")
-        self.write_config(self.execution_repository, [])
+        self.write_config(self.execution_repository)
         self.commit_execution_repository("main revision")
         self.run_git("checkout", "-b", "task/test-revision")
         self.write(self.execution_repository, "AGENTS.md", "Task instructions.\n")
@@ -303,7 +307,7 @@ class ResolveProjectRulesTests(unittest.TestCase):
 
     def test_revision_mismatch_error_states_the_stop_and_the_remedy(self) -> None:
         self.write(self.execution_repository, "AGENTS.md", "Main instructions.\n")
-        self.write_config(self.execution_repository, [])
+        self.write_config(self.execution_repository)
         self.commit_execution_repository("main revision")
         self.run_git("checkout", "-b", "task/test-remedy")
         self.write(self.execution_repository, "AGENTS.md", "Task instructions.\n")
@@ -321,52 +325,281 @@ class ResolveProjectRulesTests(unittest.TestCase):
         ):
             self.assertIn(expected, result.stderr)
 
-    def test_codex_resolves_three_import_indirections_to_terminal_rule(self) -> None:
-        self.write(self.execution_repository, "AGENTS.md", "Codex instructions.\n")
-        self.write_config(
-            self.execution_repository,
-            [".agent-toolkit/rules/chain/one.md"],
+    def test_discovery_loads_every_classified_file_without_registration(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository)
+        doctrine_rule = self.write_doctrine(".agent-toolkit/rules/guard-suite.md")
+        nested_doctrine = self.write_doctrine(
+            ".agent-toolkit/rules/backend/deep/migrations.md"
         )
-        self.write(
+        matching_gotcha = self.write(
             self.execution_repository,
-            ".agent-toolkit/rules/chain/one.md",
-            "@.agent-toolkit/rules/chain/two.md\n",
-        )
-        self.write(
-            self.execution_repository,
-            ".agent-toolkit/rules/chain/two.md",
-            "@.agent-toolkit/rules/chain/three.md\n",
-        )
-        terminal_rule = self.write(
-            self.execution_repository,
-            ".agent-toolkit/rules/chain/three.md",
+            ".agent-toolkit/rules/nested/shell.md",
             """
             ---
-            tier: doctrine
+            tier: gotcha
+            triggers:
+              paths:
+                - "scripts/**/*.sh"
             ---
-            Terminal Codex rule reached without harness import expansion.
+            Shell safety rule.
+            """,
+        )
+        unmatched_gotcha = self.write(
+            self.execution_repository,
+            ".agent-toolkit/rules/nested/docs.md",
+            """
+            ---
+            tier: gotcha
+            triggers:
+              paths:
+                - docs/README.md
+            ---
+            Documentation rule.
+            """,
+        )
+
+        result = self.run_resolver(
+            "--objective",
+            "Harden the release script",
+            "--definition-of-done",
+            "The release script is covered",
+            "--changed-path",
+            "scripts/release.sh",
+        )
+
+        loaded = self.loaded_rules_by_name(result)
+        self.assertEqual(
+            set(loaded),
+            {doctrine_rule.name, nested_doctrine.name, matching_gotcha.name},
+        )
+        self.assertEqual(loaded[nested_doctrine.name]["tier"], "doctrine")
+        self.assertEqual(
+            loaded[nested_doctrine.name]["path"],
+            ".agent-toolkit/rules/backend/deep/migrations.md",
+        )
+        self.assertEqual(set(self.skipped_rules_by_name(result)), {unmatched_gotcha.name})
+        self.assertEqual(result["rules_excluded"], [])
+        self.assertEqual(result["warnings"], [])
+
+    def test_each_unclassified_class_is_a_hard_stop(self) -> None:
+        unclassified_classes = {
+            "no frontmatter": "Rule body with no frontmatter at all.\n",
+            "malformed frontmatter": "---\ntier: doctrine\n\nUnterminated frontmatter.\n",
+            "frontmatter does not declare tier": (
+                "---\nteir: gotcha\n---\n\nMisspelled tier key.\n"
+            ),
+            "unknown tier 'advisory'": "---\ntier: advisory\n---\n\nUnknown tier.\n",
+            "tier: gotcha declares no trigger": (
+                "---\ntier: gotcha\n---\n\nTrigger-free gotcha.\n"
+            ),
+        }
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository)
+        self.write_doctrine(".agent-toolkit/rules/valid-doctrine.md")
+        offender = self.execution_repository / ".agent-toolkit/rules/offender.md"
+        for reason, content in unclassified_classes.items():
+            with self.subTest(reason=reason):
+                offender.write_text(content, encoding="utf-8")
+                try:
+                    stderr = self.assert_resolver_fails("unclassified Markdown")
+                    self.assertIn(f".agent-toolkit/rules/offender.md ({reason})", stderr)
+                    self.assertNotIn("valid-doctrine.md", stderr)
+                finally:
+                    offender.unlink()
+        self.assertEqual(
+            set(self.loaded_rules_by_name(self.run_resolver())), {"valid-doctrine.md"}
+        )
+
+    def test_unclassified_diagnostic_is_ordered_and_states_both_remedies(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository)
+        offenders = (
+            ".agent-toolkit/rules/a-no-frontmatter.md",
+            ".agent-toolkit/rules/b-no-tier.md",
+            ".agent-toolkit/rules/nested/c-unknown-tier.md",
+        )
+        self.write(
+            self.execution_repository, offenders[0], "No frontmatter here.\n"
+        )
+        self.write(
+            self.execution_repository, offenders[1], "---\nname: b\n---\n\nNo tier.\n"
+        )
+        self.write(
+            self.execution_repository, offenders[2], "---\ntier: maybe\n---\n\nBad.\n"
+        )
+
+        stderr = self.assert_resolver_fails("unclassified Markdown")
+
+        positions = [stderr.index(path) for path in offenders]
+        self.assertEqual(positions, sorted(positions), stderr)
+        self.assertIn("`tier: doctrine`", stderr)
+        self.assertIn("`tier: gotcha` with at least one trigger", stderr)
+        self.assertIn("`tier: none`", stderr)
+
+    def test_tier_none_excludes_non_rule_markdown(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository)
+        doctrine_rule = self.write_doctrine(".agent-toolkit/rules/guard-suite.md")
+        readme = self.write(
+            self.execution_repository,
+            ".agent-toolkit/rules/README.md",
+            """
+            ---
+            tier: none
+            ---
+            Notes for human maintainers; not an agent instruction.
             """,
         )
 
         result = self.run_resolver()
 
-        loaded_paths = {
-            self.execution_path(rule["path"]) for rule in result["rules_loaded"]
-        }
-        self.assertIn(terminal_rule.resolve(), loaded_paths)
-        terminal = self.loaded_rules_by_name(result)[terminal_rule.name]
-        self.assertEqual(terminal["tier"], "doctrine")
-        self.assertTrue(terminal["matched_by"])
+        self.assertEqual(set(self.loaded_rules_by_name(result)), {doctrine_rule.name})
+        excluded = self.excluded_rules_by_name(result)
+        self.assertEqual(set(excluded), {readme.name})
+        self.assertEqual(excluded[readme.name]["tier"], "none")
+        self.assertEqual(excluded[readme.name]["path"], ".agent-toolkit/rules/README.md")
 
-    def test_objective_and_definition_of_done_triggers_load_gotchas(self) -> None:
+    def test_text_output_reports_excluded_files_and_warnings(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository, rules_dir=".claude/rules/")
+        self.write_doctrine(".claude/rules/guard-suite.md")
+        self.write(
+            self.execution_repository,
+            ".claude/rules/README.md",
+            "---\ntier: none\n---\n\nDirectory notes.\n",
+        )
+        revision = self.commit_execution_repository()
+
+        result = subprocess.run(
+            [
+                "uv",
+                "run",
+                str(RESOLVER),
+                "--tracker-repo",
+                str(self.tracker_repository),
+                "--execution-repo",
+                str(self.execution_repository),
+                "--execution-revision",
+                revision,
+            ],
+            cwd=REPOSITORY_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Rules excluded:\n- .claude/rules/README.md [tier:none]", result.stdout)
+        warnings_section = result.stdout.split("Warnings:\n", maxsplit=1)[1]
+        self.assertIn(".claude/rules", warnings_section)
+
+    def test_unmarked_rule_file_still_fails_beside_an_excluded_readme(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository)
+        self.write(
+            self.execution_repository,
+            ".agent-toolkit/rules/README.md",
+            "---\ntier: none\n---\n\nDirectory notes.\n",
+        )
+        self.write(
+            self.execution_repository,
+            ".agent-toolkit/rules/unmarked.md",
+            "An unmarked rule file must never be treated as excluded.\n",
+        )
+
+        stderr = self.assert_resolver_fails("unclassified Markdown")
+
+        self.assertIn(".agent-toolkit/rules/unmarked.md (no frontmatter)", stderr)
+        self.assertNotIn("README.md", stderr)
+
+    def test_directory_of_only_excluded_markdown_resolves_to_zero_rules(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository)
+        for relative_path in (
+            ".agent-toolkit/rules/README.md",
+            ".agent-toolkit/rules/notes/decisions.md",
+        ):
+            self.write(
+                self.execution_repository,
+                relative_path,
+                "---\ntier: none\n---\n\nHuman notes.\n",
+            )
+
+        result = self.run_resolver()
+
+        self.assertEqual(result["rules_loaded"], [])
+        self.assertEqual(result["rules_skipped"], [])
+        self.assertEqual(len(result["rules_excluded"]), 2)
+
+    def test_import_line_inside_a_rule_file_is_a_hard_stop(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository)
+        self.write(
+            self.execution_repository,
+            ".agent-toolkit/rules/chain/one.md",
+            "@.agent-toolkit/rules/chain/two.md\n",
+        )
+        self.write_doctrine(".agent-toolkit/rules/chain/two.md")
+
+        stderr = self.assert_resolver_fails("`@` import line")
+
+        self.assertIn(".agent-toolkit/rules/chain/one.md", stderr)
+
+    def test_rule_symlink_escaping_the_repository_is_a_hard_stop(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository)
+        self.write_doctrine(".agent-toolkit/rules/guard-suite.md")
+        outside_rule = self.write(
+            Path(self.temporary_directory.name),
+            "outside/leaked.md",
+            "---\ntier: doctrine\n---\n\nOutside the execution repository.\n",
+        )
+        link = self.execution_repository / ".agent-toolkit/rules/leaked.md"
+        link.symlink_to(outside_rule)
+
+        self.assert_resolver_fails("escapes execution repository")
+
+    def test_missing_configured_context_file_is_a_hard_stop(self) -> None:
+        self.write_config(self.execution_repository, context_file="AGENTS.md")
+        self.write_doctrine(".agent-toolkit/rules/guard-suite.md")
+
+        self.assert_resolver_fails("required file is missing")
+
+    def test_rules_dir_on_a_harness_autoload_path_warns_without_stopping(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository, rules_dir=".claude/rules/")
+        doctrine_rule = self.write_doctrine(".claude/rules/guard-suite.md")
+
+        result = self.run_resolver()
+
+        self.assertEqual(set(self.loaded_rules_by_name(result)), {doctrine_rule.name})
+        self.assertEqual(len(result["warnings"]), 1)
+        warning = result["warnings"][0]
+        self.assertIn(".claude/rules", warning)
+        self.assertIn("gotcha", warning)
+        self.assertIn("never a stop", warning)
+
+    def test_leftover_registry_imports_warn_without_stopping(self) -> None:
         self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
         self.write_config(
             self.execution_repository,
-            [
-                ".agent-toolkit/rules/key-rotation.md",
-                ".agent-toolkit/rules/audit-proof.md",
-            ],
+            rules_section="@.agent-toolkit/rules/guard-suite.md\n",
         )
+        doctrine_rule = self.write_doctrine(".agent-toolkit/rules/guard-suite.md")
+
+        result = self.run_resolver()
+
+        self.assertEqual(set(self.loaded_rules_by_name(result)), {doctrine_rule.name})
+        self.assertEqual(len(result["warnings"]), 1)
+        self.assertIn(
+            ".agent-toolkit/rules/guard-suite.md", result["warnings"][0]
+        )
+        self.assertIn("dev:setup", result["warnings"][0])
+
+    def test_objective_and_definition_of_done_triggers_load_gotchas(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository)
         objective_rule = self.write(
             self.execution_repository,
             ".agent-toolkit/rules/key-rotation.md",
@@ -408,53 +641,9 @@ class ResolveProjectRulesTests(unittest.TestCase):
         self.assertTrue(loaded[objective_rule.name]["matched_by"])
         self.assertTrue(loaded[dod_rule.name]["matched_by"])
 
-    def test_legacy_terminal_rule_without_metadata_defaults_to_doctrine(self) -> None:
-        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
-        self.write_config(
-            self.execution_repository,
-            [".agent-toolkit/rules/legacy.md"],
-        )
-        legacy_rule = self.write(
-            self.execution_repository,
-            ".agent-toolkit/rules/legacy.md",
-            "Legacy rule content with no frontmatter.\n",
-        )
-
-        result = self.run_resolver()
-
-        loaded = self.loaded_rules_by_name(result)
-        self.assertEqual(set(loaded), {legacy_rule.name})
-        self.assertEqual(loaded[legacy_rule.name]["tier"], "doctrine")
-        self.assertTrue(loaded[legacy_rule.name]["matched_by"])
-
-    def test_terminal_rule_frontmatter_requires_tier(self) -> None:
-        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
-        self.write_config(
-            self.execution_repository,
-            [".agent-toolkit/rules/typo.md"],
-        )
-        self.write(
-            self.execution_repository,
-            ".agent-toolkit/rules/typo.md",
-            """
-            ---
-            teir: gotcha
-            triggers:
-              paths:
-                - scripts/**/*.sh
-            ---
-            Misspelled tier metadata.
-            """,
-        )
-
-        self.assert_resolver_fails("frontmatter must declare tier")
-
     def test_unmatched_gotcha_is_reported_as_skipped(self) -> None:
         self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
-        self.write_config(
-            self.execution_repository,
-            [".agent-toolkit/rules/database-migration.md"],
-        )
+        self.write_config(self.execution_repository)
         gotcha_rule = self.write(
             self.execution_repository,
             ".agent-toolkit/rules/database-migration.md",
@@ -498,15 +687,11 @@ class ResolveProjectRulesTests(unittest.TestCase):
             "AGENTS.md",
             "Newer context file must not replace the legacy fallback.\n",
         )
-        legacy_rule = self.write(
-            self.execution_repository,
-            ".claude/rules/legacy.md",
-            "Legacy correctness rule.\n",
-        )
+        legacy_rule = self.write_doctrine(".claude/rules/legacy.md")
         self.write(
             self.execution_repository,
             ".claude/dev.md",
-            "---\ntracker: linear\n---\n\n## Rules\n\n@.claude/rules/legacy.md\n",
+            "---\ntracker: linear\n---\n\n## Rules\n",
         )
 
         result = self.run_resolver()
@@ -542,8 +727,7 @@ class ResolveProjectRulesTests(unittest.TestCase):
             "context_file: AGENTS.md  # project context\n"
             "rules_dir: .agent-toolkit/rules/  # promoted rules\n"
             "---\n\n"
-            "## Rules\n\n"
-            "@.agent-toolkit/rules/shell.md\n",
+            "## Rules\n",
         )
         shell_rule = self.write(
             self.execution_repository,

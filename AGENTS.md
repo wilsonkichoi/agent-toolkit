@@ -63,14 +63,24 @@ selecting a copied agent TOML, default nesting depth 1) - express orchestration 
 "dispatch and wait", not in one harness's parameters.
 
 Task-scoped lifecycle skills share `plugins/dev/runtime_contracts/project-bootstrap.md`. Do not duplicate its
-execution-repository or rule-selection algorithm inside individual skills. Promoted rule files
-use `tier: doctrine` for unconditional loading or `tier: gotcha` with deterministic `paths`,
-`objective`, and/or `definition_of_done` triggers. Codex correctness must not depend on `@`
+execution-repository or rule-selection algorithm inside individual skills. Rules are discovered,
+never registered: every Markdown file under the configured `rules_dir`, at any depth, is a rule
+file, and it declares its own `tier: doctrine` for unconditional loading, `tier: gotcha` with
+deterministic `paths`, `objective`, and/or `definition_of_done` triggers, or `tier: none` to
+exclude non-rule Markdown. An unclassified file under `rules_dir` is a hard stop naming every
+offending path; under-inclusion always stops, over-inclusion is only warned about. Never instruct
+anyone to register a rule with an `@` import line - the `## Rules` section is not a registry, and
+an `@` line inside a rule file is itself a hard stop. Codex correctness must not depend on `@`
 import expansion. Resolver failure, including an execution-revision mismatch, is a hard stop that
 every skill invoking the bootstrap must state at its point of use: a skill that only references
 the contract cannot be relied on to carry its stop conditions. Keep the stop clause, the
 resolver's own error text, and `resolve_project_rules.py` in lockstep; never substitute another
 revision to get past the resolver.
+
+The pre-0.0.64 `## Rules` registry migration lives in `plugins/dev/scripts/migrate_rules.py` and
+is driven by `dev:setup`; `check_repo.py` runs `tools/test_migrate_rules.py`. The helper reports
+before it writes, is idempotent, and never classifies an unregistered file on the human's behalf.
+Do not reproduce its stamping or registry-parsing steps in skill prose.
 
 GitHub work-summary classification must follow `plugins/dev/runtime_contracts/tracker.md` "Trusted GitHub
 work-summary routing". Do not treat the latest comment containing `Queue classification:` as
