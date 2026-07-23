@@ -17,11 +17,11 @@ Skill references like `dev:verify` mean this plugin's `verify` skill; when telli
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
 Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
-`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md` (tracker
+`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `runtime_contracts/tracker.md` (tracker
 verbs, backend mapping, next-task algorithm), and the plugin's
-`docs/project-bootstrap.md` (execution-repository instructions and deterministic rule loading).
-On Claude Code these plugin docs are under `${CLAUDE_PLUGIN_ROOT}/docs/`; equivalently they are
-under `../../docs/` relative to this skill's directory.
+`runtime_contracts/project-bootstrap.md` (execution-repository instructions and deterministic rule loading).
+On Claude Code these plugin docs are under `${CLAUDE_PLUGIN_ROOT}/runtime_contracts/`; equivalently they are
+under `../../runtime_contracts/` relative to this skill's directory.
 
 Before any repository or tracker call, resolve the repository context once using
 `tracker.md` "GitHub repository resolution". Carry the canonical issue/PR repository, base
@@ -48,7 +48,7 @@ working directory.
   always follows **External fork contribution** below. A maintainer follows that path only when
   the invocation explicitly says `external #N`; otherwise the numeric id is planned queue work.
   Topology does not decide authority, and malformed queue state does not decide routing.
-- `claim` the task and confirm the claim won (re-read; see `docs/tracker.md` race guard). For a
+- `claim` the task and confirm the claim won (re-read; see `runtime_contracts/tracker.md` race guard). For a
   planned primary-GitHub task, use the shared `claim` command from "Verified planned-task
   lifecycle writes". Its verified `status:in-progress` plus assignee result is required before
   isolation or implementation; a successful edit without a successful verification read is a
@@ -70,7 +70,7 @@ converge downstream. Do not guess and do not implement against a failed gate:
 - Unattended: release the claim (transition back to `Todo`), comment why it was skipped, and
   claim the next valid task instead.
 
-After fetching and validating the packet, follow `docs/project-bootstrap.md` before the first
+After fetching and validating the packet, follow `runtime_contracts/project-bootstrap.md` before the first
 claim or implementation write. Resolve the task's execution repository, run the rule resolver
 at the resolved base commit with Objective and Definition of Done, and read every reported
 project-instruction and loaded-rule file. The task worktree does not exist yet; do not require its
@@ -99,7 +99,7 @@ to the canonical issue and stops without an `In Review` transition.
 
 **In-place GitHub item (`#N`, secondary intake channel).** When the argument is a GitHub issue
 number and `secondary_intake: github` is set with a non-github primary tracker, GitHub owns
-this item (`docs/tracker.md` "Secondary intake channel"). Same worktree → PR → CI → review → verify
+this item (`runtime_contracts/tracker.md` "Secondary intake channel"). Same worktree → PR → CI → review → verify
 path, with these deltas only:
 
 - Claim: no WIP / dependency / `Todo` gate and no `status:*` label. `gh issue view <n>` for
@@ -145,7 +145,7 @@ harness's built-in worktree-isolation feature for subagents (on Claude Code: Age
 it creates its own `worktree-agent-*` branch that no cleanup step knows about, leaking one
 dead branch per task.
 
-Before implementation, rerun `docs/project-bootstrap.md` in the new task worktree with its branch
+Before implementation, rerun `runtime_contracts/project-bootstrap.md` in the new task worktree with its branch
 `HEAD` as the expected execution revision. Read every reported project instruction and loaded rule
 again; the branch may change the context, dev configuration, or rule graph relative to the base.
 

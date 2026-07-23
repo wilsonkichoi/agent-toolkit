@@ -23,9 +23,9 @@ Skill references like `dev:verify` mean this plugin's `verify` skill; when telli
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
 Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
-`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md`, and the
-plugin's `docs/project-bootstrap.md`. On Claude Code these plugin docs are under
-`${CLAUDE_PLUGIN_ROOT}/docs/`; equivalently they are under `../../docs/` relative to this
+`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `runtime_contracts/tracker.md`, and the
+plugin's `runtime_contracts/project-bootstrap.md`. On Claude Code these plugin docs are under
+`${CLAUDE_PLUGIN_ROOT}/runtime_contracts/`; equivalently they are under `../../runtime_contracts/` relative to this
 skill's directory.
 
 Before any repository or tracker call, resolve repository context once using `tracker.md`
@@ -57,7 +57,7 @@ to compensate for a failed or omitted execute transition. Return the failure to 
 the orchestrating `dev:auto` flow.
 
 After the minimal task/PR fetch needed to identify the execution repository, follow
-`docs/project-bootstrap.md` before gathering the diff, spec, CI, or review evidence. Pass every
+`runtime_contracts/project-bootstrap.md` before gathering the diff, spec, CI, or review evidence. Pass every
 changed path from the PR or branch diff to the resolver, then read every reported project
 instruction and loaded rule. Fix mode reruns the bootstrap after edits before tests and push.
 
@@ -178,7 +178,7 @@ is approve or request-changes. It never starts fix mode within the same invocati
 same rubric and post the full review as a task comment instead of a PR review.
 
 **No planned queue task** (a primary-GitHub external contribution, a secondary-channel
-in-place `#N` PR, or a drive-by PR with no issue at all - `docs/tracker.md` repository
+in-place `#N` PR, or a drive-by PR with no issue at all - `runtime_contracts/tracker.md` repository
 resolution and "Secondary intake channel"): there is no queue packet. Gather instead the PR diff +
 CI, the linked GitHub issue's body and acceptance criteria when one exists (`gh issue view
 <n>`), and `docs/SPEC.md` / `docs/PRD.md`. Run the same rubric with "DoD compliance" reading

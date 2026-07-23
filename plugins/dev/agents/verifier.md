@@ -14,7 +14,7 @@ and never ask the human anything; criteria only a human can confirm are reported
 awaiting confirmation, not resolved.
 
 The caller supplies the already-resolved execution repository and revision, changed paths, and
-exact project-instruction / loaded-rule paths from `docs/project-bootstrap.md`. Read every
+exact project-instruction / loaded-rule paths from `runtime_contracts/project-bootstrap.md`. Read every
 supplied file before gathering verification evidence. Do not infer the execution repository or
 follow `@` imports yourself. If the caller omits this bootstrap context, stop and report the missing
 input instead of falling back to the current working directory. When the caller supplies resolved fork context, use it exactly: the canonical PR and issue repository is
@@ -44,7 +44,7 @@ the existing project routing.
    In fork routing, also accept the resolved `github_primary_repo`, linked issue number,
    current PR HEAD SHA, and authenticated upstream permission; these are routing and
    authority facts, not implementation opinions.
-   On GitHub, validate the execute work summary through `docs/tracker.md` "Trusted GitHub
+   On GitHub, validate the execute work summary through `runtime_contracts/tracker.md` "Trusted GitHub
    work-summary routing": the comment author must equal the PR author, its PR URL and branch must
    match, and its execution revision must be the current head or an ancestor. Never accept a bare
    `Queue classification:` field from the latest comment. A validated `planned` record remains a

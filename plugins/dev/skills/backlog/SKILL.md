@@ -19,9 +19,9 @@ Skill references like `dev:architect` mean this plugin's `architect` skill; when
 user to run one, render your harness's invocation for it (Claude Code: `/dev:architect`; Codex: `$architect`).
 
 Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
-`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md`, and the
-plugin's `docs/project-bootstrap.md`. On Claude Code these plugin docs are under
-`${CLAUDE_PLUGIN_ROOT}/docs/`; equivalently they are under `../../docs/` relative to this
+`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `runtime_contracts/tracker.md`, and the
+plugin's `runtime_contracts/project-bootstrap.md`. On Claude Code these plugin docs are under
+`${CLAUDE_PLUGIN_ROOT}/runtime_contracts/`; equivalently they are under `../../runtime_contracts/` relative to this
 skill's directory.
 
 Before any repository or tracker call, resolve the repository context once using
@@ -31,7 +31,7 @@ the secondary-intake `github_repo` field.
 
 For operations on an existing task (`#N`, `promote`, `wont-do`, `split`, or `triage`), fetch
 only enough task identity to resolve its execution repository, then follow
-`docs/project-bootstrap.md` before reading project intent or making a triage decision. Changed
+`runtime_contracts/project-bootstrap.md` before reading project intent or making a triage decision. Changed
 paths are empty unless a linked PR supplies them. Read every reported project instruction and
 loaded rule, and include the exact `Execution repository:`, `Execution revision:`, and
 `Rules loaded:` entries in the triage diagnostic or task comment. New ticketless `add` requests
@@ -86,7 +86,7 @@ For each request:
    alternative to running the doc delta: the human may not want the change at all once its
    real cost is visible. Declining an existing ticket = `Wont Do` with the triage rationale;
    declining a ticketless request = record the decision in the triage summary.
-2. **Write a full task packet** (DESIGN.md schema: objective, why with PRD/SPEC link, DoD
+2. **Write a full task packet** (task packet schema in runtime_contracts/tracker.md: objective, why with PRD/SPEC link, DoD
    with evidence paths and a decidable acceptance bar per `dev:plan` - qualitative criteria
    enumerate the cases they cover, dependencies, estimate, inlined spec excerpts, suggested
    steps).
@@ -97,7 +97,7 @@ For each request:
    conflicting PRs. Ask the user only for what the docs cannot answer. Genuine unknown
    blocking the packet → create a spike instead.
 3. **Create at `Backlog`** via `create-task`, wiring dependencies as native relations per
-   the backend section of `docs/tracker.md` (both directions from
+   the backend section of `runtime_contracts/tracker.md` (both directions from
    step 2, including new relations on *existing* tickets that this task blocks) - not as
    packet text alone. Create at `Todo` only when the user explicitly commits it to the
    current milestone in this conversation; say which status was used.
@@ -109,7 +109,7 @@ consent; approved-but-uncommitted artifacts strand downstream skills.
 ## GitHub issue intake (`#N`, secondary channel)
 
 Only when `secondary_intake: github` is set with a non-github primary tracker
-(`docs/tracker.md` "Secondary intake channel"). `gh issue view <n>` for the request, then run the same triage
+(`runtime_contracts/tracker.md` "Secondary intake channel"). `gh issue view <n>` for the request, then run the same triage
 above and route to exactly one of three fates:
 
 - **Promote** - real planned work (needs design, touches the spec, belongs to a milestone, or
@@ -142,7 +142,7 @@ This secondary-channel path is unchanged by primary-GitHub fork support. Its rep
 
 Require a rationale (ask if not given). Comment the rationale on the task, then transition to
 `Wont Do` (backend mapping: Linear `Canceled`, GitHub closed as "not planned" plus removing
-the remaining `status:*` label - closed issues carry none, see `docs/tracker.md`). The reason
+the remaining `status:*` label - closed issues carry none, see `runtime_contracts/tracker.md`). The reason
 must survive; a bare closure is not acceptable. If the task encodes a spec requirement being
 abandoned, flag that `docs/SPEC.md` needs a matching edit and offer the delta summary for
 `dev:architect`.

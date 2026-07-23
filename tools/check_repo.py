@@ -492,7 +492,7 @@ def check_feedback_redact() -> None:
 
 def check_github_lifecycle_adoption() -> None:
     required_by_file = {
-        ROOT / "plugins/dev/docs/tracker.md": (
+        ROOT / "plugins/dev/runtime_contracts/tracker.md": (
             "scripts/github_task_lifecycle.py",
             "validate-todo",
             "claim",
@@ -670,7 +670,7 @@ def check_project_bootstrap_adoption() -> None:
         path = ROOT / "plugins/dev/skills" / name / "SKILL.md"
         content = path.read_text(encoding="utf-8")
         for required in (
-            "docs/project-bootstrap.md",
+            "runtime_contracts/project-bootstrap.md",
             "Execution revision:",
             "Rules loaded:",
         ):
@@ -690,7 +690,7 @@ def check_project_bootstrap_adoption() -> None:
     for name in ("reviewer", "test-writer", "verifier"):
         path = ROOT / "plugins/dev/agents" / f"{name}.md"
         content = path.read_text(encoding="utf-8")
-        if "docs/project-bootstrap.md" not in content:
+        if "runtime_contracts/project-bootstrap.md" not in content:
             raise fail(
                 path, "delegated agent must require resolved project bootstrap context"
             )

@@ -25,9 +25,9 @@ Skill references like `dev:verify` mean this plugin's `verify` skill; when telli
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
 Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
-`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md`, and the
-plugin's `docs/project-bootstrap.md`. On Claude Code these plugin docs are under
-`${CLAUDE_PLUGIN_ROOT}/docs/`; equivalently they are under `../../docs/` relative to this
+`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `runtime_contracts/tracker.md`, and the
+plugin's `runtime_contracts/project-bootstrap.md`. On Claude Code these plugin docs are under
+`${CLAUDE_PLUGIN_ROOT}/runtime_contracts/`; equivalently they are under `../../runtime_contracts/` relative to this
 skill's directory.
 
 Before any repository or tracker call, resolve repository context once using `tracker.md`
@@ -46,7 +46,7 @@ lifecycle label alone to infer that no planned queue task exists. `dev:verify` d
 Progress`, `In Review`, or `Blocked` state to repair an execute failure.
 
 After the minimal task/PR fetch needed to identify the execution repository, follow
-`docs/project-bootstrap.md` before checking preconditions or gathering evidence. Pass every
+`runtime_contracts/project-bootstrap.md` before checking preconditions or gathering evidence. Pass every
 changed path from the PR or branch diff to the resolver and read every reported project
 instruction and loaded rule.
 
@@ -120,7 +120,7 @@ task branch head.
 `dev:review-pr` comment on the task, and the local `test_command` run stands in for CI.
 
 **No planned queue task** (a primary-GitHub external contribution, a secondary-channel
-in-place `#N` PR, or a drive-by PR with no issue - `docs/tracker.md` repository resolution and
+in-place `#N` PR, or a drive-by PR with no issue - `runtime_contracts/tracker.md` repository resolution and
 "Secondary intake channel"): there is no primary-tracker task and no `In Review`
 status to check. Gate on CI green + an approving review only. The DoD criteria to verify come
 from the linked issue's acceptance criteria (`gh issue view <n>`) when one exists, else the PR

@@ -61,19 +61,19 @@ harnesses (Claude Code: Agent tool; Codex: `spawn_agent`/`wait_agent` with `agen
 selecting a copied agent TOML, default nesting depth 1) - express orchestration as
 "dispatch and wait", not in one harness's parameters.
 
-Task-scoped lifecycle skills share `plugins/dev/docs/project-bootstrap.md`. Do not duplicate its
+Task-scoped lifecycle skills share `plugins/dev/runtime_contracts/project-bootstrap.md`. Do not duplicate its
 execution-repository or rule-selection algorithm inside individual skills. Promoted rule files
 use `tier: doctrine` for unconditional loading or `tier: gotcha` with deterministic `paths`,
 `objective`, and/or `definition_of_done` triggers. Codex correctness must not depend on `@`
 import expansion.
 
-GitHub work-summary classification must follow `plugins/dev/docs/tracker.md` "Trusted GitHub
+GitHub work-summary classification must follow `plugins/dev/runtime_contracts/tracker.md` "Trusted GitHub
 work-summary routing". Do not treat the latest comment containing `Queue classification:` as
 authoritative without its author, PR identity, branch, and revision binding. Planned review must
 also require exactly `status:in-review`; review reports other states without repairing them.
 
 Primary-GitHub planned-task lifecycle writes share
-`plugins/dev/scripts/github_task_lifecycle.py` and the contract in `plugins/dev/docs/tracker.md`.
+`plugins/dev/scripts/github_task_lifecycle.py` and the contract in `plugins/dev/runtime_contracts/tracker.md`.
 Do not duplicate label validation or treat a missing `status:*` label as external-contribution
 routing inside individual skills.
 
@@ -108,7 +108,7 @@ open-ended bar the same way it rejects a missing Objective. Keep the three in lo
 unbounded DoD admitted at claim time is what prevents review from converging downstream.
 
 `dev:shadow` is an evaluation surface, not a lifecycle skill. Its deterministic steps live in
-`plugins/dev/scripts/shadow_replay.py` and its contract in `plugins/dev/docs/shadow.md`; the
+`plugins/dev/scripts/shadow_replay.py` and its contract in `plugins/dev/runtime_contracts/shadow.md`; the
 skill never merges a shadow PR, never mutates the source issue or original PR, and never enters
 the planned-task queue. Shadow issues carry `experiment:shadow`, no `status:*` label, and no
 milestone; the candidate PR stays draft and `do-not-merge`, targets its `shadow-base` branch, and

@@ -14,7 +14,7 @@ you were given, do not open it. This separation exists so tests verify what the 
 rather than mirroring what the implementation happens to do.
 
 The caller also supplies the already-resolved execution repository and revision and exact
-project-instruction / loaded-rule paths from `docs/project-bootstrap.md`. Read every supplied
+project-instruction / loaded-rule paths from `runtime_contracts/project-bootstrap.md`. Read every supplied
 file before writing tests. Do not infer the execution repository, follow `@` imports yourself,
 or substitute tracker-repository instructions; repository and rule selection belong to the
 calling lifecycle skill. If the caller omits this bootstrap context, stop and report the missing

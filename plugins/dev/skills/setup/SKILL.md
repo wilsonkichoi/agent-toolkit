@@ -16,9 +16,10 @@ overwrite existing files without asking.
 Skill references like `dev:plan` mean this plugin's `plan` skill; when telling the user to run
 one, render your harness's invocation for it (Claude Code: `/dev:plan`; Codex: `$plan`).
 
-Read first: the plugin's `docs/tracker.md` — on Claude Code
-`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md` (the plugin's own `docs/` directory, two levels above
-this skill), equivalently `../../docs/tracker.md` relative to this skill's directory — before
+Read first: the plugin's `runtime_contracts/tracker.md` — on Claude Code
+`${CLAUDE_PLUGIN_ROOT}/runtime_contracts/tracker.md` (the plugin's own `runtime_contracts/`
+directory, two levels above this skill), equivalently `../../runtime_contracts/tracker.md`
+relative to this skill's directory — before
 configuring the tracker. All `tracker.md` references below mean this plugin doc, never a file in
 the project. Also read an existing `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md`) before
 making any repository or tracker call; setup must preserve choices the project already made.
@@ -100,8 +101,32 @@ their `.local.md` variants), offer to `git mv` it to `.agent-toolkit/dev.md` (an
 old path and update operative references (docs that tell agents to read the config) in the
 same commit - historical records (changelogs, completed-work logs) stay as they are. Every
 dev skill reads `.agent-toolkit/dev.md` first and falls back to the legacy paths, so the
-migration is safe but optional. Full consumer-migration steps: "Migrating an existing
-consumer" in the plugin's `docs/adoption.md`.
+migration is safe but optional. Full consumer-migration steps:
+
+1. `git mv` the config to `.agent-toolkit/dev.md` (and the `.local.md` variant, updating its
+   `.gitignore` entry).
+2. Grep the repo for the old path. Update operative references (docs that tell agents to read
+   the config) in the same commit; leave historical records as they are.
+3. Set `rules_dir` explicitly. Default `.agent-toolkit/rules/`; keep an existing location
+   (e.g. `.claude/rules/`) as the value instead when the project - or anything downstream of
+   it, such as a template it ships - already depends on that path. Moving rule files is
+   optional; registering them is not.
+4. Register every rule file as an import line in the `## Rules` section of
+   `.agent-toolkit/dev.md`. Add `tier: doctrine` frontmatter for an always-applicable rule, or
+   `tier: gotcha` plus deterministic `paths`, `objective`, and/or `definition_of_done`
+   triggers. Legacy terminal rules without metadata load as doctrine until retro next updates
+   them. See `runtime_contracts/project-bootstrap.md`.
+5. Ensure the configured `context_file` carries the single reference line
+   (`@.agent-toolkit/dev.md`). Rules previously consolidated into `AGENTS.md` may stay there
+   (the project owns that file and its content) or move back out to `rules_dir` files - the
+   project's call, never the plugin's.
+6. Verify with `dev:status`: its consistency checks cover duplicate configs, a missing
+   reference line, unregistered rules, and the legacy mixed config.
+
+**Template and framework repos:** a repo that others clone or instantiate must not ship its own
+dev-plugin state to consumers - adopting this plugin is each project's decision, never
+inherited. Keep the plugin's footprint to `.agent-toolkit/` plus the one reference line, and
+have the template's init/clone path strip both.
 
 Write `.agent-toolkit/dev.md` with YAML frontmatter:
 
@@ -124,7 +149,7 @@ Project conventions the fields cannot capture go here as free text.
 ## Rules
 
 <!-- managed by dev:retro: one `@.agent-toolkit/rules/<slug>.md` import line per promoted rule;
-     rule tier/trigger frontmatter follows docs/project-bootstrap.md -->
+     rule tier/trigger frontmatter follows runtime_contracts/project-bootstrap.md -->
 ```
 
 When Q6 enables fork contributions, add both fields below. Do not add either field when the
@@ -150,7 +175,7 @@ back to `.claude/rules/` + `CLAUDE.md` as a safety net - not a recommended confi
 `dev:setup` to write explicit fields.
 
 Task-scoped lifecycle skills resolve this configuration from the task's execution repository,
-not blindly from the tracker repository. They use `docs/project-bootstrap.md` and the bundled
+not blindly from the tracker repository. They use `runtime_contracts/project-bootstrap.md` and the bundled
 `scripts/resolve_project_rules.py` resolver to load the context file, this dev configuration,
 all doctrine rules, and only gotcha rules whose declared triggers match.
 

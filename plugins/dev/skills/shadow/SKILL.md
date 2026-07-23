@@ -27,10 +27,10 @@ to run one, render your harness's invocation for it (Claude Code: `/dev:execute`
 `$execute`).
 
 Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
-`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md`,
-`docs/project-bootstrap.md`, and `docs/shadow.md` (the replay contract, artifact formats,
+`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `runtime_contracts/tracker.md`,
+`runtime_contracts/project-bootstrap.md`, and `runtime_contracts/shadow.md` (the replay contract, artifact formats,
 metrics adapters, and pricing-catalog semantics). On Claude Code these plugin docs are under
-`${CLAUDE_PLUGIN_ROOT}/docs/`; equivalently they are under `../../docs/` relative to this
+`${CLAUDE_PLUGIN_ROOT}/runtime_contracts/`; equivalently they are under `../../runtime_contracts/` relative to this
 skill's directory. The deterministic helper is `../../scripts/shadow_replay.py`
 (`${CLAUDE_PLUGIN_ROOT}/scripts/shadow_replay.py` on Claude Code); run it with
 `uv run <path> <subcommand>`.
@@ -84,7 +84,7 @@ prepare → execute → review → (fix → fresh review)[0..max_fix_attempts] �
 2. Read the source issue packet (`gh issue view <n> --repo "$repo"`). Require an Objective and
    a Definition of Done; a missing section stops the run (do not draft or repair - this is an
    evaluation of finished work, not intake).
-3. Follow `docs/project-bootstrap.md` at the `historical_base` commit: resolve the execution
+3. Follow `runtime_contracts/project-bootstrap.md` at the `historical_base` commit: resolve the execution
    repository, check out that exact revision, and load its context file, dev config, and
    applicable rules through `resolve_project_rules.py`. The replay must load project
    instructions from the historical revision, not from current `main`. Preserve the resolver's
@@ -92,7 +92,7 @@ prepare → execute → review → (fix → fresh review)[0..max_fix_attempts] �
    artifact.
 4. Mint the run id and start metrics collection (record the wall-clock start; note the harness,
    runtime version, model, and reasoning effort).
-5. Create isolated artifacts (`docs/shadow.md` "Git and GitHub isolation"):
+5. Create isolated artifacts (`runtime_contracts/shadow.md` "Git and GitHub isolation"):
    - `shadow_replay.py create-branches --shadow-base shadow-base/<source-id>/<run-id>
      --candidate shadow/<source-id>/<run-id> --base-commit <historical_base>` creates both
      branches at the validated base and pushes them.
@@ -147,7 +147,7 @@ an unrecoverable failure stops the run with a stage diagnostic.
 ### 3. Review
 
 Dispatch a fresh `reviewer` (or a fresh generic worker carrying the review contract if the
-named agent's planned-task routing would reject a shadow item - see `docs/shadow.md`; never
+named agent's planned-task routing would reject a shadow item - see `runtime_contracts/shadow.md`; never
 label a shadow item `planned`, `external`, or `secondary` to bypass a contract). Give it the
 shadow packet, the current candidate diff, current CI, the historical rules, and the current
 candidate head SHA. The review verdict binds to that head SHA.
@@ -177,7 +177,7 @@ never transitions the shadow issue through planned-task states.
 
 ### 6. Compare
 
-Collect original and shadow evidence into two JSON blobs (`docs/shadow.md` "Evidence blobs"),
+Collect original and shadow evidence into two JSON blobs (`runtime_contracts/shadow.md` "Evidence blobs"),
 then `shadow_replay.py compare --original <o> --shadow <s>` for the table rows. Deterministic
 metrics come from the helper:
 
@@ -193,7 +193,7 @@ metrics come from the helper:
   twice when the harness reports it as a subset of output. Unknown pricing
   prints `cost unavailable` with a reason; never substitute a guessed value.
 
-Timing boundaries (`docs/shadow.md` "Timing and token boundaries"): shadow delivery time runs
+Timing boundaries (`runtime_contracts/shadow.md` "Timing and token boundaries"): shadow delivery time runs
 from just before the implementation worker is dispatched to when verification of the approved
 head completes; preparation, comparison, and reporting are recorded separately and included in
 total run time. Original observable delivery time is the first source-PR commit's committed
