@@ -8,7 +8,7 @@ expanding `@` imports.
 
 1. **Load tracker routing only.** Read the tracker repository's dev configuration using the
    normal fallback chain (`.agent-toolkit/dev.md`, `.agent/dev.md`, `.claude/dev.md`) and
-   `docs/tracker.md`. Resolve the tracker and GitHub repository roles once. Do not treat the
+   `runtime_contracts/tracker.md`. Resolve the tracker and GitHub repository roles once. Do not treat the
    tracker repository's project instructions or rules as the execution repository's rules.
 2. **Resolve the execution repository.** Fetch the task packet or linked issue/PR only far
    enough to determine where the work runs. An explicit `Execution repo:` packet field wins.
@@ -24,8 +24,13 @@ expanding `@` imports.
      current `HEAD`.
 
    Resolve the repository identity and expected revision to a local checkout or worktree whose
-   `HEAD` is that exact commit. If no matching checkout is available, stop instead of loading
-   instructions from another revision or from the tracker repository as a substitute.
+   `HEAD` is that exact commit. If no matching checkout is available, create one - fetch the
+   revision when it is not local (`git fetch <remote> refs/pull/<n>/head` for a PR head), then
+   `git worktree add --detach <path> <revision>` - and remove it afterwards. Otherwise stop
+   instead of loading instructions from another revision or from the tracker repository as a
+   substitute. Never substitute another revision to get past the resolver, including the merge
+   commit of the PR under review: an identical tree today is not a guarantee, and the
+   substitution is invisible in the lifecycle record.
 3. **Build the rule context.** Run the resolver from the installed plugin, passing the exact
    tracker and execution repository paths, the expected execution revision, task objective,
    Definition of Done, and every known changed path. The resolver verifies that the selected

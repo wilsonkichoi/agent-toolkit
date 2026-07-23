@@ -19,8 +19,8 @@ user to run one, render your harness's invocation for it (Claude Code: `/dev:arc
 Read first:
 
 1. `.agent-toolkit/dev.md` - tracker backend and config (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent).
-2. the plugin's `docs/tracker.md` - verbs and backend mapping (on Claude Code
-   `${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to
+2. the plugin's `runtime_contracts/tracker.md` - verbs and backend mapping (on Claude Code
+   `${CLAUDE_PLUGIN_ROOT}/runtime_contracts/tracker.md`, equivalently `../../runtime_contracts/tracker.md` relative to
    this skill's directory).
 3. `docs/SPEC.md`, `docs/ROADMAP.md`, and `docs/PRD.md` - intent. If SPEC.md or ROADMAP.md is
    missing, stop and direct the user to `dev:architect`.
@@ -90,7 +90,7 @@ permission continues below, with every GitHub command explicitly scoped to
 
 On approval, `create-task` each packet at status `Todo` (plan approval is the commitment
 gate), with dependencies, priority, estimate, and milestone mapped per the backend section of
-`docs/tracker.md`. Packets reference draft ids but the tracker mints
+`runtime_contracts/tracker.md`. Packets reference draft ids but the tracker mints
 real identifiers at creation: create in dependency order (or second-pass the relations) so
 every dependency is wired as a native relation using tracker-minted ids, then confirm the
 relations appear in the `list` output. Order priorities so the intended execution order

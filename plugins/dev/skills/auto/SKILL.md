@@ -22,9 +22,9 @@ Skill references like `dev:execute` mean this plugin's `execute` skill; when tel
 to run one, render your harness's invocation for it (Claude Code: `/dev:execute`; Codex: `$execute`).
 
 Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
-`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md`, and the
-plugin's `docs/project-bootstrap.md`. On Claude Code these plugin docs are under
-`${CLAUDE_PLUGIN_ROOT}/docs/`; equivalently they are under `../../docs/` relative to this
+`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `runtime_contracts/tracker.md`, and the
+plugin's `runtime_contracts/project-bootstrap.md`. On Claude Code these plugin docs are under
+`${CLAUDE_PLUGIN_ROOT}/runtime_contracts/`; equivalently they are under `../../runtime_contracts/` relative to this
 skill's directory.
 
 Before any repository or tracker call, resolve repository context once using `tracker.md`
@@ -83,14 +83,16 @@ base remote, push remote, issue/PR identity, and upstream permission. Subagents 
 repository roles again from their worktree.
 
 For each claimed task, fetch only enough packet/PR identity to resolve the execution repository,
-then follow `docs/project-bootstrap.md` at the resolved base commit before dispatch. The task
+then follow `runtime_contracts/project-bootstrap.md` at the resolved base commit before dispatch. The task
 worktree does not exist yet, so this initial bootstrap does not require its branch `HEAD`. The
 implementation worker reruns the bootstrap in the new task worktree before implementation, then
 refreshes it after implementation exposes the complete changed-path list. Pass the resolved
 execution repository and revision, changed paths when known, and exact project-instruction /
 loaded-rule paths to every worker and named agent; each child reads those files itself. Preserve
 the exact `Execution repository:`, `Execution revision:`, and `Rules loaded:` entries in the work
-summary, review, verification report, and final task report.
+summary, review, verification report, and final task report. Resolver failure, including an
+execution-revision mismatch, is a hard stop: check out the expected revision, rerun, and never
+substitute another revision.
 
 **Model discipline:** spawn every subagent with NO `model` parameter - the dev agents pin
 `model: inherit` and generic subagents inherit the session model by default, and an explicit

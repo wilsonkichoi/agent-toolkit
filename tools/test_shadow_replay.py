@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run
 """Black-box contract tests for the shadow-replay CLI.
 
-Tests exercise only the public interface described in ``plugins/dev/docs/shadow.md``
+Tests exercise only the public interface described in ``plugins/dev/runtime_contracts/shadow.md``
 and the task packet. ``gh`` and ``git`` are driven exclusively through fake
 executables placed first on ``PATH``; no test hits real GitHub or mutates a real
 repository.

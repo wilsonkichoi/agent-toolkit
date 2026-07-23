@@ -39,7 +39,7 @@ the planned-task queue.
    comments, source commits after the base, post-cutoff issue comments, and comparison results.
    Those are available only to the review, verification, and comparison stages as appropriate.
 5. Project instructions and rules load at the historical base through the shared
-   `docs/project-bootstrap.md` contract. Every lifecycle artifact records the exact execution
+   `runtime_contracts/project-bootstrap.md` contract. Every lifecycle artifact records the exact execution
    repository, revision, and loaded-rule paths.
 
 ## Git and GitHub isolation

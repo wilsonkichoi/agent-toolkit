@@ -16,8 +16,8 @@ transitions, no comments, no fixes - flag problems, point at the skill that fixe
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
-Read first: `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent) and the plugin's `docs/tracker.md` — on Claude Code
-`${CLAUDE_PLUGIN_ROOT}/docs/tracker.md`, equivalently `../../docs/tracker.md` relative to this
+Read first: `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent) and the plugin's `runtime_contracts/tracker.md` — on Claude Code
+`${CLAUDE_PLUGIN_ROOT}/runtime_contracts/tracker.md`, equivalently `../../runtime_contracts/tracker.md` relative to this
 skill's directory. Scope: the given milestone, else the active one.
 
 Before any repository or tracker read, resolve repository context once using `tracker.md`
@@ -37,7 +37,7 @@ must remain available to contributors who inherit the configuration in their for
 1. **Tracker:** `list <milestone>` - counts by status, plus per-task id/title/status.
 2. **PRs:** open PRs on `task/*` branches (`gh pr list`), each with CI state
    (`gh pr checks`) and review verdict. Skip when no GitHub remote. When
-   `secondary_intake: github` is set (`docs/tracker.md`), a `task/*` PR that links a `#N` issue but
+   `secondary_intake: github` is set (`runtime_contracts/tracker.md`), a `task/*` PR that links a `#N` issue but
    matches no primary task is legitimate in-place work - list it separately as github-native,
    not as a violation.
    In primary-GitHub fork mode, also list open contribution issues with no `status:*` queue

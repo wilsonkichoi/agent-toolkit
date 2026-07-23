@@ -134,6 +134,10 @@ def validate_execution_revision(execution_repo: Path, expected_revision: str) ->
         raise ResolutionError(
             "execution repository HEAD "
             f"{head_commit} does not match expected execution revision {expected_commit}"
+            "; this is a hard stop. Check out the expected revision "
+            f"(git worktree add --detach <path> {expected_commit}) and rerun. "
+            "Never substitute another revision, including a merge commit whose tree "
+            "looks identical."
         )
     return head_commit
 

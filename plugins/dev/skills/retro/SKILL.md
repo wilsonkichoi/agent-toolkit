@@ -20,9 +20,9 @@ Skill references like `dev:verify` mean this plugin's `verify` skill; when telli
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
 Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
-`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `docs/tracker.md`, and the
-plugin's `docs/project-bootstrap.md`. On Claude Code these plugin docs are under
-`${CLAUDE_PLUGIN_ROOT}/docs/`; equivalently they are under `../../docs/` relative to this
+`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `runtime_contracts/tracker.md`, and the
+plugin's `runtime_contracts/project-bootstrap.md`. On Claude Code these plugin docs are under
+`${CLAUDE_PLUGIN_ROOT}/runtime_contracts/`; equivalently they are under `../../runtime_contracts/` relative to this
 skill's directory. Scope: one task (`task <id>`) or all `Done`/`Wont Do`/`Blocked` tasks in a
 milestone (`milestone <n>`).
 
@@ -35,9 +35,11 @@ queue-label, dependency, milestone, or other terminal-transition authority, rega
 authenticated permission.
 
 For each task, fetch only enough task/PR identity to resolve its execution repository, then
-follow `docs/project-bootstrap.md` before mining evidence. Pass the completed diff's changed
+follow `runtime_contracts/project-bootstrap.md` before mining evidence. Pass the completed diff's changed
 paths, read every reported project instruction and loaded rule, and record the exact
 `Execution repository:`, `Execution revision:`, and `Rules loaded:` entries in the retro comment.
+Resolver failure, including an execution-revision mismatch, is a hard stop: check out the expected
+revision, rerun, and never substitute another revision.
 
 If the target task is not yet terminal (e.g. `In Review` awaiting merge), do not close it
 out yourself - merging and `Done` belong to `dev:verify`, even if the user approves the
@@ -134,7 +136,7 @@ Promotion targets, by `memory_target` in `.agent-toolkit/dev.md` (default `files
   target (`rules_dir`, legacy fallback `.claude/rules/`) - files are the only target every
   future session is guaranteed to load.
 
-Every new or updated file rule follows `docs/project-bootstrap.md` metadata. Use
+Every new or updated file rule follows `runtime_contracts/project-bootstrap.md` metadata. Use
 `tier: doctrine` only when the rule applies to every lifecycle invocation. Otherwise use
 `tier: gotcha` with the narrowest deterministic `paths`, `objective`, and/or
 `definition_of_done` triggers that cover the cited failure. Do not create a trigger-free

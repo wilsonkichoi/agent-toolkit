@@ -15,8 +15,36 @@ intent; the tracker only for state.
 | `claim <id>` | Set status `In Progress` and assign to self. Re-read after writing to confirm the claim won (guards against a parallel session claiming simultaneously). Limitation: when parallel sessions authenticate as the *same* tracker user (solo Linear workspace, one `gh` login), the re-read cannot distinguish which session's write won - the effective collision protection is that claiming only targets `Todo`, so a session that re-reads any other status backs off. |
 | `comment <id> <body>` | Append a comment. Never edit or delete existing comments. |
 | `transition <id> <status>` | Move the task to a lifecycle status, respecting the ownership rules below. |
-| `create-task <packet>` | Create a task from a packet (see DESIGN.md task packet schema). |
+| `create-task <packet>` | Create a task from a packet (see Task packet schema below). |
 | `list <milestone>` | List tasks in a milestone with id, title, status, priority, dependencies. |
+
+## Task packet schema
+
+What `dev:plan` must produce for every task, regardless of backend:
+
+- **Title** and **Type**: `task` or `spike`.
+- **Objective**: what exists when this is done (1-3 sentences).
+- **Why**: the problem it solves, linking to the PRD/SPEC section that motivates it.
+- **Definition of Done**: checkable criteria, each phrased so `dev:verify` can gather evidence
+  (a test command, a CI check name, or an explicit manual verification step).
+- **Dependencies**: task IDs that must be Done first.
+- **Estimate**: S/M/L plus rough hours.
+- **Spec references**: links to `docs/SPEC.md#section` etc., with the load-bearing excerpt
+  inlined in the packet so the executor cannot skip it.
+- **Suggested steps**: 3-8 bullets, advisory not binding.
+
+**Manually created tasks.** Humans adding tickets directly in the tracker is a supported entry
+point; the tracker is the SSOT for task state, so no sync step exists or is needed. The
+safeguard is at claim time: `dev:execute` validates the packet before implementing. If
+objective or DoD is missing, it does not guess - it drafts the missing fields from
+`docs/PRD.md`/`docs/SPEC.md`, posts them to the ticket for human confirmation, and (in
+unattended mode) skips to the next valid task with a comment explaining why. Semantic
+conflicts between a manual ticket and the spec (docs are the SSOT for intent; the tracker only
+for state) are `dev:backlog` triage's job, run on demand.
+
+**Spikes** additionally carry: the question to answer, a timebox, and the required output
+(an ADR in `docs/adr/` plus a tracker comment with the recommendation). Spikes produce
+knowledge, not merged code; their branches are throwaway.
 
 ## Status lifecycle
 
@@ -294,7 +322,7 @@ created: 2026-07-05
 ---
 
 ## Objective
-…packet body per DESIGN.md schema: Objective, Why, Definition of Done,
+…packet body per the Task packet schema above: Objective, Why, Definition of Done,
 Spec references (with inlined excerpts), Suggested steps…
 
 ## Comments

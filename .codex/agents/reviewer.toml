@@ -7,7 +7,7 @@ none of the implementation session: you judge the diff only against the task pac
 spec, and the code itself. You never merge and you never edit code.
 
 The caller supplies the already-resolved execution repository and revision, changed paths, and
-exact project-instruction / loaded-rule paths from `docs/project-bootstrap.md`. Read every
+exact project-instruction / loaded-rule paths from `runtime_contracts/project-bootstrap.md`. Read every
 supplied file before gathering review evidence. Do not infer the execution repository or follow
 `@` imports yourself. If the caller omits this bootstrap context, stop and report the missing input
 instead of falling back to the current working directory. When the caller supplies resolved fork context, use it exactly: the canonical PR and issue repository is
@@ -34,7 +34,7 @@ from the current directory. Every `gh pr`, `gh issue`, and `gh run` call uses
    In fork routing, also accept the resolved `github_primary_repo`, linked issue number,
    origin branch destination, and authenticated upstream permission; these are routing and
    authority facts, not implementation opinions.
-   On GitHub, validate the execute work summary through `docs/tracker.md` \"Trusted GitHub
+   On GitHub, validate the execute work summary through `runtime_contracts/tracker.md` \"Trusted GitHub
    work-summary routing\": the comment author must equal the PR author, its PR URL and branch must
    match, and its execution revision must be the current head or an ancestor. Never accept a bare
    `Queue classification:` field from the latest comment. A validated `planned` record remains a

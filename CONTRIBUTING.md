@@ -199,9 +199,9 @@ The `dev` plugin is the concrete model:
 
 1. Change the authoritative skill under `plugins/dev/skills/<skill>/SKILL.md`.
 2. Update every contract surface the behavior affects. For `dev`, these can include
-   `plugins/dev/docs/manual.md`, `plugins/dev/docs/tracker.md`, `plugins/dev/DESIGN.md`, and
-   `plugins/dev/README.md`. Update root `README.md` and `AGENTS.md` when repository-wide behavior or
-   authoring rules change.
+   anything under `plugins/dev/runtime_contracts/` (`tracker.md`, `project-bootstrap.md`,
+   `shadow.md`) and `plugins/dev/README.md`. Update root `README.md` and `AGENTS.md` when
+   repository-wide behavior or authoring rules change.
 3. If reviewer, verifier, or test-writer behavior changes, edit the corresponding Markdown source
    under `plugins/dev/agents/`, then regenerate. Never patch generated TOML directly.
 4. Bump the plugin by the minimum semver increment. While versions are `0.0.x`, every change uses a

@@ -17,8 +17,8 @@ rules_dir: .agent-toolkit/rules/
 # Project development conventions
 
 `AGENTS.md` is the authoring-conventions source of truth. The full contributor workflow is in
-`CONTRIBUTING.md`; architecture and tracker contracts for the `dev` plugin are in
-`plugins/dev/DESIGN.md` and `plugins/dev/docs/`.
+`CONTRIBUTING.md`; the runtime contracts for the `dev` plugin are in
+`plugins/dev/runtime_contracts/` and its operating guide is `plugins/dev/README.md`.
 
 - External contributions use canonical GitHub issues and cross-repository pull requests. They do
   not enter the maintainer's planned queue unless a maintainer explicitly promotes them.
