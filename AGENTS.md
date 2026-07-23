@@ -35,6 +35,7 @@ Codex-native `.agents/plugins/marketplace.json` has no version field.
 .agents/                # Codex-native marketplace manifest (plugins/marketplace.json)
 AGENTS.md               # this file - conventions SSOT for all harnesses
 CLAUDE.md               # one-line @AGENTS.md import (Claude Code entry point)
+docs/adr/               # architecture decision records for this repository
 dist/                   # generated / copy-me artifacts, not plugin-installable
   codex/agents/         #   Codex agent TOMLs (copy to ~/.codex/agents/ or project .codex/agents/)
 .codex/agents/          # generated project-scoped Codex agents
