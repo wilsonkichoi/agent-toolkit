@@ -48,7 +48,8 @@ Progress`, `In Review`, or `Blocked` state to repair an execute failure.
 After the minimal task/PR fetch needed to identify the execution repository, follow
 `runtime_contracts/project-bootstrap.md` before checking preconditions or gathering evidence. Pass every
 changed path from the PR or branch diff to the resolver and read every reported project
-instruction and loaded rule.
+instruction and loaded rule. Resolver failure, including an execution-revision mismatch, is a hard
+stop: check out the expected revision, rerun, and never substitute another revision.
 
 ## Independence rule
 

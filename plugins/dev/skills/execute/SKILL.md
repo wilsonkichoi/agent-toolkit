@@ -75,7 +75,8 @@ claim or implementation write. Resolve the task's execution repository, run the 
 at the resolved base commit with Objective and Definition of Done, and read every reported
 project-instruction and loaded-rule file. The task worktree does not exist yet; do not require its
 branch `HEAD` for this initial bootstrap. The tracker config read for routing is not a substitute
-when the execution repository differs.
+when the execution repository differs. Resolver failure, including an execution-revision mismatch,
+is a hard stop: check out the expected revision, rerun, and never substitute another revision.
 
 **External fork contribution (`external #N`, primary GitHub).** This is GitHub-native intake and
 audit, not a planned queue task. A maintainer selects it explicitly; a read-only contributor in

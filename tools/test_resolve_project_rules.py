@@ -301,6 +301,26 @@ class ResolveProjectRulesTests(unittest.TestCase):
             execution_revision=task_revision,
         )
 
+    def test_revision_mismatch_error_states_the_stop_and_the_remedy(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Main instructions.\n")
+        self.write_config(self.execution_repository, [])
+        self.commit_execution_repository("main revision")
+        self.run_git("checkout", "-b", "task/test-remedy")
+        self.write(self.execution_repository, "AGENTS.md", "Task instructions.\n")
+        task_revision = self.commit_execution_repository("task revision")
+        self.run_git("checkout", "main")
+
+        result = self.resolver_process(execution_revision=task_revision)
+
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        for expected in (
+            "this is a hard stop",
+            "git worktree add --detach",
+            task_revision,
+            "Never substitute another revision",
+        ):
+            self.assertIn(expected, result.stderr)
+
     def test_codex_resolves_three_import_indirections_to_terminal_rule(self) -> None:
         self.write(self.execution_repository, "AGENTS.md", "Codex instructions.\n")
         self.write_config(

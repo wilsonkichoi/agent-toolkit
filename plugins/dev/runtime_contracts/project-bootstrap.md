@@ -24,8 +24,13 @@ expanding `@` imports.
      current `HEAD`.
 
    Resolve the repository identity and expected revision to a local checkout or worktree whose
-   `HEAD` is that exact commit. If no matching checkout is available, stop instead of loading
-   instructions from another revision or from the tracker repository as a substitute.
+   `HEAD` is that exact commit. If no matching checkout is available, create one - fetch the
+   revision when it is not local (`git fetch <remote> refs/pull/<n>/head` for a PR head), then
+   `git worktree add --detach <path> <revision>` - and remove it afterwards. Otherwise stop
+   instead of loading instructions from another revision or from the tracker repository as a
+   substitute. Never substitute another revision to get past the resolver, including the merge
+   commit of the PR under review: an identical tree today is not a guarantee, and the
+   substitution is invisible in the lifecycle record.
 3. **Build the rule context.** Run the resolver from the installed plugin, passing the exact
    tracker and execution repository paths, the expected execution revision, task objective,
    Definition of Done, and every known changed path. The resolver verifies that the selected

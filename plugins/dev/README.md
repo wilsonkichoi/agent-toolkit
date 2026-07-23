@@ -47,7 +47,10 @@ resolve the task's execution repository first, run the bundled deterministic
 [project bootstrap](runtime_contracts/project-bootstrap.md), require that checkout's `HEAD` to match the
 expected task or PR revision, read its context/config files, load every doctrine rule, select
 gotcha rules from declared path/objective/DoD triggers, and record the exact execution revision
-and `Rules loaded:` list in lifecycle artifacts.
+and `Rules loaded:` list in lifecycle artifacts. A revision mismatch is a hard stop, not a
+signal to retry against whatever revision is checked out: the resolver refuses to read project
+files, names the remedy (detach a worktree at the expected revision), and every skill repeats
+that stop condition at its point of use.
 
 ## Skills
 

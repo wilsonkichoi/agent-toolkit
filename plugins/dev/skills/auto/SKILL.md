@@ -90,7 +90,9 @@ refreshes it after implementation exposes the complete changed-path list. Pass t
 execution repository and revision, changed paths when known, and exact project-instruction /
 loaded-rule paths to every worker and named agent; each child reads those files itself. Preserve
 the exact `Execution repository:`, `Execution revision:`, and `Rules loaded:` entries in the work
-summary, review, verification report, and final task report.
+summary, review, verification report, and final task report. Resolver failure, including an
+execution-revision mismatch, is a hard stop: check out the expected revision, rerun, and never
+substitute another revision.
 
 **Model discipline:** spawn every subagent with NO `model` parameter - the dev agents pin
 `model: inherit` and generic subagents inherit the session model by default, and an explicit

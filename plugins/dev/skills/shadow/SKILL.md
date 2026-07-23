@@ -89,7 +89,8 @@ prepare → execute → review → (fix → fresh review)[0..max_fix_attempts] �
    applicable rules through `resolve_project_rules.py`. The replay must load project
    instructions from the historical revision, not from current `main`. Preserve the resolver's
    exact `Execution repository:`, `Execution revision:`, and `Rules loaded:` entries in every
-   artifact.
+   artifact. Resolver failure, including an execution-revision mismatch, is a hard stop: check out
+   the expected revision, rerun, and never substitute another revision.
 4. Mint the run id and start metrics collection (record the wall-clock start; note the harness,
    runtime version, model, and reasoning effort).
 5. Create isolated artifacts (`runtime_contracts/shadow.md` "Git and GitHub isolation"):

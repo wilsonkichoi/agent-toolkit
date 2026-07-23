@@ -60,6 +60,9 @@ After the minimal task/PR fetch needed to identify the execution repository, fol
 `runtime_contracts/project-bootstrap.md` before gathering the diff, spec, CI, or review evidence. Pass every
 changed path from the PR or branch diff to the resolver, then read every reported project
 instruction and loaded rule. Fix mode reruns the bootstrap after edits before tests and push.
+Resolver failure, including an execution-revision mismatch, is a hard stop: check out the expected
+revision - detach a temporary worktree at the PR head when no checkout matches it - rerun, and
+never substitute another revision. A merged PR's squash commit is not a substitute for its head.
 
 ## Independence rule
 

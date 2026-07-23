@@ -65,7 +65,11 @@ Task-scoped lifecycle skills share `plugins/dev/runtime_contracts/project-bootst
 execution-repository or rule-selection algorithm inside individual skills. Promoted rule files
 use `tier: doctrine` for unconditional loading or `tier: gotcha` with deterministic `paths`,
 `objective`, and/or `definition_of_done` triggers. Codex correctness must not depend on `@`
-import expansion.
+import expansion. Resolver failure, including an execution-revision mismatch, is a hard stop that
+every skill invoking the bootstrap must state at its point of use: a skill that only references
+the contract cannot be relied on to carry its stop conditions. Keep the stop clause, the
+resolver's own error text, and `resolve_project_rules.py` in lockstep; never substitute another
+revision to get past the resolver.
 
 GitHub work-summary classification must follow `plugins/dev/runtime_contracts/tracker.md` "Trusted GitHub
 work-summary routing". Do not treat the latest comment containing `Queue classification:` as

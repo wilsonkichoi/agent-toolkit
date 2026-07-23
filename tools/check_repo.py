@@ -664,6 +664,7 @@ def check_project_bootstrap_adoption() -> None:
         "execute",
         "retro",
         "review-pr",
+        "shadow",
         "verify",
     )
     for name in task_scoped_skills:
@@ -676,6 +677,23 @@ def check_project_bootstrap_adoption() -> None:
         ):
             if required not in content:
                 raise fail(path, f"task-scoped skill must contain {required!r}")
+        # Prose wraps at the file's column limit, so match the clause on collapsed
+        # whitespace rather than forcing authors to keep it on one line.
+        if "never substitute another revision" not in " ".join(content.split()):
+            raise fail(
+                path,
+                "bootstrap section must state the hard stop: "
+                "'never substitute another revision'",
+            )
+
+    resolver = ROOT / "plugins/dev/scripts/resolve_project_rules.py"
+    resolver_source = resolver.read_text(encoding="utf-8")
+    for required in ("this is a hard stop", "Never substitute another revision"):
+        if required not in resolver_source:
+            raise fail(
+                resolver,
+                f"execution-revision mismatch error must contain {required!r}",
+            )
 
     for name in ("auto", "execute"):
         path = ROOT / "plugins/dev/skills" / name / "SKILL.md"

@@ -38,6 +38,8 @@ For each task, fetch only enough task/PR identity to resolve its execution repos
 follow `runtime_contracts/project-bootstrap.md` before mining evidence. Pass the completed diff's changed
 paths, read every reported project instruction and loaded rule, and record the exact
 `Execution repository:`, `Execution revision:`, and `Rules loaded:` entries in the retro comment.
+Resolver failure, including an execution-revision mismatch, is a hard stop: check out the expected
+revision, rerun, and never substitute another revision.
 
 If the target task is not yet terminal (e.g. `In Review` awaiting merge), do not close it
 out yourself - merging and `Done` belong to `dev:verify`, even if the user approves the
