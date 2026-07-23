@@ -460,6 +460,40 @@ class ResolveProjectRulesTests(unittest.TestCase):
         self.assertEqual(excluded[readme.name]["tier"], "none")
         self.assertEqual(excluded[readme.name]["path"], ".agent-toolkit/rules/README.md")
 
+    def test_text_output_reports_excluded_files_and_warnings(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository, rules_dir=".claude/rules/")
+        self.write_doctrine(".claude/rules/guard-suite.md")
+        self.write(
+            self.execution_repository,
+            ".claude/rules/README.md",
+            "---\ntier: none\n---\n\nDirectory notes.\n",
+        )
+        revision = self.commit_execution_repository()
+
+        result = subprocess.run(
+            [
+                "uv",
+                "run",
+                str(RESOLVER),
+                "--tracker-repo",
+                str(self.tracker_repository),
+                "--execution-repo",
+                str(self.execution_repository),
+                "--execution-revision",
+                revision,
+            ],
+            cwd=REPOSITORY_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Rules excluded:\n- .claude/rules/README.md [tier:none]", result.stdout)
+        warnings_section = result.stdout.split("Warnings:\n", maxsplit=1)[1]
+        self.assertIn(".claude/rules", warnings_section)
+
     def test_unmarked_rule_file_still_fails_beside_an_excluded_readme(self) -> None:
         self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
         self.write_config(self.execution_repository)

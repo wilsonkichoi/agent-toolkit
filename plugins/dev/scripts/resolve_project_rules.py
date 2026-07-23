@@ -430,7 +430,8 @@ def resolve(
             "rule file contains an `@` import line; rule files are terminal under "
             "discovery, so an import cannot be resolved and its target would load "
             f"unclassified: {', '.join(with_imports)}. Remedy per file: inline the "
-            "imported content, or split it into its own tiered file under rules_dir."
+            "imported content, or split it into its own tiered file under rules_dir. "
+            "To mention a path without importing it, wrap it in backticks."
         )
     if unclassified:
         raise ResolutionError(
