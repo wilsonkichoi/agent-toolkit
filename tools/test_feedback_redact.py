@@ -226,6 +226,105 @@ class TestRedaction(unittest.TestCase):
         self.assertIn("plugins/dev/skills/feedback/SKILL.md", result.stdout)
         self.assertNotIn("<private-repo>", result.stdout)
 
+    def test_preserves_technical_term_readme_index(self) -> None:
+        text = "documentation is in README/index format"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("README/index", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_preserves_technical_term_yaml_toml(self) -> None:
+        text = "supports both YAML/TOML configurations"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("YAML/TOML", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_preserves_technical_term_tier_triggers(self) -> None:
+        text = "rule metadata uses tier/triggers frontmatter"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("tier/triggers", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_preserves_technical_term_memory_import(self) -> None:
+        text = "the memory/import cycle is forbidden"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("memory/import", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_preserves_file_name_pair(self) -> None:
+        text = "update both AGENTS.md/CLAUDE.md when changing conventions"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("AGENTS.md/CLAUDE.md", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_preserves_dotted_version_sequence(self) -> None:
+        text = "versions 0.0.61/0.0.62/0.0.63 all have this bug"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("0.0.61/0.0.62", result.stdout)
+        self.assertIn("0.0.62/0.0.63", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_preserves_single_slash_relative_path_md(self) -> None:
+        text = "see runtime_contracts/project-bootstrap.md for details"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("runtime_contracts/project-bootstrap.md", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_preserves_single_slash_relative_path_py(self) -> None:
+        text = "run scripts/tool.py to generate"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("scripts/tool.py", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_preserves_single_slash_relative_path_yml(self) -> None:
+        text = "edit config/settings.yml for the fix"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("config/settings.yml", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_preserves_single_slash_relative_path_mjs(self) -> None:
+        text = "import from src/module.mjs"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("src/module.mjs", result.stdout)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_still_redacts_genuine_unknown_standalone_repo(self) -> None:
+        text = "tracker repository: acme/private-platform"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("acme/private-platform", result.stdout)
+        self.assertIn("<private-repo>", result.stdout)
+
+    def test_still_redacts_declared_private_repo(self) -> None:
+        text = "used by myorg/secret-service internally"
+        result = run_cli("redact", "--text", text, "--private-repo", "myorg/secret-service")
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("myorg/secret-service", result.stdout)
+        self.assertIn("<private-repo>", result.stdout)
+
+    def test_still_redacts_private_github_url(self) -> None:
+        text = "see https://github.com/myorg/private-project/issues/42"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("myorg/private-project", result.stdout)
+        self.assertIn("<private-repo>", result.stdout)
+
+    def test_still_redacts_non_github_hosting_url(self) -> None:
+        text = "hosted at https://gitlab.com/acme/secret-infra/issues/5"
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("gitlab.com/acme", result.stdout)
+        self.assertIn("<private-repo-url>", result.stdout)
+
     def test_redacts_windows_path(self) -> None:
         text = r"config at C:\Users\alice\src\private-platform\config.yaml"
         result = run_cli("redact", "--text", text)

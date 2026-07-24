@@ -87,7 +87,22 @@ TECHNICAL_TERM_ALLOWLIST = {
     "client/server", "read/write", "input/output", "and/or", "he/she", "she/he",
     "tcp/ip", "http/https", "ci/cd", "yes/no", "on/off", "pass/fail",
     "true/false", "n/a", "w/o", "24/7",
+    "readme/index", "yaml/toml", "tier/triggers", "memory/import",
 }
+
+# Recognized source-code and documentation file extensions (bounded set). A slash token whose
+# either segment ends with one of these is a file-name pair or relative path, not a repo.
+RECOGNIZED_FILE_EXTENSIONS = {
+    ".md", ".py", ".js", ".ts", ".mjs", ".cjs", ".jsx", ".tsx",
+    ".yml", ".yaml", ".json", ".toml", ".sh", ".bash", ".zsh",
+    ".html", ".css", ".scss", ".less", ".svg",
+    ".txt", ".rst", ".cfg", ".ini", ".xml", ".sql",
+    ".rb", ".go", ".rs", ".java", ".kt", ".swift",
+    ".c", ".h", ".cpp", ".hpp", ".cs", ".m",
+}
+
+# Match a dotted-numeric version like 0.0.61, 1.2, 3.4.5.
+_VERSION_SEGMENT_RE = re.compile(r"^\d+(?:\.\d+)+$")
 
 # First segment of a `type/slug` token that is a git ref or branch-type word, not a repo owner;
 # preserved so branch names and refs (`task/11-dev-feedback`, `origin/main`) survive.
@@ -113,6 +128,25 @@ def redact_home_paths(text: str) -> str:
     return text
 
 
+def _is_file_or_version_token(first: str, second: str) -> bool:
+    """Return True if first/second is a file-name pair, relative path, or version sequence.
+
+    Preserved token classes (deterministic, syntax-based, no network lookups):
+    - File-name pairs: either segment has a recognized code/doc extension (AGENTS.md/CLAUDE.md).
+    - Dotted version sequences: either segment matches N.N[.N...] (0.0.61/0.0.62).
+    - Single-slash relative paths: the second segment has a recognized extension
+      (runtime_contracts/project-bootstrap.md, scripts/tool.py, config/settings.yml).
+    """
+    first_lower = first.lower()
+    second_lower = second.lower()
+    for ext in RECOGNIZED_FILE_EXTENSIONS:
+        if first_lower.endswith(ext) or second_lower.endswith(ext):
+            return True
+    if _VERSION_SEGMENT_RE.match(first) or _VERSION_SEGMENT_RE.match(second):
+        return True
+    return False
+
+
 def redact_private_repos(
     text: str,
     public_repos: set[str] | None = None,
@@ -123,9 +157,16 @@ def redact_private_repos(
     Handles GitHub URLs (https://github.com/owner/repo), non-GitHub git hosting
     URLs (gitlab, bitbucket, codeberg, gitea), SSH git URLs (git@host:owner/repo),
     explicitly declared private repository names, and bare `owner/repo` tokens whose
-    visibility is not established. A bare token is redacted by default (false-positives
-    acceptable, false-negatives are not) unless it is the target repo, a declared public
-    repo, an allowlisted technical term, or a git ref / branch name.
+    visibility is not established.
+
+    A bare token is redacted by default (false-positives acceptable, false-negatives
+    are not) unless it matches one of these deterministic, syntax-based preserved classes:
+    - The target repo or a declared public repo.
+    - An allowlisted technical term (read/write, YAML/TOML, tier/triggers, etc.).
+    - A git ref or branch name (first segment in NON_OWNER_FIRST_SEGMENTS).
+    - A file-name pair: either segment has a recognized code/doc extension.
+    - A dotted version sequence: either segment matches N.N[.N...] (e.g. 0.0.61/0.0.62).
+    - A single-slash relative path with a recognized extension (scripts/tool.py).
     """
     if public_repos is None:
         public_repos = set()
@@ -162,7 +203,10 @@ def redact_private_repos(
             return token
         if token.lower() in TECHNICAL_TERM_ALLOWLIST:
             return token
-        if token.split("/", 1)[0].lower() in NON_OWNER_FIRST_SEGMENTS:
+        first, second = token.split("/", 1)
+        if first.lower() in NON_OWNER_FIRST_SEGMENTS:
+            return token
+        if _is_file_or_version_token(first, second):
             return token
         return "<private-repo>"
 

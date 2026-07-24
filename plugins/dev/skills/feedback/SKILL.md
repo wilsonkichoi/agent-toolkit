@@ -94,8 +94,14 @@ Preserve (handled automatically by the helper):
 
 - Public `wilsonkichoi/agent-toolkit` links (issues, PRs, files)
 - Declared public repository names
-- Ordinary two-segment technical terms (`client/server`, `read/write`) and git refs /
-  branch names (`origin/main`, `task/<id>-<slug>`)
+- Ordinary two-segment technical terms (`client/server`, `read/write`, `YAML/TOML`,
+  `tier/triggers`, `memory/import`, `README/index`)
+- Git refs and branch names (`origin/main`, `task/<id>-<slug>`)
+- File-name pairs where either segment has a recognized extension (`AGENTS.md/CLAUDE.md`)
+- Dotted version sequences (`0.0.61/0.0.62/0.0.63`)
+- Single-slash relative paths with recognized extensions (`runtime_contracts/project-bootstrap.md`,
+  `scripts/tool.py`, `config/settings.yml`, `src/module.mjs`)
+- Multi-segment relative paths (three or more segments, e.g. `plugins/dev/skills/feedback/SKILL.md`)
 - Error messages and stack traces (after secret stripping)
 - Skill names, command invocations, and configuration field names
 
