@@ -65,8 +65,13 @@ harness (dogfood T-002: package imported fine but was not importable by pytest).
 
 **Spikes:** create a spike (not a task) where the spec leaves a genuine unknown that blocks
 estimation or design. A spike packet carries the question, a timebox, and the required
-output: an ADR in `docs/adr/` plus a tracker comment with the recommendation. Spikes produce
-knowledge, not merged code.
+output: an ADR in `docs/adr/` plus a tracker comment with the recommendation. A spike produces
+knowledge, not product implementation: its durable decision artifacts (the ADR and any directly
+required documentation or index update) are repository content and merge through the normal
+gate, while experimental implementation - prototype code, fixtures, generated experiments,
+exploratory changes - stays throwaway and is excluded from the artifact-only PR. Write the
+spike DoD to name the ADR and the required docs/index updates as the mergeable output, never
+the prototype.
 
 If drafting reveals a spec gap (needed behavior the spec does not define), stop drafting that
 task and list the gap in the dry run under "Spec gaps - needs dev:architect"; do not guess.

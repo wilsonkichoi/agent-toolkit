@@ -341,6 +341,13 @@ Rules that surprise people:
   them on the ticket for confirmation, and (unattended) releases the claim and skips to the
   next valid task. The ticket stays `Todo`; once a human confirms or edits the drafted
   packet on the ticket, the next claim proceeds normally.
+- **A spike's decision artifacts merge; only its experiment is throwaway.** A spike produces
+  knowledge, not product implementation, but the ADR in `docs/adr/` and any directly required
+  documentation or index update are durable repository content. `dev:verify` merges an
+  artifact-only spike PR through the normal review, CI, human-approval, and merge gate before
+  `Done` - it does not close a spike as done while its required artifact stays unmerged.
+  Prototype code, fixtures, and exploratory changes remain throwaway and are kept out of the
+  PR; a PR that mixes them in is a fail-closed stop at verify.
 
 Backend mappings, the next-task selection algorithm, and the claim race guard are in
 [runtime_contracts/tracker.md](runtime_contracts/tracker.md).

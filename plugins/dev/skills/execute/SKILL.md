@@ -166,6 +166,15 @@ The packet is the contract: read its inlined spec excerpts and follow the linked
   to `Blocked` with a final comment giving the best root-cause hypothesis (the per-approach
   comments are the trail; do not repeat them), and stop (unattended: move to the next task).
 
+**Spikes.** A spike produces knowledge, not product implementation, but its durable decision
+artifacts are repository content that `dev:verify` merges through the normal gate. Commit only
+those durable artifacts to the spike branch - the ADR under `docs/adr/` and any directly
+required documentation or index update - so the PR is artifact-only. Keep experimental
+implementation throwaway: prototype code, fixtures, generated experiments, and exploratory
+changes stay out of the artifact PR (a scratch branch or the worktree, never committed to the
+PR head). An artifact PR polluted with experimental implementation is a fail-closed stop at
+verify, so do not open one.
+
 **Tests.** For non-trivial tasks, delegate test authoring to the `dev:test-writer` agent,
 giving it ONLY: the task packet, the spec excerpts, and the public interface (signatures,
 schemas, endpoints), plus the bootstrap's resolved execution repository and revision and exact

@@ -80,6 +80,11 @@ task's execution repository with a bundled resolver. Codex does not depend on Cl
 `dev:shadow` opens its isolated draft PR only after the replay has produced a candidate commit,
 and binds the PR head to the resolved push repository for both same-repository and fork routing.
 
+A spike's durable decision artifacts merge; only its experiment is throwaway. The ADR and any
+directly required documentation or index update are repository content, so `dev:verify` merges
+an artifact-only spike PR through the normal review, CI, human-approval, and merge gate before
+`Done`, and fails closed when the branch mixes in prototype or exploratory implementation.
+
 Primary-GitHub lifecycle routing binds execute work summaries to the PR author, URL, branch, and
 commit ancestry before review or verification uses their queue classification. Planned reviews
 start only after the canonical issue verifies exactly `status:in-review`.
