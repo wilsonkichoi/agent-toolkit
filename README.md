@@ -48,6 +48,40 @@ Codex installed plugins are cached. Plugin authors testing working-tree changes 
 plugin and open a new thread. See [CONTRIBUTING.md](CONTRIBUTING.md#test-codex-working-tree-changes)
 for the complete local-marketplace workflow.
 
+## Updating
+
+### Codex
+
+Upgrade the plugin and verify the installed version:
+
+```bash
+codex plugin marketplace upgrade agent-toolkit
+codex plugin list | grep agent-toolkit
+```
+
+### Claude Code
+
+Refresh the marketplace and update each installed plugin. The update command targets a
+specific plugin by name; scope it to match however you installed it.
+
+Marketplace refresh:
+
+```bash
+claude plugin marketplace update agent-toolkit
+```
+
+User-scope update:
+
+```bash
+claude plugin update dev@agent-toolkit
+```
+
+Local-scope update:
+
+```bash
+claude plugin update --scope local dev@agent-toolkit
+```
+
 ## Plugins
 
 | Plugin | Description |
