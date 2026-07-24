@@ -759,6 +759,124 @@ def check_project_bootstrap_adoption() -> None:
             )
 
 
+SPIKE_CONTRACT_SURFACES: dict[str, tuple[str, ...]] = {
+    "plugins/dev/runtime_contracts/tracker.md": (
+        "durable decision artifacts",
+        "must merge",
+    ),
+    "plugins/dev/skills/plan/SKILL.md": (
+        "durable decision artifacts",
+        "merge through the normal",
+    ),
+    "plugins/dev/skills/execute/SKILL.md": (
+        "artifact-only",
+        "throwaway",
+    ),
+    "plugins/dev/skills/verify/SKILL.md": (
+        "artifact-only",
+        "Impure spike branch",
+        "merge-cleanup",
+    ),
+}
+
+SPIKE_DOC_SURFACES: dict[str, tuple[str, ...]] = {
+    "plugins/dev/README.md": ("only its experiment is throwaway",),
+    "README.md": ("only its experiment is throwaway",),
+    "AGENTS.md": (
+        "spike artifact lifecycle is a shared contract",
+        "test_spike_lifecycle.py",
+    ),
+}
+
+# Forbidden state (a): a required repository artifact reaching Done without a merge -
+# the ADR-carrying branch called throwaway, or the spike declared to produce unmerged output.
+_SPIKE_FORBIDDEN_NO_MERGE = re.compile(
+    r"spike branch is throwaway"
+    r"|knowledge,?\s+not\s+merged\s+code"
+    r"|no merge\b[^.\n]*\bthrowaway",
+    re.IGNORECASE,
+)
+# Forbidden state (b): experimental implementation described as mergeable spike output.
+_SPIKE_FORBIDDEN_EXPERIMENT_MERGES = re.compile(
+    r"(?:prototype|experimental|exploratory)\s+\w+[^.\n]*"
+    r"\b(?:is|are|remains?|stays?|becomes?)\s+merge(?:d|able)",
+    re.IGNORECASE,
+)
+
+
+def spike_lifecycle_violations(surfaces: dict[str, str]) -> list[str]:
+    """Flag spike-contract text that regresses to a forbidden state.
+
+    Detects the two forbidden states independently of file layout so the guard is
+    exercised by fixtures for both cases:
+      (a) a required repository artifact reaching ``Done`` without a merge;
+      (b) experimental implementation described as mergeable spike output.
+    """
+    violations: list[str] = []
+    for label, text in surfaces.items():
+        if _SPIKE_FORBIDDEN_NO_MERGE.search(text):
+            violations.append(
+                f"{label}: forbidden state (a) - a required spike artifact reaches Done "
+                "without merge (the ADR-carrying branch is called throwaway, or the spike "
+                "produces unmerged output)"
+            )
+        if _SPIKE_FORBIDDEN_EXPERIMENT_MERGES.search(text):
+            violations.append(
+                f"{label}: forbidden state (b) - experimental implementation is described "
+                "as mergeable spike output"
+            )
+    return violations
+
+
+def check_spike_artifact_lifecycle() -> None:
+    """Spike decision artifacts merge through the normal gate; only the experiment is throwaway."""
+    contract_texts: dict[str, str] = {}
+    for relative_path, required_fragments in SPIKE_CONTRACT_SURFACES.items():
+        path = ROOT / relative_path
+        content = path.read_text(encoding="utf-8")
+        contract_texts[relative_path] = content
+        normalized = " ".join(content.split())
+        for fragment in required_fragments:
+            if " ".join(fragment.split()) not in normalized:
+                raise fail(
+                    path,
+                    "spike artifact lifecycle must route durable artifacts through the "
+                    f"normal merge gate; missing {fragment!r}",
+                )
+
+    violations = spike_lifecycle_violations(contract_texts)
+    if violations:
+        raise CheckFailure(
+            "spike artifact lifecycle regressed:\n" + "\n".join(violations)
+        )
+
+    for relative_path, required_fragments in SPIKE_DOC_SURFACES.items():
+        path = ROOT / relative_path
+        normalized = " ".join(path.read_text(encoding="utf-8").split())
+        for fragment in required_fragments:
+            if " ".join(fragment.split()) not in normalized:
+                raise fail(
+                    path,
+                    "user-facing guidance must describe the corrected spike lifecycle; "
+                    f"missing {fragment!r}",
+                )
+
+
+def check_spike_lifecycle_tests() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools/test_spike_lifecycle.py")],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        details = "\n".join(
+            part.strip() for part in (result.stdout, result.stderr) if part.strip()
+        )
+        raise CheckFailure(f"spike lifecycle tests failed:\n{details}")
+
+
 CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("claude-import", check_claude_import),
     ("json-manifests", check_json_manifests),
@@ -776,6 +894,8 @@ CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("github-lifecycle-adoption", check_github_lifecycle_adoption),
     ("manual-review-pr-one-pass", check_manual_review_pr_one_pass_contract),
     ("project-bootstrap-adoption", check_project_bootstrap_adoption),
+    ("spike-artifact-lifecycle", check_spike_artifact_lifecycle),
+    ("spike-lifecycle-tests", check_spike_lifecycle_tests),
 )
 
 

@@ -43,8 +43,13 @@ conflicts between a manual ticket and the spec (docs are the SSOT for intent; th
 for state) are `dev:backlog` triage's job, run on demand.
 
 **Spikes** additionally carry: the question to answer, a timebox, and the required output
-(an ADR in `docs/adr/` plus a tracker comment with the recommendation). Spikes produce
-knowledge, not merged code; their branches are throwaway.
+(an ADR in `docs/adr/` plus a tracker comment with the recommendation). A spike produces
+knowledge, not product implementation, but its durable decision artifacts - the ADR and any
+directly required documentation or index update - are repository content and must merge through
+the normal current-head review, CI, human-approval, and guarded-merge gate before the task
+reaches `Done`. Only experimental implementation is throwaway: prototype code, fixtures,
+generated experiments, and exploratory changes are excluded from the artifact PR, which is
+therefore artifact-only. Never call the branch that carries the required ADR throwaway.
 
 ## Status lifecycle
 

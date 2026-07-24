@@ -122,6 +122,19 @@ claim-time packet validation rejects a missing DoD, a "works correctly"-class cr
 open-ended bar the same way it rejects a missing Objective. Keep the three in lockstep: an
 unbounded DoD admitted at claim time is what prevents review from converging downstream.
 
+The spike artifact lifecycle is a shared contract across `plugins/dev/runtime_contracts/tracker.md`,
+`dev:plan`, `dev:execute`, and `dev:verify`. A spike produces knowledge, not product
+implementation, but its durable decision artifacts - the ADR under `docs/adr/` and any directly
+required documentation or index update - are repository content and merge through the normal
+current-head review, CI, human-approval, and `github_pr.py merge-cleanup` gate before `Done`.
+Only experimental implementation (prototype code, fixtures, generated experiments, exploratory
+changes) is throwaway, and it is excluded from the artifact-only PR. No contract may call the
+branch carrying the required ADR throwaway, describe experimental implementation as mergeable
+spike output, or let a spike reach `Done` with its required artifact unmerged; `dev:verify` fails
+closed on an impure spike branch instead of merging the experiment or discarding the artifact.
+`check_repo.py` runs `tools/test_spike_lifecycle.py`; keep the four contracts and that guard in
+lockstep.
+
 `dev:shadow` is an evaluation surface, not a lifecycle skill. Its deterministic steps live in
 `plugins/dev/scripts/shadow_replay.py` and its contract in `plugins/dev/runtime_contracts/shadow.md`; the
 skill never merges a shadow PR, never mutates the source issue or original PR, and never enters

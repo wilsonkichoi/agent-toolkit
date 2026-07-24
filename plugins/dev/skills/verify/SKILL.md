@@ -260,7 +260,22 @@ Declined or deferred: leave everything as-is and report what the human decided.
 
 ## Spikes
 
-A spike verifies differently: evidence is the ADR in `docs/adr/` plus the recommendation
-comment on the task. No merge - the spike branch is throwaway. Confirm both artifacts exist,
-transition to `Done`, then remove its worktree and local branch. Remove the empty worktree
-container directory when this was its final worktree.
+A spike's durable output is knowledge, but the ADR in `docs/adr/` and any directly required
+documentation or index update are repository content: they reach `Done` only by merging, never
+by a no-merge shortcut. Verify a spike through the same gates as any other task - the exact-head
+project bootstrap, a current-head approving review, green required CI, a criterion-by-criterion
+verification report, explicit human merge approval, and the section 4 `github_pr.py
+merge-cleanup` invocation - with these spike-specific evidence points:
+
+- The recommendation comment on the task and the ADR under `docs/adr/` both exist, and the ADR
+  is part of the PR diff.
+- The PR is artifact-only: it contains the ADR and directly required documentation or index
+  changes and nothing else.
+
+**Impure spike branch (fail closed).** If the PR carries prototype code, fixtures, generated
+experiments, or any exploratory implementation beyond the packet's durable output, stop before
+merge with an actionable diagnostic: the branch must be reduced to an artifact-only PR (reopen
+with only the ADR and required documentation/index changes) before verification can merge.
+Never merge the experiment, and never discard the required artifact by transitioning to `Done`
+without a merge. This is the one spike-specific hard stop; everything else - the `Done`
+transition and the `status:*` label strip included - follows the normal merge path in section 4.
