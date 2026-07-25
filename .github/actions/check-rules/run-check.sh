@@ -120,8 +120,12 @@ verdict() {
       ;;
   esac
   [ "$status" != 0 ] || return 0
-  echo "check-rules: the rules contract check failed with exit status ${status};" \
-    "the checker diagnostics above are unmodified." >&2
+  # The captured status is whatever the invocation returned, which includes a toolchain
+  # failure (no usable interpreter, unusable cache) and not only a rule-contract violation.
+  # Report the status and point at the output; do not name a cause this step cannot know.
+  echo "check-rules: the rules contract check exited with status ${status}." \
+    "The output above is reproduced unmodified from that run - read it to tell a rule" \
+    "violation from a toolchain failure." >&2
   exit "$status"
 }
 

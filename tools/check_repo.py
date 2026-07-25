@@ -514,35 +514,36 @@ def check_rules_composite_action_surfaces() -> None:
     )
     current = tuple(int(part) for part in version.split("."))
     readme = ROOT / "plugins/dev/README.md"
-    readme_content = readme.read_text(encoding="utf-8")
-    references = CHECK_RULES_USES_RE.findall(readme_content)
-    if not references:
+    if not CHECK_RULES_USES_RE.search(readme.read_text(encoding="utf-8")):
         raise fail(
             readme,
             "must document one exact "
             "`uses: wilsonkichoi/agent-toolkit/.github/actions/check-rules@dev-vX.Y.Z` example",
         )
-    for reference in references:
-        match = re.fullmatch(r"dev-v(\d+)\.(\d+)\.(\d+)", reference)
-        if not match:
-            raise fail(
-                readme,
-                f"documented action reference {reference!r} is not an immutable "
-                "dev-vX.Y.Z release tag",
-            )
-        tag = tuple(int(part) for part in match.groups())
-        if tag < CHECK_RULES_ACTION_SINCE:
-            raise fail(
-                readme,
-                f"documented action reference {reference!r} predates the release that "
-                "contains the action",
-            )
-        if tag > current:
-            raise fail(
-                readme,
-                f"documented action reference {reference!r} is not released; the dev "
-                f"plugin is at {version}",
-            )
+    # Every committed reference is validated, wherever it lives. A second copy that drifts to
+    # a superseded tag or to `main` is the exact failure this guard exists to prevent.
+    for path in (readme, ROOT / "README.md"):
+        for reference in CHECK_RULES_USES_RE.findall(path.read_text(encoding="utf-8")):
+            match = re.fullmatch(r"dev-v(\d+)\.(\d+)\.(\d+)", reference)
+            if not match:
+                raise fail(
+                    path,
+                    f"documented action reference {reference!r} is not an immutable "
+                    "dev-vX.Y.Z release tag",
+                )
+            tag = tuple(int(part) for part in match.groups())
+            if tag < CHECK_RULES_ACTION_SINCE:
+                raise fail(
+                    path,
+                    f"documented action reference {reference!r} predates the release that "
+                    "contains the action",
+                )
+            if tag > current:
+                raise fail(
+                    path,
+                    f"documented action reference {reference!r} is not released; the dev "
+                    f"plugin is at {version}",
+                )
 
     required_by_file = {
         ROOT / "AGENTS.md": (".github/actions/check-rules",),

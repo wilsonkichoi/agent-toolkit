@@ -55,6 +55,18 @@ def parse_outputs(text: str) -> dict[str, str]:
     return outputs
 
 
+def composite_steps() -> list[str]:
+    """Split the manifest's composite steps into blocks, with no YAML dependency."""
+    lines = ACTION_MANIFEST.read_text(encoding="utf-8").split("\n")
+    blocks: list[list[str]] = []
+    for line in lines[lines.index("  steps:") + 1 :]:
+        if re.match(r"^ {4}- ", line):
+            blocks.append([])
+        if blocks:
+            blocks[-1].append(line)
+    return ["\n".join(block) for block in blocks]
+
+
 class ActionResult:
     def __init__(self, process: subprocess.CompletedProcess[str], outputs: dict[str, str]):
         self.returncode = process.returncode
@@ -280,6 +292,27 @@ class ManifestTests(unittest.TestCase):
     def test_real_manifest_passes_the_repository_guard(self) -> None:
         # Only the static half: check_rules_composite_action() runs this file.
         check_repo.check_rules_composite_action_surfaces()
+
+    def test_toolchain_install_is_conditional_on_the_detected_config(self) -> None:
+        """The skip path is install-free only because this step carries its guard.
+
+        Nothing else catches its removal: the entrypoint tests never read the manifest, and
+        every no-config workflow assertion holds whether or not the install ran.
+        """
+        steps = composite_steps()
+        self.assertEqual(len(steps), 4, "expected detect, install, check, and verdict")
+        install = [index for index, step in enumerate(steps) if "uses: astral-sh/setup-uv@" in step]
+        self.assertEqual(len(install), 1, "expected exactly one toolchain install step")
+        detect = [
+            index
+            for index, step in enumerate(steps)
+            if re.search(r"run-check\.sh\S* detect\b", step)
+        ]
+        self.assertEqual(len(detect), 1)
+        self.assertLess(detect[0], install[0], "the install must follow detection")
+        self.assertIn(
+            "if: steps.detect.outputs.config == 'present'", steps[install[0]]
+        )
 
     def test_manifest_pins_third_party_actions_to_a_full_sha(self) -> None:
         manifest = ACTION_MANIFEST.read_text(encoding="utf-8")
