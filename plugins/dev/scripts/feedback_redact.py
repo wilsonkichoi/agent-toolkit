@@ -80,6 +80,14 @@ STANDALONE_REPO_RE = re.compile(
     r"(?![\w/])"
 )
 
+# GitHub Actions permits a repository name followed by a local action path. Match the
+# repository separately so the standalone matcher cannot backtrack to a hyphen prefix.
+GITHUB_ACTION_REPO_RE = re.compile(
+    r"(?<![\w./@:-])"
+    r"([A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?/[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)"
+    r"(?=/\.github/actions/)"
+)
+
 # Two-segment tokens that read as `owner/repo` but are ordinary technical text; preserved so
 # drafts stay legible. False positives beyond this set are acceptable (the draft is
 # human-reviewed before filing); a leaked private repo name is not.
@@ -197,6 +205,16 @@ def redact_private_repos(
             if repo not in public_repos:
                 text = text.replace(repo, "<private-repo>")
 
+    public_repo_markers: dict[str, str] = {}
+    for index, repo in enumerate(sorted(public_repos, key=len, reverse=True)):
+        marker = f"__PUBLIC_REPO_{index}__"
+        public_repo_markers[marker] = repo
+        text = re.sub(
+            rf"(?<![A-Za-z0-9_.-]){re.escape(repo)}(?![A-Za-z0-9_.-])",
+            marker,
+            text,
+        )
+
     def _replace_standalone_repo(match: re.Match[str]) -> str:
         token = match.group(1)
         if token in public_repos:
@@ -210,7 +228,11 @@ def redact_private_repos(
             return token
         return "<private-repo>"
 
+    text = GITHUB_ACTION_REPO_RE.sub(_replace_standalone_repo, text)
     text = STANDALONE_REPO_RE.sub(_replace_standalone_repo, text)
+
+    for marker, repo in public_repo_markers.items():
+        text = text.replace(marker, repo)
 
     return text
 
