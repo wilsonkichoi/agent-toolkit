@@ -918,11 +918,13 @@ class ResolveProjectRulesTests(RepositoryFixtures, unittest.TestCase):
         )
         self.write_config(
             self.execution_repository,
-            context_file="../outside-context/AGENTS.md",
+            context_file="../../outside-context/AGENTS.md",
         )
         self.write_doctrine(".agent-toolkit/rules/guard-suite.md")
 
-        self.assert_check_mode_repeats_the_lifecycle_failure("outside-context")
+        self.assert_check_mode_repeats_the_lifecycle_failure(
+            "escapes execution repository"
+        )
 
     def test_lifecycle_mode_still_requires_tracker_execution_and_revision(self) -> None:
         self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
@@ -1192,12 +1194,36 @@ class RulesContractCheckTests(RepositoryFixtures, unittest.TestCase):
         self,
     ) -> None:
         self.write(self.root, "outside-context/AGENTS.md", "Outside instructions.\n")
-        self.write_config(self.repository, context_file="../outside-context/AGENTS.md")
+        self.write_doctrine_file(self.repository, ".agent-toolkit/rules/guard-suite.md")
+        escaping_context_files = {
+            "relative parent path": (
+                "../../outside-context/AGENTS.md",
+                "escapes execution repository",
+            ),
+            "absolute path outside the repository": (
+                str(self.root / "outside-context/AGENTS.md"),
+                "absolute import is not allowed",
+            ),
+        }
+        for reason, (context_file, diagnostic) in escaping_context_files.items():
+            with self.subTest(reason=reason):
+                self.write_config(self.repository, context_file=context_file)
+
+                stderr = self.assert_check_fails(self.repository, diagnostic)
+
+                self.assertIn("outside-context", stderr)
+                self.assertNotIn("Outside instructions.", stderr)
+
+    def test_relative_context_file_staying_inside_the_repository_is_not_an_escape(
+        self,
+    ) -> None:
+        self.write(self.repository, "docs/AGENTS.md", "Project instructions.\n")
+        self.write_config(self.repository, context_file="../docs/AGENTS.md")
         self.write_doctrine_file(self.repository, ".agent-toolkit/rules/guard-suite.md")
 
-        stderr = self.assert_check_fails(self.repository, "outside-context")
+        stdout = self.assert_check_succeeds(self.repository)
 
-        self.assertNotIn("Outside instructions.", stderr)
+        self.assertEqual(self.summary_counts(stdout, self.repository), [1, 1, 0, 0])
 
     def test_rules_dir_escaping_the_repository_fails_check_mode(self) -> None:
         self.write(self.repository, "AGENTS.md", "Project instructions.\n")
