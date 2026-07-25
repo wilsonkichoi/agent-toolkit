@@ -87,7 +87,7 @@ claude plugin update --scope local dev@agent-toolkit
 | Plugin | Description |
 |---|---|
 | `utils` | Research, knowledge synthesis, LLM Wiki maintenance, retrospectives, and security scanning |
-| `dev` | Product discovery, architecture, tracker-backed planning, implementation, review, verification, standalone GitHub PR merge/cleanup operations, status, retrospectives, historical-replay evaluation, and structured feedback filing |
+| `dev` | Product discovery, architecture, tracker-backed planning, implementation, review, verification, standalone GitHub PR merge/cleanup operations, plugin release publication, status, retrospectives, historical-replay evaluation, and structured feedback filing |
 
 Plugin-specific documentation is in [plugins/utils/README.md](plugins/utils/README.md) and
 [plugins/dev/README.md](plugins/dev/README.md).
@@ -142,6 +142,18 @@ versioning, generated artifacts, working-tree testing in both harnesses, the `de
 and the maintainer handoff.
 
 Repository authoring rules and required checks are in [AGENTS.md](AGENTS.md).
+
+Plugin versions are released as immutable `<plugin>-vX.Y.Z` tags plus matching GitHub Releases, so a
+consumer can pin a human-readable version instead of `main` or a commit SHA. `dev` and `utils` are
+versioned and tagged independently. Tag creation is automatic: a push to `main` that strictly
+increases a plugin's three synchronized version fields creates that plugin's tag at the merged
+commit, and refuses before creating anything when the fields disagree, the version is not semver or
+decreases, the exact changelog heading is missing, or the tag already exists elsewhere. Publishing
+the GitHub Release stays an explicit maintainer action through `/dev:release <tag>`. Published tags
+and releases are never moved, edited, or deleted; corrections ship as a new patch release.
+
+The maintainer procedure is in [docs/RELEASING.md](docs/RELEASING.md) and shipped versions are
+listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Repository layout
 

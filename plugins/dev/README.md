@@ -65,6 +65,7 @@ that stop condition at its point of use.
 | `/dev:auto` | Unattended per-task pipeline: target one task (`/dev:auto DOG-14`) or drain a milestone (`/dev:auto milestone 2 [max N tasks]`) through execute → independent review → bounded fix loop → verify → merge → record-only retro. A task target is strictly single-task and never falls through. Requires `auto_merge: true` (standing approval); merges only review-approved work whose criteria are mechanically evidenced or carry a recorded human sign-off; a manual DoD criterion with neither stops for a human. |
 | `/dev:review-pr` | Independent one-pass review of a task PR against its packet and spec: severity-ranked findings, verdict posted via `gh pr review`, then stop. Each manual fix invocation snapshots and applies one current findings batch on the same branch, tests, pushes, replies per finding, requests or records the need for re-review, then stops. It never runs the fresh review itself. Delegates review to the `reviewer` agent when the session implemented the PR. Automatic review/fix chaining belongs only to `/dev:auto` and is bounded by `max_fix_attempts`. |
 | `/dev:merge-pr` | Lightweight standalone GitHub operation: merge a PR, clean up an already-merged PR's worktree/branches, or do both. It does not read tracker state, task packets, DoD, project-bootstrap rules, or `dev:verify`; it calls one deterministic helper and returns its JSON receipt. |
+| `/dev:release` | Standalone release publication for a plugin marketplace repository: publish the GitHub Release for one already-existing `<plugin>-vX.Y.Z` tag. It shows the target tag and commit, requires explicit human authorization for the public mutation, and delegates every check and mutation to one deterministic helper. Tags themselves are created automatically when a version bump merges to `main`; this skill never creates, moves, or deletes a tag, and never edits or deletes a release. |
 | `/dev:verify` | The lifecycle merge gate: evidence per DoD criterion (run tests, cite CI, perform manual steps), verification report on the PR, then human-approved merge, task → `Done`, worktree cleanup. It is the only lifecycle skill allowed to merge or set `Done`; standalone operations use `/dev:merge-pr` outside the lifecycle. Human-gate (manual/visual) criteria pass only on a recorded sign-off (a comment authored by the human) or live confirmation - PR-body checkboxes are display only, checked solely by verify. Rejects stale approvals: the approving review must target the current PR HEAD, so a post-review fix push forces a fresh review before merge. Delegates evidence gathering to the `verifier` agent when the session implemented the PR; the human gate and merge stay in the session. Approval never waives the record: the report and checkbox updates land on the PR before the merge. |
 | `/dev:retro` | Mines PR review threads, CI history, tracker comments, session transcripts, and lifecycle-contract compliance (did each step produce what its skill mandates, including steps run in the current session) for completed tasks, then closes the memory loop: evidence-cited learnings promoted into the configured memory (`rules_dir` files, `.agent-toolkit/rules/` by default, or a `memory_target` MCP system), applied on approval. Defects or follow-up work the retro uncovers route to the tracker via `/dev:backlog`, never to memory notes; the retro comment posts before the promotion gate so the record survives an abandoned session. |
 | `/dev:status` | Read-only dashboard: milestone progress, open PRs + CI state, WIP vs limit, blocked tasks, next claimable tasks, plus consistency checks (state lies, abandoned claims, missed cleanups). |
@@ -172,6 +173,54 @@ Add `--worktree /path/to/pr-worktree` when the PR branch is checked out in a sep
 Use `--base-remote upstream` when the canonical base lives on `upstream`. Omit remote deletion for
 an external contributor's branch. `--expected-head <full-sha>` adds an explicit caller-supplied
 revision binding; every merge still uses GitHub's `--match-head-commit` guard.
+
+## Plugin releases
+
+`scripts/plugin_release.py` exposes two operations for a repository that publishes versioned
+plugins. Tag creation is automatic; release publication is an explicit human action.
+
+`tag` compares each plugin's three synchronized version fields between a push event's before and
+head commits. A strict increase creates exactly one immutable lightweight `<plugin>-vX.Y.Z` tag at
+the head commit, an unchanged version creates nothing and succeeds, and one commit bumping two
+plugins creates both tags. It refuses before creating any tag when the changed plugin's version
+fields disagree, the new value is not semver, the version decreases, the exact
+`## <plugin>-vX.Y.Z` changelog heading is missing at the head commit, or the tag already exists at
+another commit. An existing tag at the expected commit is idempotent success. This operation is
+driven by a push-to-`main` workflow, not by hand:
+
+```yaml
+permissions:
+  contents: read
+
+jobs:
+  release-tags:
+    permissions:
+      contents: write
+```
+
+`release` creates the GitHub Release for one existing tag. `dev:release` is its entry point. Before
+mutating anything it validates the tag syntax against the repository's plugins, the remote tag's
+existence, its reachability from canonical `main`, the three version fields at the tagged commit,
+and the exact changelog heading. It creates a non-draft, non-prerelease release named
+`<plugin> plugin vX.Y.Z` whose notes come from that changelog section **at the tagged commit**, then
+re-reads GitHub to verify tag, name, flags, URL, and non-empty notes.
+
+```bash
+uv run plugins/dev/scripts/plugin_release.py release \
+  --repo owner/repository \
+  --tag dev-v0.0.69 \
+  --confirm
+```
+
+`--confirm` is the authorization gate: without it the helper refuses to create a release. An
+already correct release returns `already-published` without mutating anything. An existing draft,
+prerelease, mismatched-name, mismatched-tag, or empty-notes release fails without being edited or
+deleted, because a published release is corrected by shipping a new patch version, never in place.
+No code path deletes, force-updates, or moves a tag; tags are created through
+`POST /git/refs`, which GitHub rejects when the ref already exists.
+
+The full maintainer procedure for this repository is in
+[docs/RELEASING.md](../../docs/RELEASING.md).
 
 **Secondary intake channel.** A non-`github`-primary project can accept isolated GitHub issues
 and drive-by PRs as a second channel (`secondary_intake: github`): promote them into the
