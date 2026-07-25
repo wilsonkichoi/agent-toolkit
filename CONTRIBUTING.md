@@ -207,7 +207,9 @@ The `dev` plugin is the concrete model:
 4. Bump the plugin by the minimum semver increment. While versions are `0.0.x`, every change uses a
    patch bump. Keep exactly these three values equal: the plugin entry in
    `.claude-plugin/marketplace.json`, `plugins/dev/.claude-plugin/plugin.json`, and
-   `plugins/dev/.codex-plugin/plugin.json`.
+   `plugins/dev/.codex-plugin/plugin.json`. Add the matching `## <plugin>-vX.Y.Z` entry to
+   `CHANGELOG.md` in the same pull request; the push-to-`main` tagging workflow refuses a version
+   whose heading is missing.
 5. Treat the marketplace-level `.claude-plugin/marketplace.json` `metadata.version` as an
    independent catalog version. Bump it when the catalog itself changes. Never add versions to
    `.agents/plugins/marketplace.json`. It is not part of a release tag; see
@@ -238,13 +240,26 @@ These are dependency-free PEP 723 scripts. Do not add `pyproject.toml`, `.python
 
 ## Release a plugin version
 
-Cutting a release is maintainer-only. A release is an immutable `dev-vX.Y.Z` tag plus its matching
-GitHub Release, created from a commit that already merged through the protected `main` pull request
-gate. The version-field change and its `CHANGELOG.md` entry land in the same pull request, before
-the tag exists.
+Cutting a release is maintainer-only. A release is an immutable `<plugin>-vX.Y.Z` tag plus its
+matching GitHub Release, bound to a commit that already merged through the protected `main` pull
+request gate. `dev` and `utils` are versioned and tagged independently.
+
+The work splits in two:
+
+- **The tag is automatic.** The `Release tags` workflow runs on every push to `main`, validates the
+  merged commit, and creates `<plugin>-vX.Y.Z` for each plugin whose three synchronized version
+  fields strictly increased. It refuses before creating any tag when those fields disagree, the new
+  value is not semver, the version decreases, the exact `## <plugin>-vX.Y.Z` heading is missing from
+  `CHANGELOG.md` at the merged commit, or the tag already exists at another commit.
+- **The release is explicit.** A maintainer publishes it with `dev:release <tag>` (Claude Code:
+  `/dev:release dev-v0.0.69`; Codex: `$release dev-v0.0.69`), which requires authorization for the
+  public mutation and delegates every check to `plugins/dev/scripts/plugin_release.py`.
+
+Because of the first point, the version-field change **and** its `CHANGELOG.md` entry must land in
+the same pull request. A version that merges without its changelog heading does not get tagged.
 
 The complete procedure, including the tag scheme, the three lockstep version fields, tag
-immutability, and rollback by new patch release, is in [docs/RELEASING.md](docs/RELEASING.md).
+immutability, and recovery without moving a tag, is in [docs/RELEASING.md](docs/RELEASING.md).
 Shipped versions are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Test Claude Code working-tree changes

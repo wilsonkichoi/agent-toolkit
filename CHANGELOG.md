@@ -3,19 +3,42 @@
 Releases of the plugins in this repository. A release is a `<plugin>-vX.Y.Z` Git tag plus its
 matching GitHub Release; the full procedure is in [docs/RELEASING.md](docs/RELEASING.md).
 
-**Convention:** every future `dev` plugin release adds its entry to this file *before* its tag is
-created. The entry lands in the same pull request as the three lockstep version-field changes, so
-the tagged commit already contains its own changelog entry. A version that reaches `main` without
-an entry here is not a release.
+**Convention:** every plugin release adds its tag-named entry to this file *before* the tag is
+created. The entry lands in the same pull request as that plugin's three lockstep version-field
+changes, so the tagged commit already contains its own release notes. This is enforced, not
+advisory: the push-to-`main` tagging workflow refuses to tag a version whose exact
+`## <plugin>-vX.Y.Z` heading is missing at the merged commit, and `dev:release` reads its release
+notes from that section at the tagged commit.
 
-Entries are newest first. Each release entry is headed by its tag name and the commit the tag
-points at.
+Entries are newest first. Each release entry is headed by its exact tag name.
 
-## Unreleased
+## dev-v0.0.69
 
-The `dev` plugin advanced to `0.0.67` and `0.0.68` on `main` before this release process existed.
-Neither version carries a tag or GitHub Release, and both are listed here so the gap between the
-manifest version and the newest tag is explicit rather than silent.
+- Added `plugins/dev/scripts/plugin_release.py`, one dependency-free helper with a `tag` operation
+  (compare each plugin's three synchronized version fields between a push event's before and head
+  commits, then create one immutable lightweight tag per strictly increased plugin) and a `release`
+  operation (create the GitHub Release for one existing tag).
+- Added the `Release tags` workflow, which runs on every push to `main` with job-scoped
+  `contents: write`, SHA-pinned third-party actions, and a merged-commit validation step, then
+  invokes the helper's `tag` operation. Version bumps no longer depend on a maintainer remembering
+  to tag.
+- Added the `dev:release <tag>` skill: a thin orchestrator that resolves the canonical repository,
+  shows the target tag and commit, requires explicit human authorization, and delegates every
+  mutation to the helper.
+- Tag and release publication is immutable and fail-closed. Desynchronized version fields, invalid
+  semver, a version regression, a missing exact changelog heading, or an existing tag at another
+  commit all refuse before any mutation. An existing correct tag or release is idempotent success;
+  an existing draft, prerelease, mismatched, or empty-notes release fails without being edited or
+  deleted.
+- Added `tools/test_plugin_release.py` and wired it into `check_repo.py` as the `plugin-release`
+  check, so the network-free success, no-op, idempotency, and refusal coverage is a non-optional
+  gate.
+
+## Untagged history
+
+The `dev` plugin advanced to these versions on `main` before the release process existed. Neither
+carries a tag or GitHub Release, and both are listed here so the gap between the manifest version
+and the tag history is explicit rather than silent. Automatic tagging begins with `dev-v0.0.69`.
 
 - `0.0.68` (`d8a1931`) - ship a CI-runnable rules-contract check,
   `resolve_project_rules.py --check`.
@@ -24,9 +47,9 @@ manifest version and the newest tag is explicit rather than silent.
 
 ## dev-v0.0.66
 
-Commit `4167ff1dff46cf105e8239849d662e8f02f50748` - the bootstrap release, tagged retroactively when
-the release process was established. This entry documents a historical release that predates this
-file.
+The bootstrap release, tagged retroactively at commit
+`4167ff1dff46cf105e8239849d662e8f02f50748` when the release process was established. This entry
+documents a historical release that predates this file.
 
 - Resolved the contradictory spike contracts: a spike's durable decision artifacts (the ADR under
   `docs/adr/` and any directly required documentation or index update) are repository content and

@@ -28,9 +28,16 @@ semver catalog version. It is not required to match any plugin release version. 
 Codex-native `.agents/plugins/marketplace.json` has no version field, and neither of these
 appears in a release tag.
 
-A version becomes a release when it is tagged `dev-vX.Y.Z` at its merged commit and published as
-a GitHub Release, with its `CHANGELOG.md` entry landing in the same pull request as the three
-version-field changes. Published tags are immutable. The procedure is `docs/RELEASING.md`.
+A version becomes a release when it is tagged `<plugin>-vX.Y.Z` at its merged commit and published
+as a GitHub Release. `dev` and `utils` occupy that tag namespace independently. Published tags and
+releases are immutable: never move, replace, or delete one, and correct a shipped release by
+publishing a new patch version. The procedure is `docs/RELEASING.md`.
+
+Tagging is automatic, so the `CHANGELOG.md` entry is not optional bookkeeping. Its heading must be
+exactly `## <plugin>-vX.Y.Z` and it must land in the same pull request as that plugin's three
+version-field changes; the push-to-`main` workflow refuses to tag a version whose heading is
+missing at the merged commit, and the release notes are read from that section at the tagged
+commit.
 
 ## Structure
 
@@ -114,6 +121,15 @@ Standalone GitHub PR merge and branch cleanup share `plugins/dev/scripts/github_
 operations and has no tracker dependency. `dev:verify` may call the same helper only after its own
 evidence and approval gates. Do not reproduce the helper's guarded `gh`/`git` sequence in skills
 or agent instructions.
+
+Plugin version tags and GitHub Releases share `plugins/dev/scripts/plugin_release.py`, which
+exposes `tag` and `release` and has no tracker dependency. The `Release tags` push-to-`main`
+workflow owns the `tag` operation; the `dev:release` skill owns `release` and must obtain explicit
+human authorization before the public mutation. Neither may reproduce the helper's `gh`/`git`
+sequence, and no surface may create, move, delete, or recreate a tag or edit an existing release by
+hand: publication is idempotent, fail-closed, and immutable by construction. `check_repo.py` runs
+`tools/test_plugin_release.py`; keep the helper, the workflow, the skill, `docs/RELEASING.md`, and
+those network-free tests in lockstep.
 
 Manual `dev:review-pr` invocations are single-pass lifecycle actions. Review mode posts one
 verdict and stops; fix mode applies one current findings batch, requests or records the need for

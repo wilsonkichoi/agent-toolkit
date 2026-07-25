@@ -505,6 +505,56 @@ def check_github_pr_helper() -> None:
                 raise fail(path, f"GitHub PR helper adoption must contain {required!r}")
 
 
+def check_plugin_release() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools/test_plugin_release.py")],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        details = "\n".join(
+            part.strip() for part in (result.stdout, result.stderr) if part.strip()
+        )
+        raise CheckFailure(f"plugin release helper tests failed:\n{details}")
+
+    workflow = ROOT / ".github/workflows/release-tags.yml"
+    required_by_file = {
+        ROOT / "AGENTS.md": (
+            "plugins/dev/scripts/plugin_release.py",
+            "`tag` and `release`",
+        ),
+        ROOT / "plugins/dev/README.md": ("## Plugin releases", "dev:release"),
+        ROOT / "plugins/dev/skills/release/SKILL.md": (
+            "scripts/plugin_release.py",
+            "--confirm",
+        ),
+        ROOT / "docs/RELEASING.md": ("dev:release", "plugin_release.py"),
+        workflow: (
+            "plugins/dev/scripts/plugin_release.py tag",
+            "contents: write",
+        ),
+    }
+    for path, required_values in required_by_file.items():
+        try:
+            content = path.read_text(encoding="utf-8")
+        except FileNotFoundError as error:
+            raise fail(path, "plugin release adoption requires this file") from error
+        for required in required_values:
+            if required not in content:
+                raise fail(path, f"plugin release adoption must contain {required!r}")
+
+    for match in re.finditer(r"uses: (\S+)@(\S+)", workflow.read_text(encoding="utf-8")):
+        action, reference = match.groups()
+        if not re.fullmatch(r"[0-9a-f]{40}", reference):
+            raise fail(
+                workflow,
+                f"third-party action {action!r} must be pinned to a full commit SHA, "
+                f"found {reference!r}",
+            )
+
+
 def check_shadow_replay() -> None:
     result = subprocess.run(
         [sys.executable, str(ROOT / "tools/test_shadow_replay.py")],
@@ -889,6 +939,7 @@ CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("rule-discovery-contract", check_rule_discovery_contract),
     ("github-task-lifecycle", check_github_task_lifecycle),
     ("github-pr-helper", check_github_pr_helper),
+    ("plugin-release", check_plugin_release),
     ("shadow-replay", check_shadow_replay),
     ("feedback-redact", check_feedback_redact),
     ("github-lifecycle-adoption", check_github_lifecycle_adoption),
