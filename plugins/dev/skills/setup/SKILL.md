@@ -299,12 +299,32 @@ line under `## Rules` fails the check instead of warning. Run it once against th
 the user the result before adding it to any workflow - a project that would fail today needs the
 migration above first, not a red build.
 
-If accepted, add the command as a step in the configured CI workflow, matching that workflow's
-existing conventions rather than imposing a new job layout. The project must be able to run the
-resolver: the plugin ships with the harness, so a repository whose CI has no plugin checkout
-needs the path resolved for it (a vendored copy is not an option - it is the duplication this
-check exists to remove). When the workflow cannot reach the script, say so plainly, leave CI
-unchanged, and record it in the report rather than wiring something that will not run.
+If accepted, wire it one of two ways, chosen by where the project's CI runs.
+
+**GitHub Actions projects** get the composite action, which packages the toolchain install and
+the invocation in one version-pinned step. Add it to the configured workflow:
+
+```yaml
+- uses: wilsonkichoi/agent-toolkit/.github/actions/check-rules@dev-vX.Y.Z
+```
+
+Resolve `dev-vX.Y.Z` to a real released tag of this plugin - the one in
+`plugins/dev/README.md`, or a later `dev-v*` release - and never write `main`, a raw commit SHA,
+or a placeholder into the project's workflow. The action checks out this repository at that tag
+and runs its own copy of the resolver, so the project needs no plugin checkout and no vendored
+script. It checks `GITHUB_WORKSPACE` by default, exits 0 with a skip message when the repository
+has no `.agent-toolkit/dev.md`, and otherwise exits with the checker's status and diagnostics
+unchanged.
+
+**Other CI systems** (GitLab CI, CircleCI, Jenkins, Buildkite, a local pre-push hook) run the
+`--check` command directly as a step, matching that system's existing conventions rather than
+imposing a new job layout. The project must be able to run the resolver: the plugin ships with
+the harness, so a repository whose CI has no plugin checkout needs the path resolved for it (a
+vendored copy is not an option - it is the duplication this check exists to remove). When the
+pipeline cannot reach the script, say so plainly, leave CI unchanged, and record it in the report
+rather than wiring something that will not run.
+
+Declining leaves CI exactly as it was; nothing else in setup changes either way.
 
 Writing the workflow file is a local, reviewable change; changing any repository Actions setting
 is canonical-repository state and follows the same permission boundary as section 6.

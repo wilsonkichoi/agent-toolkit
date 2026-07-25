@@ -449,6 +449,137 @@ def check_rule_discovery_contract() -> None:
             )
 
 
+# The first dev release whose tag contains .github/actions/check-rules. A documented
+# `uses:` example may name that tag or any later released one, never `main`, a raw SHA, a
+# moving major tag, or a placeholder.
+CHECK_RULES_ACTION_SINCE = (0, 0, 70)
+CHECK_RULES_USES_RE = re.compile(
+    r"uses: wilsonkichoi/agent-toolkit/\.github/actions/check-rules@(?P<reference>\S+)"
+)
+
+
+def check_rules_composite_action_surfaces() -> None:
+    """Static half of the composite-action guard.
+
+    Split from the behavioral half so ``tools/test_check_rules_action.py`` can assert it
+    against the real repository without re-entering the check that runs those tests.
+    """
+    manifest = ROOT / ".github/actions/check-rules/action.yml"
+    entrypoint = ROOT / ".github/actions/check-rules/run-check.sh"
+    workflow = ROOT / ".github/workflows/repository-validation.yml"
+    manifest_content = manifest.read_text(encoding="utf-8")
+    entrypoint_content = entrypoint.read_text(encoding="utf-8")
+    workflow_content = workflow.read_text(encoding="utf-8")
+
+    for path, content in ((manifest, manifest_content), (workflow, workflow_content)):
+        for action, reference in re.findall(r"uses: (\S+)@(\S+)", content):
+            if action.startswith("./"):
+                continue
+            if not re.fullmatch(r"[0-9a-f]{40}", reference):
+                raise fail(
+                    path,
+                    f"third-party action {action!r} must be pinned to a full commit SHA, "
+                    f"found {reference!r}",
+                )
+
+    # The action must delegate to the shipped checker rather than grow a second one.
+    if "resolve_project_rules.py" not in entrypoint_content:
+        raise fail(entrypoint, "the action must invoke the shipped resolver's --check mode")
+    if "tier:" in entrypoint_content:
+        raise fail(
+            entrypoint,
+            "the action must not classify rules itself; --check is the only checker",
+        )
+
+    for fixture in ("no-config", "compliant", "invalid-rule"):
+        fixture_dir = ROOT / ".github/fixtures/check-rules" / fixture
+        if not fixture_dir.is_dir():
+            raise fail(fixture_dir, "composite-action fixture is missing")
+        if f"path: .github/fixtures/check-rules/{fixture}" not in workflow_content:
+            raise fail(
+                workflow,
+                f"the mandatory check must run the composite action against {fixture!r}",
+            )
+    for required in (
+        "uses: ./.github/actions/check-rules",
+        "expect_equal \"invalid-rule outcome\" failure",
+    ):
+        if required not in workflow_content:
+            raise fail(workflow, f"composite-action fixture job must contain {required!r}")
+
+    version = require_string(
+        load_json(ROOT / "plugins/dev/.claude-plugin/plugin.json"),
+        "version",
+        ROOT / "plugins/dev/.claude-plugin/plugin.json",
+    )
+    current = tuple(int(part) for part in version.split("."))
+    readme = ROOT / "plugins/dev/README.md"
+    if not CHECK_RULES_USES_RE.search(readme.read_text(encoding="utf-8")):
+        raise fail(
+            readme,
+            "must document one exact "
+            "`uses: wilsonkichoi/agent-toolkit/.github/actions/check-rules@dev-vX.Y.Z` example",
+        )
+    # Every committed reference is validated, wherever it lives. A second copy that drifts to
+    # a superseded tag or to `main` is the exact failure this guard exists to prevent.
+    for path in (readme, ROOT / "README.md"):
+        for reference in CHECK_RULES_USES_RE.findall(path.read_text(encoding="utf-8")):
+            match = re.fullmatch(r"dev-v(\d+)\.(\d+)\.(\d+)", reference)
+            if not match:
+                raise fail(
+                    path,
+                    f"documented action reference {reference!r} is not an immutable "
+                    "dev-vX.Y.Z release tag",
+                )
+            tag = tuple(int(part) for part in match.groups())
+            if tag < CHECK_RULES_ACTION_SINCE:
+                raise fail(
+                    path,
+                    f"documented action reference {reference!r} predates the release that "
+                    "contains the action",
+                )
+            if tag > current:
+                raise fail(
+                    path,
+                    f"documented action reference {reference!r} is not released; the dev "
+                    f"plugin is at {version}",
+                )
+
+    required_by_file = {
+        ROOT / "AGENTS.md": (".github/actions/check-rules",),
+        readme: ("--check", "composite"),
+        ROOT / "plugins/dev/runtime_contracts/project-bootstrap.md": (
+            ".github/actions/check-rules",
+        ),
+        ROOT / "plugins/dev/skills/setup/SKILL.md": (
+            ".github/actions/check-rules",
+            "Other CI systems",
+        ),
+    }
+    for path, required_values in required_by_file.items():
+        content = path.read_text(encoding="utf-8")
+        for required in required_values:
+            if required not in content:
+                raise fail(path, f"check-rules action adoption must contain {required!r}")
+
+
+def check_rules_composite_action() -> None:
+    """The composite action wraps the one checker, and its docs name a real release tag."""
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools/test_check_rules_action.py")],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        details = "\n".join(
+            part.strip() for part in (result.stdout, result.stderr) if part.strip()
+        )
+        raise CheckFailure(f"check-rules composite action tests failed:\n{details}")
+    check_rules_composite_action_surfaces()
+
+
 def check_github_task_lifecycle() -> None:
     result = subprocess.run(
         [sys.executable, str(ROOT / "tools/test_github_task_lifecycle.py")],
@@ -937,6 +1068,7 @@ CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("project-rule-resolver", check_project_rule_resolver),
     ("rule-migration", check_rule_migration),
     ("rule-discovery-contract", check_rule_discovery_contract),
+    ("rules-composite-action", check_rules_composite_action),
     ("github-task-lifecycle", check_github_task_lifecycle),
     ("github-pr-helper", check_github_pr_helper),
     ("plugin-release", check_plugin_release),

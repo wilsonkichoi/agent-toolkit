@@ -1,0 +1,72 @@
+name: Check rules contract
+description: >-
+  Enforce the agent-toolkit rule-discovery contract against a repository with the dev plugin's
+  own resolve_project_rules.py --check, so adopters never vendor a second checker.
+
+inputs:
+  path:
+    description: >-
+      Repository to check. Defaults to the caller's workspace. A relative value resolves
+      against the workspace, because that is the working directory of a composite step.
+    required: false
+    default: ${{ github.workspace }}
+  uv-version:
+    description: >-
+      uv version this action installs before running the checker. The action never assumes
+      uv is already present on the runner.
+    required: false
+    default: "0.10.7"
+
+outputs:
+  result:
+    description: >-
+      "checked" when the rules contract was enforced, "skipped" when the repository carries no
+      .agent-toolkit/dev.md.
+    value: ${{ steps.check.outputs.result }}
+  status:
+    description: >-
+      The checker's exit status as a string. "0" for a compliant or skipped repository; the
+      action itself fails with the same status for anything else.
+    value: ${{ steps.check.outputs.status }}
+  report:
+    description: The checker's stdout and stderr verbatim, or the skip message.
+    value: ${{ steps.check.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    # Split from the check so a repository without the canonical config installs nothing and
+    # makes no network call at all.
+    - name: Detect the dev configuration
+      id: detect
+      shell: bash
+      env:
+        CHECK_RULES_TARGET: ${{ inputs.path }}
+      run: |
+        bash "${GITHUB_ACTION_PATH}/run-check.sh" detect
+
+    - name: Install uv
+      if: steps.detect.outputs.config == 'present'
+      uses: astral-sh/setup-uv@1e862dfacbd1d6d858c55d9b792c756523627244
+      with:
+        version: ${{ inputs.uv-version }}
+        enable-cache: false
+
+    - name: Check the rules contract
+      id: check
+      shell: bash
+      env:
+        CHECK_RULES_CONFIG: ${{ steps.detect.outputs.config }}
+        CHECK_RULES_TARGET: ${{ inputs.path }}
+      run: |
+        bash "${GITHUB_ACTION_PATH}/run-check.sh" check
+
+    # The check step records the checker's status instead of exiting with it, so the action's
+    # outputs are always written by a successful step. This step is what fails the job.
+    - name: Propagate the checker exit status
+      if: steps.check.outputs.status != '0'
+      shell: bash
+      env:
+        CHECK_RULES_STATUS: ${{ steps.check.outputs.status }}
+      run: |
+        bash "${GITHUB_ACTION_PATH}/run-check.sh" verdict

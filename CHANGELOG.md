@@ -12,6 +12,23 @@ notes from that section at the tagged commit.
 
 Entries are newest first. Each release entry is headed by its exact tag name.
 
+## dev-v0.0.70
+
+- Added the `.github/actions/check-rules` composite action: one version-pinned `uses:` step that
+  enforces the rule-discovery contract on a GitHub-hosted adopter's repository. It installs its own
+  SHA-pinned toolchain and runs the `resolve_project_rules.py --check` copy shipped in the action's
+  own checkout, so nobody vendors a second checker.
+- A repository with no canonical `.agent-toolkit/dev.md` exits 0 with one skip message, installs
+  nothing, and has nothing written into its workspace. Any other repository gets the checker's exit
+  status and diagnostics verbatim, also exposed as the `result`, `status`, and `report` outputs.
+- The mandatory `repository-validation` check now runs the action against this repository and
+  against three isolated fixtures - no config, compliant, and a deliberately unclassified rule -
+  and fails if the invalid fixture is accepted. `tools/test_check_rules_action.py` enforces the
+  same behavior locally.
+- Documented the action in `plugins/dev/README.md` with an exact immutable release reference, and
+  `dev:setup` now offers it to GitHub Actions projects while keeping the direct `--check` command
+  for every other CI system.
+
 ## dev-v0.0.69
 
 - Added `plugins/dev/scripts/plugin_release.py`, one dependency-free helper with a `tag` operation

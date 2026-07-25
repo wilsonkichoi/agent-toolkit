@@ -369,6 +369,23 @@ stricter here than in a lifecycle run: a leftover `@` import line under the conf
 section is an error, not a warning, because CI is where that gets settled rather than tolerated
 on every future run. `dev:setup` offers to wire this into a project's CI workflow.
 
+GitHub-hosted projects do not have to install a toolchain or write that invocation themselves.
+The composite action wraps the same command in one version-pinned step:
+
+```yaml
+- uses: wilsonkichoi/agent-toolkit/.github/actions/check-rules@dev-v0.0.70
+```
+
+The tag is the point: an action reference must be immutable, so pin a released `dev-vX.Y.Z`
+rather than `main` or a moving major tag. The action checks out this repository at that tag and
+runs *its* copy of the resolver, so a caller never vendors a checker. By default it checks
+`GITHUB_WORKSPACE`; pass `path:` to check somewhere else, and `uv-version:` to override the
+pinned toolchain version it installs. A repository with no `.agent-toolkit/dev.md` is not a dev
+plugin project, so the action exits 0 with a skip message, installs nothing, and writes nothing
+into the workspace. Otherwise it exits with the checker's own status and prints the checker's own
+diagnostics, and exposes them as the `result`, `status`, and `report` step outputs. Other CI
+systems keep using the `--check` command directly; it is the same code path.
+
 **Parity caveat for `rules_dir: .claude/rules/`.** Claude Code auto-loads that directory at
 session start regardless of this plugin's `tier` frontmatter, so a skipped gotcha or a
 `tier: none` file can still be in a Claude Code session's context while the bootstrap record

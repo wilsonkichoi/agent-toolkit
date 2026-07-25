@@ -112,7 +112,13 @@ task's execution repository with a bundled resolver. Codex does not depend on Cl
 `@` import expansion, including for cross-repository tasks. The same resolver enforces the
 rule-discovery contract in CI through
 `resolve_project_rules.py --check <repo>`, which needs only a repository path, so adopters do not
-vendor a second checker; `dev:setup` offers to wire it into a project's CI workflow.
+vendor a second checker; `dev:setup` offers to wire it into a project's CI workflow. GitHub-hosted
+projects can use the `.github/actions/check-rules` composite action instead of writing that step
+themselves, pinned to an immutable release tag:
+
+```yaml
+- uses: wilsonkichoi/agent-toolkit/.github/actions/check-rules@dev-v0.0.70
+```
 
 `dev:shadow` opens its isolated draft PR only after the replay has produced a candidate commit,
 and binds the PR head to the resolved push repository for both same-repository and fork routing.

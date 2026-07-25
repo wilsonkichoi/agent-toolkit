@@ -96,6 +96,14 @@ Two behaviors are specific to this mode:
   exit, rather than the warning lifecycle resolution reports. A repository that keeps one has a
   rule graph its harnesses and this resolver disagree about, and CI is where that is settled.
 
+GitHub-hosted adopters may reach the same command through the `.github/actions/check-rules`
+composite action, referenced at an immutable `dev-vX.Y.Z` release tag. The action is packaging,
+never a second implementation: it installs its own pinned toolchain, runs the resolver copy that
+shipped with the tag it was referenced at, and propagates that run's exit status and diagnostics
+unchanged. Its one added behavior is that a repository with no `.agent-toolkit/dev.md` is skipped
+with an explicit message and a zero exit, because a repository that has not adopted the dev plugin
+has no rule contract to enforce. Every other CI system runs the `--check` command directly.
+
 ## Rule discovery
 
 **Discovery completeness.** Every Markdown file under the configured `rules_dir`, at any depth, is
