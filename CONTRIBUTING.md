@@ -210,7 +210,8 @@ The `dev` plugin is the concrete model:
    `plugins/dev/.codex-plugin/plugin.json`.
 5. Treat the marketplace-level `.claude-plugin/marketplace.json` `metadata.version` as an
    independent catalog version. Bump it when the catalog itself changes. Never add versions to
-   `.agents/plugins/marketplace.json`.
+   `.agents/plugins/marketplace.json`. It is not part of a release tag; see
+   [docs/RELEASING.md](docs/RELEASING.md).
 6. Reread the pre-commit checklist in `AGENTS.md`, regenerate when an agent source changed, update
    documentation, and run both repository checks.
 
@@ -234,6 +235,17 @@ uv run tools/check_repo.py
 
 These are dependency-free PEP 723 scripts. Do not add `pyproject.toml`, `.python-version`,
 `uv.lock`, or a script lockfile for them. Use `uv run`, not a direct Python invocation.
+
+## Release a plugin version
+
+Cutting a release is maintainer-only. A release is an immutable `dev-vX.Y.Z` tag plus its matching
+GitHub Release, created from a commit that already merged through the protected `main` pull request
+gate. The version-field change and its `CHANGELOG.md` entry land in the same pull request, before
+the tag exists.
+
+The complete procedure, including the tag scheme, the three lockstep version fields, tag
+immutability, and rollback by new patch release, is in [docs/RELEASING.md](docs/RELEASING.md).
+Shipped versions are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Test Claude Code working-tree changes
 

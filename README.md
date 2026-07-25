@@ -143,6 +143,11 @@ and the maintainer handoff.
 
 Repository authoring rules and required checks are in [AGENTS.md](AGENTS.md).
 
+Released plugin versions are tagged `dev-vX.Y.Z` and published as GitHub Releases, so a consumer can
+pin a human-readable version instead of `main` or a commit SHA. Published tags are immutable.
+The maintainer procedure is in [docs/RELEASING.md](docs/RELEASING.md) and shipped versions are
+listed in [CHANGELOG.md](CHANGELOG.md).
+
 ## Repository layout
 
 ```text

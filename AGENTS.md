@@ -25,7 +25,12 @@ Each plugin's release version lives in exactly three fields, which must stay in 
 
 The marketplace-level `.claude-plugin/marketplace.json` `metadata.version` is an independent
 semver catalog version. It is not required to match any plugin release version. The
-Codex-native `.agents/plugins/marketplace.json` has no version field.
+Codex-native `.agents/plugins/marketplace.json` has no version field, and neither of these
+appears in a release tag.
+
+A version becomes a release when it is tagged `dev-vX.Y.Z` at its merged commit and published as
+a GitHub Release, with its `CHANGELOG.md` entry landing in the same pull request as the three
+version-field changes. Published tags are immutable. The procedure is `docs/RELEASING.md`.
 
 ## Structure
 
@@ -35,6 +40,8 @@ Codex-native `.agents/plugins/marketplace.json` has no version field.
 .agents/                # Codex-native marketplace manifest (plugins/marketplace.json)
 AGENTS.md               # this file - conventions SSOT for all harnesses
 CLAUDE.md               # one-line @AGENTS.md import (Claude Code entry point)
+CHANGELOG.md            # released plugin versions, newest first
+docs/RELEASING.md       # maintainer release procedure (tags + GitHub Releases)
 docs/adr/               # architecture decision records for this repository
 dist/                   # generated / copy-me artifacts, not plugin-installable
   codex/agents/         #   Codex agent TOMLs (copy to ~/.codex/agents/ or project .codex/agents/)
