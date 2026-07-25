@@ -38,9 +38,59 @@ loaded rule, and include the exact `Execution repository:`, `Execution revision:
 execution-revision mismatch, is a hard stop: check out the expected revision, rerun, and never
 substitute another revision. New ticketless `add` requests
 have no execution repository yet and
-continue to use the current project's instructions. After that resolution, skim the applicable
-repository's `docs/PRD.md` and `docs/SPEC.md` headings; triage is impossible without knowing
-current intent.
+continue to use the current project's instructions. After that resolution, resolve intent
+sources before any triage decision (see **Intent source resolution** below); triage is
+impossible without knowing current product intent.
+
+## Intent source resolution
+
+Triage requires product intent documents. Resolve them in order:
+
+1. **Default path (same repository).** When the resolved execution repository and the tracker
+   repository are the same, check for `docs/PRD.md` and `docs/SPEC.md` in that repository at the
+   execution revision. If both exist, read them. No prompt, no override.
+2. **Default path (split repository).** When the resolved execution repository differs from the
+   tracker repository, the tracker repository's `docs/PRD.md` and `docs/SPEC.md` are the default
+   intent sources, not alternates. If present there and absent in the execution repository, read
+   them from the tracker repository at its `HEAD`. No prompt, no override. Containment and
+   revision binding apply per source repository: execution-repository sources bind to the
+   execution revision, tracker-repository sources to the tracker repository's `HEAD`.
+3. **Stop before mutation.** If either default file is absent in both repositories (or the only
+   resolved repository), stop before any triage mutation. Never silently treat the issue body,
+   README, or agent judgment as product intent. Report which files are missing and from which
+   repository.
+4. **Explicit override.** The human may approve alternate intent sources in the current
+   conversation, or the project configuration (`.agent-toolkit/dev.md` body) may name approved
+   sources under an `## Intent sources` section:
+
+   ```markdown
+   ## Intent sources
+   - AGENTS.md
+   - docs/adr/001-architecture.md
+   ```
+
+   Each approved source must be a repository-relative file inside the resolved execution
+   repository (at the exact execution revision) or the tracker repository (at `HEAD`). Read
+   every approved source before triage. Reject:
+   - A missing file (does not exist at the bound revision).
+   - A path that escapes the repository (`../`, absolute, symlink outside the tree).
+   - A source in neither the execution repository nor the tracker repository.
+
+5. **Sufficiency check.** After loading alternate sources, all existing triage gates still apply
+   (goal-impacting, spec-impacting, backlog-only, packet-completeness, bidirectional-dependency,
+   promotion). If the approved sources do not decide one of those questions, stop and name the
+   unresolved decision.
+
+**Durable diagnostic.** Every triage diagnostic or task comment using alternate sources (or the
+split-repository default path) includes an `Intent sources:` entry listing the exact
+repository-relative files and naming the repository each came from. When the execution repository
+has no PRD/SPEC and the tracker repository supplied them, the entry states that, rather than
+reporting an override that did not occur. The existing `Execution repository:`, `Execution
+revision:`, and `Rules loaded:` entries remain mandatory.
+
+**Coverage.** This resolution applies to new ticketless intake, existing-task triage, packet
+repair, promotion, split, and triage sweeps. Read-only external-contribution routing retains its
+existing mutation restrictions.
 
 ## External contribution intake (`add <request>` in read-only fork mode)
 

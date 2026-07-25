@@ -1058,6 +1058,116 @@ def check_spike_lifecycle_tests() -> None:
         raise CheckFailure(f"spike lifecycle tests failed:\n{details}")
 
 
+# --- Backlog intent-source resolution contract ---
+
+BACKLOG_INTENT_CONTRACT_SURFACES: dict[str, tuple[str, ...]] = {
+    "plugins/dev/skills/backlog/SKILL.md": (
+        "Intent source resolution",
+        "stop before any triage mutation",
+        "Never silently treat the issue body",
+        "tracker repository's `docs/PRD.md` and `docs/SPEC.md` are the default intent sources, not alternates",
+        "Intent sources:",
+    ),
+    "plugins/dev/README.md": (
+        "brownfield",
+    ),
+}
+
+# Forbidden: silently using non-approved sources as product intent when defaults are absent.
+# Matches affirmative instructions to use non-approved sources as intent. Sentences containing
+# "never" or "do not" before the verb are prohibitions, not instructions.
+_BACKLOG_FORBIDDEN_SILENT_FALLBACK_RAW = re.compile(
+    r"(?:use|treat|read|accept)\s+(?:the\s+)?(?:issue\s+body|README|codebase|"
+    r"agent\s+judgment|existing\s+code)\s+(?:as\s+(?:the\s+)?(?:product\s+)?intent"
+    r"|(?:provides?\s+)?(?:sufficient\s+)?(?:product\s+)?intent)",
+    re.IGNORECASE,
+)
+_BACKLOG_NEGATION_PREFIX = re.compile(
+    r"\b(?:never|do\s+not|don't|cannot|must\s+not|shall\s+not)\b",
+    re.IGNORECASE,
+)
+
+# Forbidden: proceeding with triage when defaults are absent and no approval obtained.
+_BACKLOG_FORBIDDEN_PROCEED_WITHOUT_STOP = re.compile(
+    r"(?:is|are)\s+absent[^.]*(?:proceed|continue|create\s+the\s+task|"
+    r"whatever\s+context\s+is\s+available)",
+    re.IGNORECASE,
+)
+
+
+def _has_silent_fallback(text: str) -> bool:
+    """True if text contains an affirmative (non-negated) instruction to use a non-approved source."""
+    for match in _BACKLOG_FORBIDDEN_SILENT_FALLBACK_RAW.finditer(text):
+        start = match.start()
+        sentence_start = text.rfind(".", 0, start)
+        if sentence_start == -1:
+            sentence_start = 0
+        prefix = text[sentence_start:start]
+        if not _BACKLOG_NEGATION_PREFIX.search(prefix):
+            return True
+    return False
+
+
+def backlog_intent_source_violations(surfaces: dict[str, str]) -> list[str]:
+    """Flag backlog intent-source text that regresses to a forbidden state.
+
+    Detects:
+      - Silent fallback to non-approved sources (issue body, README, agent judgment).
+      - Proceeding without stopping when defaults are absent.
+    """
+    violations: list[str] = []
+    for label, text in surfaces.items():
+        if _has_silent_fallback(text):
+            violations.append(
+                f"{label}: forbidden silent fallback - non-approved source treated "
+                "as product intent when defaults are absent"
+            )
+        if _BACKLOG_FORBIDDEN_PROCEED_WITHOUT_STOP.search(text):
+            violations.append(
+                f"{label}: forbidden - proceeds without stopping when default intent "
+                "documents are absent"
+            )
+    return violations
+
+
+def check_backlog_intent_sources() -> None:
+    """Backlog skill resolves intent sources fail-closed; no silent fallback."""
+    contract_texts: dict[str, str] = {}
+    for relative_path, required_fragments in BACKLOG_INTENT_CONTRACT_SURFACES.items():
+        path = ROOT / relative_path
+        content = path.read_text(encoding="utf-8")
+        contract_texts[relative_path] = content
+        normalized = " ".join(content.split())
+        for fragment in required_fragments:
+            if " ".join(fragment.split()) not in normalized:
+                raise fail(
+                    path,
+                    "backlog intent-source resolution must be fail-closed; "
+                    f"missing {fragment!r}",
+                )
+
+    violations = backlog_intent_source_violations(contract_texts)
+    if violations:
+        raise CheckFailure(
+            "backlog intent-source resolution regressed:\n" + "\n".join(violations)
+        )
+
+
+def check_backlog_intent_source_tests() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools/test_backlog_intent_sources.py")],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        details = "\n".join(
+            part.strip() for part in (result.stdout, result.stderr) if part.strip()
+        )
+        raise CheckFailure(f"backlog intent-source tests failed:\n{details}")
+
+
 CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("claude-import", check_claude_import),
     ("json-manifests", check_json_manifests),
@@ -1079,6 +1189,8 @@ CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("project-bootstrap-adoption", check_project_bootstrap_adoption),
     ("spike-artifact-lifecycle", check_spike_artifact_lifecycle),
     ("spike-lifecycle-tests", check_spike_lifecycle_tests),
+    ("backlog-intent-sources", check_backlog_intent_sources),
+    ("backlog-intent-source-tests", check_backlog_intent_source_tests),
 )
 
 

@@ -12,6 +12,21 @@ notes from that section at the tagged commit.
 
 Entries are newest first. Each release entry is headed by its exact tag name.
 
+## dev-v0.0.71
+
+- `dev:backlog` now supports brownfield and partially adopted repositories that lack
+  `docs/PRD.md` or `docs/SPEC.md`. Intent sources are resolved in priority order: both defaults
+  present (no prompt), tracker-repository defaults in a split-repository layout (no prompt),
+  configured `## Intent sources` in `.agent-toolkit/dev.md`, or explicit conversational approval.
+  Absent defaults with no approval still hard-stop before mutation.
+- Split-repository projects (execution repo differs from tracker repo) now read `docs/PRD.md`
+  and `docs/SPEC.md` from the tracker repository as defaults when the execution repository has
+  neither. Each source binds to its own repository's revision.
+- Every triage diagnostic includes an `Intent sources:` entry naming the files and their source
+  repository.
+- Network-free contract tests (`tools/test_backlog_intent_sources.py`) validate the resolution
+  algorithm, rejection of missing/escaping/unbound sources, and the split-repository layout.
+
 ## dev-v0.0.70
 
 - Added the `.github/actions/check-rules` composite action: one version-pinned `uses:` step that

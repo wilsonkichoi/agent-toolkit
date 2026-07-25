@@ -706,6 +706,29 @@ Order for a full brownfield onboarding:
    spec must say what is kept, replaced, and debt.
 4. Import the backlog (next section), then `dev:plan` for new milestone work.
 
+**Backlog triage before PRD/SPEC exist.** A brownfield project that has completed `dev:setup`
+but not yet run `dev:discover` or `dev:architect` has no `docs/PRD.md` or `docs/SPEC.md`.
+`dev:backlog` normally hard-stops when those files are absent. Two override paths exist:
+
+- *Configured sources:* add an `## Intent sources` section to `.agent-toolkit/dev.md` naming
+  the repository-relative files that carry approved product intent:
+
+  ```markdown
+  ## Intent sources
+  - AGENTS.md
+  - docs/adr/001-initial-architecture.md
+  ```
+
+- *Conversational approval:* tell the session which files to use ("use AGENTS.md and the
+  runtime contracts as intent sources"). The skill reads them and proceeds, recording the
+  override in its diagnostic.
+
+Both paths enforce the same gates as the default: each source must exist at the bound
+revision, must not escape the repository, and must provide enough information to decide
+every triage question. If a split-repository project stores `docs/PRD.md` and `docs/SPEC.md`
+in the tracker repository while execution happens elsewhere, those tracker-repository files
+are the defaults (no override needed).
+
 ### Importing existing docs and backlogs
 
 **Docs:** map what exists into the layout: product intent → `docs/PRD.md`, technical design
