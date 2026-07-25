@@ -174,6 +174,44 @@ class TestRedaction(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn("wilsonkichoi/agent-toolkit", result.stdout)
 
+    def test_preserves_target_repo_in_github_action_uses_path(self) -> None:
+        text = (
+            "uses: wilsonkichoi/agent-toolkit/"
+            ".github/actions/check-rules@dev-v0.0.70"
+        )
+        result = run_cli(
+            "redact",
+            "--text",
+            text,
+            "--public-repo",
+            "wilsonkichoi/agent-toolkit",
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, text)
+        self.assertNotIn("<private-repo>", result.stdout)
+
+    def test_redacts_unestablished_repo_in_github_action_uses_path(self) -> None:
+        text = (
+            "uses: acme/private-repo/"
+            ".github/actions/check-rules@dev-v0.0.70"
+        )
+        result = run_cli("redact", "--text", text)
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("acme/private-repo", result.stdout)
+        self.assertIn("<private-repo>", result.stdout)
+
+    def test_redacts_declared_private_repo_in_github_action_uses_path(self) -> None:
+        text = (
+            "uses: acme/private-repo/"
+            ".github/actions/check-rules@dev-v0.0.70"
+        )
+        result = run_cli(
+            "redact", "--text", text, "--private-repo", "acme/private-repo"
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn("acme/private-repo", result.stdout)
+        self.assertIn("<private-repo>", result.stdout)
+
     def test_redacts_gitlab_url(self) -> None:
         text = "see https://gitlab.com/acme/private-platform/issues/5"
         result = run_cli("redact", "--text", text)

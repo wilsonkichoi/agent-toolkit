@@ -197,6 +197,16 @@ def redact_private_repos(
             if repo not in public_repos:
                 text = text.replace(repo, "<private-repo>")
 
+    public_repo_markers: dict[str, str] = {}
+    for index, repo in enumerate(sorted(public_repos, key=len, reverse=True)):
+        marker = f"__PUBLIC_REPO_{index}__"
+        public_repo_markers[marker] = repo
+        text = re.sub(
+            rf"(?<![A-Za-z0-9_.-]){re.escape(repo)}(?![A-Za-z0-9_.-])",
+            marker,
+            text,
+        )
+
     def _replace_standalone_repo(match: re.Match[str]) -> str:
         token = match.group(1)
         if token in public_repos:
@@ -211,6 +221,9 @@ def redact_private_repos(
         return "<private-repo>"
 
     text = STANDALONE_REPO_RE.sub(_replace_standalone_repo, text)
+
+    for marker, repo in public_repo_markers.items():
+        text = text.replace(marker, repo)
 
     return text
 
