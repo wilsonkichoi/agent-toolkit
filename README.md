@@ -109,7 +109,10 @@ therefore dispatches its implementation worker and `test-writer` as siblings. St
 
 The `dev` plugin's task-scoped lifecycle resolves project instructions and tiered rules from the
 task's execution repository with a bundled resolver. Codex does not depend on Claude Code's
-`@` import expansion, including for cross-repository tasks.
+`@` import expansion, including for cross-repository tasks. The same resolver enforces the
+rule-discovery contract in CI through
+`resolve_project_rules.py --check <repo>`, which needs only a repository path, so adopters do not
+vendor a second checker; `dev:setup` offers to wire it into a project's CI workflow.
 
 `dev:shadow` opens its isolated draft PR only after the replay has produced a candidate commit,
 and binds the PR head to the resolved push repository for both same-repository and fork routing.

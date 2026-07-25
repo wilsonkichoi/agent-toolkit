@@ -142,8 +142,12 @@ no changes - and it covers the migration cases without guessing:
   for them; an unmarked file staying unmarked is a blocked resolver, which is the intended
   failure direction.
 
-Report every file the helper changed and every decision still outstanding. Finish by running
-`resolve_project_rules.py` against the project to confirm it exits 0.
+Report every file the helper changed and every decision still outstanding. Finish by running the
+resolver's repository check against the project to confirm it exits 0:
+
+```bash
+uv run <plugin-root>/scripts/resolve_project_rules.py --check <project-dir>
+```
 
 **Template and framework repos:** a repo that others clone or instantiate must not ship its own
 dev-plugin state to consumers - adopting this plugin is each project's decision, never
@@ -276,7 +280,36 @@ Writing the workflow file is a local, reviewable change. Setting its secret or c
 repository Actions setting is canonical-repository state and requires upstream write permission;
 without it, leave those actions in the maintainer report and do not attempt them.
 
-## 7. Report
+## 7. Optional: enforce the rules contract in CI
+
+Offer whenever the project has a CI workflow. The rule-discovery contract fails closed at
+lifecycle time, which means a malformed rule file is discovered by whoever next runs
+`dev:execute` rather than by the pull request that introduced it. The resolver's repository check
+moves that to CI:
+
+```bash
+uv run <plugin-root>/scripts/resolve_project_rules.py --check <project-dir>
+```
+
+Explain what the check does before wiring it: it takes only the repository path, needs no tracker
+or task context, reuses the same discovery and diagnostics as a lifecycle run, exits 0 with a
+one-line summary on a compliant repository, and exits nonzero naming every offending path
+otherwise. Point out the one behavior that is stricter than a lifecycle run: a leftover `@` import
+line under `## Rules` fails the check instead of warning. Run it once against the project and show
+the user the result before adding it to any workflow - a project that would fail today needs the
+migration above first, not a red build.
+
+If accepted, add the command as a step in the configured CI workflow, matching that workflow's
+existing conventions rather than imposing a new job layout. The project must be able to run the
+resolver: the plugin ships with the harness, so a repository whose CI has no plugin checkout
+needs the path resolved for it (a vendored copy is not an option - it is the duplication this
+check exists to remove). When the workflow cannot reach the script, say so plainly, leave CI
+unchanged, and record it in the report rather than wiring something that will not run.
+
+Writing the workflow file is a local, reviewable change; changing any repository Actions setting
+is canonical-repository state and follows the same permission boundary as section 6.
+
+## 8. Report
 
 Offer to commit the scaffold and config to `main` - in a fresh repo this creates the root
 commit that later task branches need; leaving setup output uncommitted stalls `dev:execute`
