@@ -61,10 +61,12 @@ This applies to the GitHub Release attached to a tag as well: correct a release 
 one, not by repointing an existing tag.
 
 Immutability is enforced, not just documented. The active `Immutable plugin release tags` repository
-ruleset targets `refs/tags/dev-v*` and `refs/tags/utils-v*` and applies the `deletion` and
-`non_fast_forward` rules. It has no bypass actors. The ruleset intentionally does not apply the
-`creation` rule, so the `Release tags` workflow can create a new release tag with its
-`GITHUB_TOKEN`, while no actor can delete or retarget an existing matching tag.
+ruleset targets `refs/tags/dev-v*` and `refs/tags/utils-v*` and applies the `deletion`,
+`non_fast_forward`, and `update` rules. It has no bypass actors. The `update` rule blocks every
+retarget, including a move to a descendant commit that `non_fast_forward` alone would allow. The
+ruleset intentionally does not apply the `creation` rule, so the `Release tags` workflow can create
+a new release tag with its `GITHUB_TOKEN`, while no actor can delete or retarget an existing
+matching tag.
 
 Confirm the active protection from any checkout with GitHub read access:
 

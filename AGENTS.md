@@ -31,9 +31,10 @@ appears in a release tag.
 A version becomes a release when it is tagged `<plugin>-vX.Y.Z` at its merged commit and published
 as a GitHub Release. `dev` and `utils` occupy that tag namespace independently. The active
 `Immutable plugin release tags` ruleset protects `refs/tags/dev-v*` and `refs/tags/utils-v*` from
-deletion and non-fast-forward updates. Published tags and releases are immutable: never move,
-replace, or delete one, and correct a shipped release by publishing a new patch version. The
-procedure and verification command are in `docs/RELEASING.md`.
+deletion and every update through its `deletion`, `non_fast_forward`, and `update` rules. Published
+tags and releases are immutable: never move, replace, or delete one, and correct a shipped release
+by publishing a new patch version. The procedure and verification command are in
+`docs/RELEASING.md`.
 
 Tagging is automatic, so the `CHANGELOG.md` entry is not optional bookkeeping. Its heading must be
 exactly `## <plugin>-vX.Y.Z` and it must land in the same pull request as that plugin's three
