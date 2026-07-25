@@ -61,6 +61,18 @@ class IntentSourceContractTests(unittest.TestCase):
             "Never silently treat the issue body, README, or agent judgment as product intent"
         )
 
+    def test_split_repo_both_absent_still_stops(self) -> None:
+        """The stop rule must be qualified to both repositories, not just one.
+
+        Without the "in both repositories" qualifier, a split-repository project whose
+        tracker repository also lacks PRD/SPEC would read the rule as already satisfied
+        by the execution repository's absence alone and could proceed unguarded.
+        """
+        self._assert_contains(
+            "If either default file is absent in both repositories (or the only "
+            "resolved repository), stop before any triage mutation"
+        )
+
     def test_explicit_override_accepted(self) -> None:
         self._assert_contains(
             "human may approve alternate intent sources in the current conversation"
@@ -99,11 +111,25 @@ class IntentSourceContractTests(unittest.TestCase):
             "naming the repository each came from"
         )
 
+    def test_override_diagnostic_states_defaults_were_absent(self) -> None:
+        """An override entry must record that the default docs were absent.
+
+        Listing the approved sources alone does not say why the override was
+        permitted, so a later reader cannot distinguish an approved override from
+        a normal default read.
+        """
+        self._assert_contains(
+            "it also states that the default `docs/PRD.md` and `docs/SPEC.md` "
+            "files were absent, naming which of the two was missing and from "
+            "which repository"
+        )
+
     def test_split_repo_diagnostic_reports_source_repository(self) -> None:
         self._assert_contains(
-            "tracker repository supplied them, the entry states that, rather than "
-            "reporting an override that did not occur"
+            "tracker repository supplied them, the entry states that instead, rather "
+            "than reporting an override that did not occur"
         )
+        self._assert_contains("that path is a default read, not an override")
 
     def test_execution_revision_entries_remain_mandatory(self) -> None:
         self._assert_contains(

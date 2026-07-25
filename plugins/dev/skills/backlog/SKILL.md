@@ -83,10 +83,20 @@ Triage requires product intent documents. Resolve them in order:
 
 **Durable diagnostic.** Every triage diagnostic or task comment using alternate sources (or the
 split-repository default path) includes an `Intent sources:` entry listing the exact
-repository-relative files and naming the repository each came from. When the execution repository
-has no PRD/SPEC and the tracker repository supplied them, the entry states that, rather than
-reporting an override that did not occur. The existing `Execution repository:`, `Execution
-revision:`, and `Rules loaded:` entries remain mandatory.
+repository-relative files and naming the repository each came from.
+
+When the entry records an override - approved conversationally or through the configured
+`## Intent sources` section - it also states that the default `docs/PRD.md` and `docs/SPEC.md`
+files were absent, naming which of the two was missing and from which repository. An override
+entry that lists its sources without recording that absence does not say why the override was
+permitted, so a later reader cannot tell an approved override from a normal default read.
+
+When the execution repository has no PRD/SPEC and the tracker repository supplied them, the
+entry states that instead, rather than reporting an override that did not occur - that path is
+a default read, not an override.
+
+The existing `Execution repository:`, `Execution revision:`, and `Rules loaded:` entries remain
+mandatory.
 
 **Coverage.** This resolution applies to new ticketless intake, existing-task triage, packet
 repair, promotion, split, and triage sweeps. Read-only external-contribution routing retains its

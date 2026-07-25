@@ -1063,10 +1063,16 @@ def check_spike_lifecycle_tests() -> None:
 BACKLOG_INTENT_CONTRACT_SURFACES: dict[str, tuple[str, ...]] = {
     "plugins/dev/skills/backlog/SKILL.md": (
         "Intent source resolution",
-        "stop before any triage mutation",
+        # The stop rule must stay qualified to both repositories; without the
+        # qualifier a split-repository project could proceed on the tracker
+        # repository's absence alone.
+        "absent in both repositories (or the only resolved repository), stop "
+        "before any triage mutation",
         "Never silently treat the issue body",
         "tracker repository's `docs/PRD.md` and `docs/SPEC.md` are the default intent sources, not alternates",
         "Intent sources:",
+        # An override entry must record why the override was permitted.
+        "it also states that the default `docs/PRD.md` and `docs/SPEC.md` files were absent",
     ),
     "plugins/dev/README.md": (
         "brownfield",
