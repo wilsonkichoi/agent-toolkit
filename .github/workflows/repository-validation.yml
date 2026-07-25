@@ -27,3 +27,108 @@ jobs:
 
       - name: Validate repository
         run: uv run tools/check_repo.py
+
+      # The composite action is exercised through its local path, once against this
+      # repository and once per isolated fixture, so every outcome an adopter can hit is a
+      # mandatory check rather than a claim in the README.
+      - name: Rules contract - this repository
+        id: rules-default
+        uses: ./.github/actions/check-rules
+
+      - name: Rules contract - fixture without a dev configuration
+        id: rules-no-config
+        uses: ./.github/actions/check-rules
+        with:
+          path: .github/fixtures/check-rules/no-config
+
+      - name: Rules contract - compliant fixture
+        id: rules-compliant
+        uses: ./.github/actions/check-rules
+        with:
+          path: .github/fixtures/check-rules/compliant
+
+      - name: Rules contract - invalid rule fixture
+        id: rules-invalid
+        continue-on-error: true
+        uses: ./.github/actions/check-rules
+        with:
+          path: .github/fixtures/check-rules/invalid-rule
+
+      - name: Assert the composite action results
+        env:
+          DEFAULT_OUTCOME: ${{ steps.rules-default.outcome }}
+          DEFAULT_RESULT: ${{ steps.rules-default.outputs.result }}
+          DEFAULT_REPORT: ${{ steps.rules-default.outputs.report }}
+          NO_CONFIG_OUTCOME: ${{ steps.rules-no-config.outcome }}
+          NO_CONFIG_RESULT: ${{ steps.rules-no-config.outputs.result }}
+          NO_CONFIG_STATUS: ${{ steps.rules-no-config.outputs.status }}
+          NO_CONFIG_REPORT: ${{ steps.rules-no-config.outputs.report }}
+          COMPLIANT_OUTCOME: ${{ steps.rules-compliant.outcome }}
+          COMPLIANT_RESULT: ${{ steps.rules-compliant.outputs.result }}
+          COMPLIANT_STATUS: ${{ steps.rules-compliant.outputs.status }}
+          COMPLIANT_REPORT: ${{ steps.rules-compliant.outputs.report }}
+          INVALID_OUTCOME: ${{ steps.rules-invalid.outcome }}
+          INVALID_STATUS: ${{ steps.rules-invalid.outputs.status }}
+          INVALID_REPORT: ${{ steps.rules-invalid.outputs.report }}
+        run: |
+          set -euo pipefail
+          failures=0
+
+          expect_equal() {
+            if [ "$3" = "$2" ]; then
+              echo "PASS $1: $3"
+            else
+              echo "FAIL $1: expected '$2', got '$3'" >&2
+              failures=$((failures + 1))
+            fi
+          }
+
+          expect_contains() {
+            case "$3" in
+              *"$2"*) echo "PASS $1: found '$2'" ;;
+              *)
+                echo "FAIL $1: '$2' missing from: $3" >&2
+                failures=$((failures + 1))
+                ;;
+            esac
+          }
+
+          expect_missing() {
+            case "$3" in
+              *"$2"*)
+                echo "FAIL $1: unexpected '$2' in: $3" >&2
+                failures=$((failures + 1))
+                ;;
+              *) echo "PASS $1: no '$2'" ;;
+            esac
+          }
+
+          expect_equal "default workspace outcome" success "$DEFAULT_OUTCOME"
+          expect_equal "default workspace result" checked "$DEFAULT_RESULT"
+          expect_contains "default workspace report" "rules contract ok" "$DEFAULT_REPORT"
+
+          expect_equal "no-config outcome" success "$NO_CONFIG_OUTCOME"
+          expect_equal "no-config result" skipped "$NO_CONFIG_RESULT"
+          expect_equal "no-config status" 0 "$NO_CONFIG_STATUS"
+          expect_contains "no-config report" "no .agent-toolkit/dev.md" "$NO_CONFIG_REPORT"
+          expect_equal "workspace left unchanged" "" \
+            "$(git status --porcelain -- .github/fixtures/check-rules)"
+
+          expect_equal "compliant outcome" success "$COMPLIANT_OUTCOME"
+          expect_equal "compliant result" checked "$COMPLIANT_RESULT"
+          expect_equal "compliant status" 0 "$COMPLIANT_STATUS"
+          expect_contains "compliant report" \
+            "doctrine 1, gotcha 1, excluded 1" "$COMPLIANT_REPORT"
+          expect_missing "compliant report" "error:" "$COMPLIANT_REPORT"
+
+          expect_equal "invalid-rule outcome" failure "$INVALID_OUTCOME"
+          expect_equal "invalid-rule status" 1 "$INVALID_STATUS"
+          expect_contains "invalid-rule report" \
+            "rules_dir contains unclassified Markdown" "$INVALID_REPORT"
+          expect_contains "invalid-rule report" \
+            ".agent-toolkit/rules/unclassified.md" "$INVALID_REPORT"
+
+          if [ "$failures" -ne 0 ]; then
+            echo "composite action assertions failed: ${failures}" >&2
+            exit 1
+          fi

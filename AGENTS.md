@@ -101,6 +101,19 @@ a warning in a lifecycle run. Keep that divergence, the check-mode contract in
 `plugins/dev/runtime_contracts/project-bootstrap.md` "CI enforcement", and the CLI tests in
 `tools/test_resolve_project_rules.py` in lockstep.
 
+`.github/actions/check-rules` is that command's GitHub Actions packaging, not a second checker:
+its `run-check.sh` entrypoint guards on the canonical `.agent-toolkit/dev.md`, installs a pinned
+toolchain, runs the resolver copy shipped in the action's own checkout, and propagates that run's
+status and diagnostics verbatim. Never classify a rule, parse a tier, or reimplement a diagnostic
+there. Every third-party `uses:` in the action and in `.github/workflows/repository-validation.yml`
+is pinned to a full commit SHA, and each action input reaches the shell through `env:` rather than
+`${{ }}` interpolation inside a `run:` body. The action is documented with an exact immutable
+`dev-vX.Y.Z` reference - never `main`, a raw SHA, a moving major tag, or a placeholder - and the
+`repository-validation` job runs it against `.github/fixtures/check-rules/` (no config, compliant,
+invalid rule) so all three outcomes are a mandatory check. `check_repo.py` runs
+`tools/test_check_rules_action.py`; keep the action, its fixtures, the setup skill's CI offer,
+`plugins/dev/README.md`, and that guard in lockstep.
+
 The pre-0.0.64 `## Rules` registry migration lives in `plugins/dev/scripts/migrate_rules.py` and
 is driven by `dev:setup`; `check_repo.py` runs `tools/test_migrate_rules.py`. The helper reports
 before it writes, is idempotent, and never classifies an unregistered file on the human's behalf.
