@@ -13,7 +13,6 @@ Validates that the skill's prose enforces:
 
 from __future__ import annotations
 
-import re
 import sys
 import unittest
 from pathlib import Path
