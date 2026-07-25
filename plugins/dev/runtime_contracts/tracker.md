@@ -84,7 +84,7 @@ All backends use the same algorithm:
 
 ## GitHub repository resolution
 
-Every skill reads `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md`) before any tracker,
+Every skill reads `.agent-toolkit/dev.md` before any tracker,
 issue, pull-request, CI, review, or REST call. Resolve repository context once per invocation
 and reuse it for every command. When configuration selects a GitHub repository, do not let
 `gh` infer a different repository from the current directory.

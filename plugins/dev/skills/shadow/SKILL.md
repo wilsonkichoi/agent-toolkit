@@ -26,8 +26,8 @@ Skill references like `dev:execute` mean this plugin's `execute` skill; when tel
 to run one, render your harness's invocation for it (Claude Code: `/dev:execute`; Codex:
 `$execute`).
 
-Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
-`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `runtime_contracts/tracker.md`,
+Read first: `.agent-toolkit/dev.md` (tracker routing config), the plugin's
+`runtime_contracts/tracker.md`,
 `runtime_contracts/project-bootstrap.md`, and `runtime_contracts/shadow.md` (the replay contract, artifact formats,
 metrics adapters, and pricing-catalog semantics). On Claude Code these plugin docs are under
 `${CLAUDE_PLUGIN_ROOT}/runtime_contracts/`; equivalently they are under `../../runtime_contracts/` relative to this

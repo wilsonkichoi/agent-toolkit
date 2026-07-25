@@ -16,8 +16,8 @@ Merging is `dev:verify`'s job; never merge, even if asked mid-run - point at `de
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
-Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
-`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `runtime_contracts/tracker.md` (tracker
+Read first: `.agent-toolkit/dev.md` (tracker routing config), the plugin's
+`runtime_contracts/tracker.md` (tracker
 verbs, backend mapping, next-task algorithm), and the plugin's
 `runtime_contracts/project-bootstrap.md` (execution-repository instructions and deterministic rule loading).
 On Claude Code these plugin docs are under `${CLAUDE_PLUGIN_ROOT}/runtime_contracts/`; equivalently they are

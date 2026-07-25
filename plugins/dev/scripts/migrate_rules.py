@@ -25,7 +25,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from resolve_project_rules import (  # noqa: E402
-    CONFIG_PATHS,
     FRONTMATTER_RE,
     ResolutionError,
     classify_rule,
@@ -124,13 +123,7 @@ def resolve_rules_dir(repo: Path, config: Path, config_text: str) -> Path:
     metadata = frontmatter(config_text)
     rules_dir_value = scalar(metadata, "rules_dir")
     if rules_dir_value is None:
-        legacy_unconfigured = (
-            config.relative_to(repo) != CONFIG_PATHS[0]
-            and scalar(metadata, "context_file") is None
-        )
-        rules_dir_value = (
-            ".claude/rules/" if legacy_unconfigured else ".agent-toolkit/rules/"
-        )
+        rules_dir_value = ".agent-toolkit/rules/"
     return resolve_project_path(rules_dir_value, config, repo)
 
 

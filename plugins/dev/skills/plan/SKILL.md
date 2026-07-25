@@ -18,7 +18,7 @@ user to run one, render your harness's invocation for it (Claude Code: `/dev:arc
 
 Read first:
 
-1. `.agent-toolkit/dev.md` - tracker backend and config (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md` when absent).
+1. `.agent-toolkit/dev.md` - tracker backend and config.
 2. the plugin's `runtime_contracts/tracker.md` - verbs and backend mapping (on Claude Code
    `${CLAUDE_PLUGIN_ROOT}/runtime_contracts/tracker.md`, equivalently `../../runtime_contracts/tracker.md` relative to
    this skill's directory).
