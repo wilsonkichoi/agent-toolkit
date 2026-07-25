@@ -192,13 +192,15 @@ class TestRedaction(unittest.TestCase):
 
     def test_redacts_unestablished_repo_in_github_action_uses_path(self) -> None:
         text = (
-            "uses: acme/private-repo/"
+            "uses: acme/secret-prod/"
             ".github/actions/check-rules@dev-v0.0.70"
         )
         result = run_cli("redact", "--text", text)
         self.assertEqual(result.returncode, 0)
-        self.assertNotIn("acme/private-repo", result.stdout)
-        self.assertIn("<private-repo>", result.stdout)
+        self.assertEqual(
+            result.stdout,
+            "uses: <private-repo>/.github/actions/check-rules@dev-v0.0.70",
+        )
 
     def test_redacts_declared_private_repo_in_github_action_uses_path(self) -> None:
         text = (
@@ -209,8 +211,10 @@ class TestRedaction(unittest.TestCase):
             "redact", "--text", text, "--private-repo", "acme/private-repo"
         )
         self.assertEqual(result.returncode, 0)
-        self.assertNotIn("acme/private-repo", result.stdout)
-        self.assertIn("<private-repo>", result.stdout)
+        self.assertEqual(
+            result.stdout,
+            "uses: <private-repo>/.github/actions/check-rules@dev-v0.0.70",
+        )
 
     def test_redacts_gitlab_url(self) -> None:
         text = "see https://gitlab.com/acme/private-platform/issues/5"
