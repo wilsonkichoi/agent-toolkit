@@ -21,7 +21,7 @@ Read first: the plugin's `runtime_contracts/tracker.md` — on Claude Code
 directory, two levels above this skill), equivalently `../../runtime_contracts/tracker.md`
 relative to this skill's directory — before
 configuring the tracker. All `tracker.md` references below mean this plugin doc, never a file in
-the project. Also read an existing `.agent-toolkit/dev.md` (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md`) before
+the project. Also read an existing `.agent-toolkit/dev.md` before
 making any repository or tracker call; setup must preserve choices the project already made.
 
 ## Harness specifics
@@ -95,32 +95,23 @@ its context files included. Add a `.gitkeep` in `.agent-toolkit/rules/` so git t
 directory before the first promotion. Removing the plugin from a project is: delete
 `.agent-toolkit/` and the step 4 reference line.
 
-**Existing projects:** when a legacy config exists (`.agent/dev.md` or `.claude/dev.md`, or
-their `.local.md` variants), offer to `git mv` it to `.agent-toolkit/dev.md` (and
-`.agent-toolkit/dev.local.md`, updating the `.gitignore` entry), then grep the repo for the
-old path and update operative references (docs that tell agents to read the config) in the
-same commit - historical records (changelogs, completed-work logs) stay as they are. Every
-dev skill reads `.agent-toolkit/dev.md` first and falls back to the legacy paths, so the
-migration is safe but optional. Full consumer-migration steps:
+**Existing projects:** an existing `.agent-toolkit/dev.md` keeps the choices the project
+already made; bring the rest of the configuration up to the current contract:
 
-1. `git mv` the config to `.agent-toolkit/dev.md` (and the `.local.md` variant, updating its
-   `.gitignore` entry).
-2. Grep the repo for the old path. Update operative references (docs that tell agents to read
-   the config) in the same commit; leave historical records as they are.
-3. Set `rules_dir` explicitly. Default `.agent-toolkit/rules/`; keep an existing location
+1. Set `rules_dir` explicitly. Default `.agent-toolkit/rules/`; keep an existing location
    (e.g. `.claude/rules/`) as the value instead when the project - or anything downstream of
    it, such as a template it ships - already depends on that path, accepting the harness
    auto-load parity caveat in `runtime_contracts/project-bootstrap.md`. Moving rule files is
    optional; classifying them is not.
-4. Run the rule-discovery migration below. Rules are discovered, not registered, so every
+2. Run the rule-discovery migration below. Rules are discovered, not registered, so every
    Markdown file under `rules_dir` must declare its own `tier` - and until every one does, the
    resolver hard-stops and every task-scoped lifecycle skill in the project is blocked.
-5. Ensure the configured `context_file` carries the single reference line
+3. Ensure the configured `context_file` carries the single reference line
    (`@.agent-toolkit/dev.md`). Rules previously consolidated into `AGENTS.md` may stay there
    (the project owns that file and its content) or move back out to `rules_dir` files - the
    project's call, never the plugin's.
-6. Verify with `dev:status`: its consistency checks cover duplicate configs, a missing
-   reference line, unclassified rule files, resolver warnings, and the legacy mixed config.
+4. Verify with `dev:status`: its consistency checks cover a missing reference line,
+   unclassified rule files, and resolver warnings.
 
 ### Rule-discovery migration
 
@@ -201,10 +192,10 @@ setup adds at most the single step 4 reference line there and never moves, conso
 rewrites project rules or context-file content. `rules_dir` defaults to
 `.agent-toolkit/rules/`; a project with an existing rules convention may point the field
 elsewhere instead (e.g. `.claude/rules/`, which Claude Code auto-loads natively) - respect
-the project's choice, and never migrate rule files between locations uninvited. When both
-`rules_dir` and `context_file` are absent (legacy or hand-written configs), skills fall
-back to `.claude/rules/` + `CLAUDE.md` as a safety net - not a recommended config; run
-`dev:setup` to write explicit fields.
+the project's choice, and never migrate rule files between locations uninvited. When
+`rules_dir` is absent, skills resolve rules from `.agent-toolkit/rules/`; when `context_file`
+is absent, they select `AGENTS.md`, then `CLAUDE.md` - run `dev:setup` to write explicit
+fields rather than relying on those defaults.
 
 Task-scoped lifecycle skills resolve this configuration from the task's execution repository,
 not blindly from the tracker repository. They use `runtime_contracts/project-bootstrap.md` and the bundled

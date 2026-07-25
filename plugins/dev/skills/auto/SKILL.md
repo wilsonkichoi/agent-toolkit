@@ -21,8 +21,8 @@ use `dev:auto` to complete one named task or drain a milestone.
 Skill references like `dev:execute` mean this plugin's `execute` skill; when telling the user
 to run one, render your harness's invocation for it (Claude Code: `/dev:execute`; Codex: `$execute`).
 
-Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
-`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `runtime_contracts/tracker.md`, and the
+Read first: `.agent-toolkit/dev.md` (tracker routing config), the plugin's
+`runtime_contracts/tracker.md`, and the
 plugin's `runtime_contracts/project-bootstrap.md`. On Claude Code these plugin docs are under
 `${CLAUDE_PLUGIN_ROOT}/runtime_contracts/`; equivalently they are under `../../runtime_contracts/` relative to this
 skill's directory.
@@ -211,8 +211,7 @@ orchestrator holds the implementer's report, so it is not independent.
    leave `In Review`, stop and tell the human exactly what needs them.
 6. **Retro (record-only)** - run `dev:retro` for the task with promotions in proposal mode:
    post the retro comment including proposed rule promotions, but never write a rule file into
-   the configured `rules_dir` (legacy safety-net fallback when both memory fields are absent:
-   `.claude/rules/`) unattended. Standing
+   the configured `rules_dir` unattended. Standing
    instructions change only with a human in the loop; proposals accumulate for a later
    `dev:retro milestone N` pass.
 7. **Next** - for milestone/no-target queue mode, loop to step 1. For task-id mode, stop

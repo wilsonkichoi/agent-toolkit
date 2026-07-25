@@ -213,7 +213,6 @@ class ResolveProjectRulesTests(unittest.TestCase):
         )
         execution_config = self.write_config(
             self.execution_repository,
-            config_path=".agent/dev.md",
             rules_dir=".project-rules/",
         )
         baseline_rule = self.write(
@@ -676,22 +675,41 @@ class ResolveProjectRulesTests(unittest.TestCase):
         self.assertIn(gotcha_rule.name, skipped)
         self.assertEqual(skipped[gotcha_rule.name]["tier"], "gotcha")
 
-    def test_unconfigured_legacy_config_preserves_claude_rule_fallback(self) -> None:
-        claude_context = self.write(
-            self.execution_repository,
-            "CLAUDE.md",
-            "Legacy Claude project instructions.\n",
+    def test_retired_config_locations_are_not_read(self) -> None:
+        self.write(self.execution_repository, "CLAUDE.md", "Project instructions.\n")
+        self.write_doctrine(".claude/rules/retired.md")
+        for retired_path in (".agent/dev.md", ".claude/dev.md"):
+            self.write(
+                self.execution_repository,
+                retired_path,
+                "---\ntracker: linear\n---\n",
+            )
+
+        stderr = self.assert_resolver_fails(
+            "execution repository has no dev configuration"
         )
-        self.write(
+
+        self.assertIn(".agent-toolkit/dev.md", stderr)
+        self.assertNotIn(".agent/dev.md", stderr)
+        self.assertNotIn(".claude/dev.md", stderr)
+
+    def test_unconfigured_canonical_config_uses_agents_and_toolkit_rules(self) -> None:
+        agents_context = self.write(
             self.execution_repository,
             "AGENTS.md",
-            "Newer context file must not replace the legacy fallback.\n",
+            "Canonical project instructions.\n",
         )
-        legacy_rule = self.write_doctrine(".claude/rules/legacy.md")
         self.write(
             self.execution_repository,
-            ".claude/dev.md",
-            "---\ntracker: linear\n---\n\n## Rules\n",
+            "CLAUDE.md",
+            "Claude context must not win over AGENTS.md.\n",
+        )
+        self.write_doctrine(".claude/rules/not-a-default.md")
+        toolkit_rule = self.write_doctrine(".agent-toolkit/rules/default.md")
+        self.write(
+            self.execution_repository,
+            ".agent-toolkit/dev.md",
+            "---\ntracker: linear\n---\n",
         )
 
         result = self.run_resolver()
@@ -699,10 +717,10 @@ class ResolveProjectRulesTests(unittest.TestCase):
         instruction_paths = {
             self.execution_path(path) for path in result["project_instructions"]
         }
-        self.assertIn(claude_context.resolve(), instruction_paths)
+        self.assertIn(agents_context.resolve(), instruction_paths)
         loaded = self.loaded_rules_by_name(result)
-        self.assertEqual(set(loaded), {legacy_rule.name})
-        self.assertEqual(loaded[legacy_rule.name]["tier"], "doctrine")
+        self.assertEqual(set(loaded), {toolkit_rule.name})
+        self.assertEqual(loaded[toolkit_rule.name]["tier"], "doctrine")
 
     def test_missing_project_instructions_is_an_error(self) -> None:
         self.write(

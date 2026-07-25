@@ -19,8 +19,8 @@ instructions, applied on approval, that change how the next session behaves.
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
-Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
-`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `runtime_contracts/tracker.md`, and the
+Read first: `.agent-toolkit/dev.md` (tracker routing config), the plugin's
+`runtime_contracts/tracker.md`, and the
 plugin's `runtime_contracts/project-bootstrap.md`. On Claude Code these plugin docs are under
 `${CLAUDE_PLUGIN_ROOT}/runtime_contracts/`; equivalently they are under `../../runtime_contracts/` relative to this
 skill's directory. Scope: one task (`task <id>`) or all `Done`/`Wont Do`/`Blocked` tasks in a
@@ -119,21 +119,12 @@ Promotion targets, by `memory_target` in `.agent-toolkit/dev.md` (default `files
   `## Rules` section; it is not a registry. Pointers and summaries that are not
   rules go in the `dev.md` conventions body. Never write rules or summaries into
   `AGENTS.md`/`CLAUDE.md` themselves - those files are project-owned, and the plugin's only
-  line there is the `dev:setup` reference line. Legacy configs: when the config still lives
-  at `.agent/dev.md` or `.claude/dev.md` with both memory fields absent, fall back to
-  `.claude/rules/` + `CLAUDE.md` (the pre-port behavior, kept as a safety net); when it
-  sets `context_file` but omits `rules_dir` (the 0.0.42-0.0.53 mixed config that
-  consolidated rules inside the context file), do NOT write rule files: no
-  `.agent-toolkit/dev.md` exists there, so `rules_dir` is undefined and a new rule file has
-  no discoverable home. Leave existing consolidated rules
-  where they are, list the promotions in the retro comment as "proposed, blocked on config
-  migration", and tell the user to run `dev:setup` (it performs the migration); apply the
-  promotions only once the migrated config exists.
+  line there is the `dev:setup` reference line.
   Check existing rules first - update or strengthen rather than duplicate; delete rules the
   evidence now contradicts.
 - **MCP memory** (`mem0`, `openbrain`, `memsearch`, …): store each learning via that system's
   MCP tool; recall is that system's job. Still write rules that gate correctness to the file
-  target (`rules_dir`, legacy fallback `.claude/rules/`) - files are the only target every
+  target (`rules_dir`) - files are the only target every
   future session is guaranteed to load.
 
 Every new or updated file rule follows `runtime_contracts/project-bootstrap.md` discovery. Use

@@ -19,11 +19,7 @@ from fnmatch import fnmatchcase
 from pathlib import Path, PurePosixPath
 
 
-CONFIG_PATHS = (
-    Path(".agent-toolkit/dev.md"),
-    Path(".agent/dev.md"),
-    Path(".claude/dev.md"),
-)
+CONFIG_PATHS = (Path(".agent-toolkit/dev.md"),)
 IMPORT_RE = re.compile(r"^\s*@(?P<path>\S+)\s*$")
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---(?:\n|\Z)", re.DOTALL)
 TRIGGER_NAMES = ("paths", "objective", "definition_of_done")
@@ -374,25 +370,14 @@ def resolve(
     config_metadata = frontmatter(config_text)
     rules_dir_value = scalar(config_metadata, "rules_dir")
     context_value = scalar(config_metadata, "context_file")
-    legacy_unconfigured = (
-        config.relative_to(execution_repo) != CONFIG_PATHS[0]
-        and rules_dir_value is None
-        and context_value is None
-    )
     if rules_dir_value is None:
-        rules_dir_value = (
-            ".claude/rules/" if legacy_unconfigured else ".agent-toolkit/rules/"
-        )
+        rules_dir_value = ".agent-toolkit/rules/"
     rules_dir = resolve_project_path(rules_dir_value, config, execution_repo)
     if context_value:
         context_file = resolve_project_path(context_value, config, execution_repo)
         read_text(context_file)
     else:
-        candidates = (
-            (execution_repo / "CLAUDE.md", execution_repo / "AGENTS.md")
-            if legacy_unconfigured
-            else (execution_repo / "AGENTS.md", execution_repo / "CLAUDE.md")
-        )
+        candidates = (execution_repo / "AGENTS.md", execution_repo / "CLAUDE.md")
         context_file = next((path for path in candidates if path.is_file()), None)
         if context_file is None:
             raise ResolutionError(

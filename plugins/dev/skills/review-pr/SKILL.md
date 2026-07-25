@@ -22,8 +22,8 @@ invocations, subject to its `max_fix_attempts` limit.
 Skill references like `dev:verify` mean this plugin's `verify` skill; when telling the user to
 run one, render your harness's invocation for it (Claude Code: `/dev:verify`; Codex: `$verify`).
 
-Read first: `.agent-toolkit/dev.md` (tracker routing config; legacy fallbacks:
-`.agent/dev.md`, then `.claude/dev.md` when absent), the plugin's `runtime_contracts/tracker.md`, and the
+Read first: `.agent-toolkit/dev.md` (tracker routing config), the plugin's
+`runtime_contracts/tracker.md`, and the
 plugin's `runtime_contracts/project-bootstrap.md`. On Claude Code these plugin docs are under
 `${CLAUDE_PLUGIN_ROOT}/runtime_contracts/`; equivalently they are under `../../runtime_contracts/` relative to this
 skill's directory.

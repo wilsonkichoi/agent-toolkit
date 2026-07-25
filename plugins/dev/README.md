@@ -35,7 +35,7 @@ Skill names below are written Claude-Code style (`/dev:execute`). Render your ha
 | Codex | `$execute` | agents copied from `dist/codex/agents/`, selected via `spawn_agent`'s `agent_type` parameter; `dev:auto` supported (sibling test-writer orchestration); no `execute` loop mode |
 
 Install per harness: see the repo-root [README](../../README.md). All plugin state is
-encapsulated in `.agent-toolkit/` (legacy `.agent/dev.md` and `.claude/dev.md` still read):
+encapsulated in `.agent-toolkit/`:
 `dev.md` holds the config frontmatter, free-text conventions, and the architecture pointer;
 `rules/` holds promoted learnings, one file per rule, each imported from `dev.md`. The
 project's own context file (`AGENTS.md` or `CLAUDE.md` - the project's choice) carries a
@@ -246,11 +246,7 @@ the config carries no rule registry: a `## Rules` section holding `@` import lin
 pre-0.0.64 form that `dev:setup` migrates away. `.agent-toolkit/dev.local.md` (gitignored) overrides
 fields per developer. Everything the plugin owns lives under `.agent-toolkit/`; the project's
 context file carries a single reference line to `dev.md` and is otherwise never touched.
-Legacy locations: `.agent/dev.md`, then `.claude/dev.md` - every skill reads
-`.agent-toolkit/dev.md` first and falls back to them, and `dev:setup` offers a `git mv`
-migration on existing projects. The `.local.md` override is read next to whichever config
-location resolves: a legacy `.agent/dev.local.md` or `.claude/dev.local.md` keeps applying
-until its config file migrates.
+`.agent-toolkit/dev.md` is the only config location every skill reads.
 
 | Field | Default | Read by | Meaning |
 |---|---|---|---|
@@ -363,7 +359,7 @@ which branches from `main`).
 | Spec + roadmap review | `architect` | `dev:plan` |
 | Plan dry run | `plan` | Packets pushed to the tracker at `Todo` |
 | Merge | `verify` | Merge per policy, task → `Done`, cleanup (carve-out: `auto_merge`, below) |
-| Rule promotion | `retro` | Learnings written as tiered rule files in the configured `rules_dir`, where discovery finds them (legacy safety-net fallback when both memory fields are absent: `.claude/rules/` / CLAUDE.md) |
+| Rule promotion | `retro` | Learnings written as tiered rule files in the configured `rules_dir`, where discovery finds them |
 | `Backlog → Todo`, `Wont Do` | `backlog` | Task enters or leaves the committed queue |
 
 ## Manual review action boundaries

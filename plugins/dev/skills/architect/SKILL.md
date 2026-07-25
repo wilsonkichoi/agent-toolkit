@@ -18,7 +18,7 @@ packet `dev:plan` writes. Docs only: produce no product code, no scaffolding.
 Skill references like `dev:plan` mean this plugin's `plan` skill; when telling the user to run
 one, render your harness's invocation for it (Claude Code: `/dev:plan`; Codex: `$plan`).
 
-Read `.agent-toolkit/dev.md` first (legacy fallbacks: `.agent/dev.md`, then `.claude/dev.md`). Fork configuration does not
+Read `.agent-toolkit/dev.md` first. Fork configuration does not
 change this skill: it authors local `docs/SPEC.md`, `docs/ROADMAP.md`, ADRs, and the configured
 context file, and makes no tracker or GitHub call. A contributor submits the resulting file
 changes through the normal fork PR path.
@@ -87,9 +87,7 @@ out-of-scope. Order by risk: the milestone that retires the biggest unknown ship
 Add or refresh the architecture pointer in the `.agent-toolkit/dev.md` conventions body:
 5-10 lines summarizing the architecture and linking to SPEC/ROADMAP/ADRs. Every session
 reaches it through the context file's reference line; never write the pointer into
-`AGENTS.md`/`CLAUDE.md` directly - those files are project-owned. Legacy configs without an
-`.agent-toolkit/dev.md`: write to the file named by `context_file` (safety-net fallback
-`CLAUDE.md` when the field is absent, uniform across harnesses). Then the human gate: present
+`AGENTS.md`/`CLAUDE.md` directly - those files are project-owned. Then the human gate: present
 the architecture summary, the contested ADRs, and the milestone order. This gate deserves a
 line-by-line review; say so. Record approval date in SPEC.md, then commit the approved docs
 (SPEC, ROADMAP, ADRs, `dev.md` update) with the user's consent before ending.

@@ -6,8 +6,8 @@ expanding `@` imports.
 
 ## Sequence
 
-1. **Load tracker routing only.** Read the tracker repository's dev configuration using the
-   normal fallback chain (`.agent-toolkit/dev.md`, `.agent/dev.md`, `.claude/dev.md`) and
+1. **Load tracker routing only.** Read the tracker repository's dev configuration at
+   `.agent-toolkit/dev.md` and
    `runtime_contracts/tracker.md`. Resolve the tracker and GitHub repository roles once. Do not treat the
    tracker repository's project instructions or rules as the execution repository's rules.
 2. **Resolve the execution repository.** Fetch the task packet or linked issue/PR only far
@@ -169,7 +169,7 @@ Notes for human maintainers; not an agent instruction.
 ```
 
 A repository whose rule files predate this contract carries no `tier` and hard-stops until every
-file is classified; `dev:setup` performs that migration and reports every file it changes. Legacy
-`.agent/dev.md` or `.claude/dev.md` configurations with neither `context_file` nor
-`rules_dir` preserve the pre-port fallback to `CLAUDE.md` and `.claude/rules/`. If no configured
-context file and no applicable `AGENTS.md` or `CLAUDE.md` fallback exists, resolution stops.
+file is classified; `dev:setup` performs that migration and reports every file it changes. A
+configuration that omits `rules_dir` resolves rules from `.agent-toolkit/rules/`, and one that
+omits `context_file` selects `AGENTS.md`, then `CLAUDE.md`. If no configured context file and no
+applicable `AGENTS.md` or `CLAUDE.md` fallback exists, resolution stops.
