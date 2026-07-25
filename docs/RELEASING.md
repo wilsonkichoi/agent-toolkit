@@ -60,9 +60,21 @@ tag stops identifying anything at all.
 This applies to the GitHub Release attached to a tag as well: correct a release by publishing a new
 one, not by repointing an existing tag.
 
-Immutability is enforced, not just documented. `plugins/dev/scripts/plugin_release.py` creates tags
-through `POST /repos/{repo}/git/refs`, which GitHub rejects when the ref already exists, and it
-contains no code path that deletes, force-updates, or moves a tag or edits a release.
+Immutability is enforced, not just documented. The active `Immutable plugin release tags` repository
+ruleset targets `refs/tags/dev-v*` and `refs/tags/utils-v*` and applies the `deletion` and
+`non_fast_forward` rules. It has no bypass actors. The ruleset intentionally does not apply the
+`creation` rule, so the `Release tags` workflow can create a new release tag with its
+`GITHUB_TOKEN`, while no actor can delete or retarget an existing matching tag.
+
+Confirm the active protection from any checkout with GitHub read access:
+
+```bash
+gh api repos/wilsonkichoi/agent-toolkit/rulesets --jq '.[] | select(.name == "Immutable plugin release tags") | {id, target, enforcement}'
+```
+
+`plugins/dev/scripts/plugin_release.py` also creates tags through `POST /repos/{repo}/git/refs`,
+which GitHub rejects when the ref already exists, and it contains no code path that deletes,
+force-updates, or moves a tag or edits a release.
 
 ## Release procedure
 
