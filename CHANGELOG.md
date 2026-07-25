@@ -12,6 +12,14 @@ notes from that section at the tagged commit.
 
 Entries are newest first. Each release entry is headed by its exact tag name.
 
+## dev-v0.0.72
+
+- Enforced the `dev-v*` and `utils-v*` release-tag namespaces with the active `Immutable plugin
+  release tags` repository ruleset. It blocks tag deletion and non-fast-forward updates while
+  preserving the `Release tags` workflow's ability to create a new version tag.
+- Documented the ruleset, its exact ref patterns, and a GitHub API verification command in the
+  release procedure and release-tag guidance.
+
 ## dev-v0.0.71
 
 - `dev:backlog` now supports brownfield and partially adopted repositories that lack

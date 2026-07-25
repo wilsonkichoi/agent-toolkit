@@ -151,12 +151,14 @@ Repository authoring rules and required checks are in [AGENTS.md](AGENTS.md).
 
 Plugin versions are released as immutable `<plugin>-vX.Y.Z` tags plus matching GitHub Releases, so a
 consumer can pin a human-readable version instead of `main` or a commit SHA. `dev` and `utils` are
-versioned and tagged independently. Tag creation is automatic: a push to `main` that strictly
-increases a plugin's three synchronized version fields creates that plugin's tag at the merged
-commit, and refuses before creating anything when the fields disagree, the version is not semver or
-decreases, the exact changelog heading is missing, or the tag already exists elsewhere. Publishing
-the GitHub Release stays an explicit maintainer action through `/dev:release <tag>`. Published tags
-and releases are never moved, edited, or deleted; corrections ship as a new patch release.
+versioned and tagged independently. The active `Immutable plugin release tags` ruleset protects
+`refs/tags/dev-v*` and `refs/tags/utils-v*` from deletion and non-fast-forward updates. Tag creation
+is automatic: a push to `main` that strictly increases a plugin's three synchronized version fields
+creates that plugin's tag at the merged commit, and refuses before creating anything when the fields
+disagree, the version is not semver or decreases, the exact changelog heading is missing, or the tag
+already exists elsewhere. Publishing the GitHub Release stays an explicit maintainer action through
+`/dev:release <tag>`. Published tags and releases are never moved, edited, or deleted; corrections
+ship as a new patch release.
 
 The maintainer procedure is in [docs/RELEASING.md](docs/RELEASING.md) and shipped versions are
 listed in [CHANGELOG.md](CHANGELOG.md).
