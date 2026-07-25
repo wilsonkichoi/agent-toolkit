@@ -77,6 +77,16 @@ the contract cannot be relied on to carry its stop conditions. Keep the stop cla
 resolver's own error text, and `resolve_project_rules.py` in lockstep; never substitute another
 revision to get past the resolver.
 
+`resolve_project_rules.py --check <repo>` is the single supported way to enforce that contract
+outside a lifecycle run, and `dev:setup` offers to wire it into an adopter's CI. It shares the
+production discovery, classification, path-containment, and diagnostic code with lifecycle
+resolution; never add a second checker, in this repository or an adopter's, because a copy drifts
+from the behavior it mirrors. It requires only the repository path and validates no revision. The
+one deliberate divergence is that a leftover `## Rules` `@` import line is fatal in check mode and
+a warning in a lifecycle run. Keep that divergence, the check-mode contract in
+`plugins/dev/runtime_contracts/project-bootstrap.md` "CI enforcement", and the CLI tests in
+`tools/test_resolve_project_rules.py` in lockstep.
+
 The pre-0.0.64 `## Rules` registry migration lives in `plugins/dev/scripts/migrate_rules.py` and
 is driven by `dev:setup`; `check_repo.py` runs `tools/test_migrate_rules.py`. The helper reports
 before it writes, is idempotent, and never classifies an unregistered file on the human's behalf.

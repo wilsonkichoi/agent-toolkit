@@ -4,7 +4,12 @@
 # dependencies = []
 # ///
 
-"""Resolve the project instructions and rules for one dev lifecycle invocation."""
+"""Resolve the project instructions and rules for one dev lifecycle invocation.
+
+`--check <repo>` runs the same discovery and classification against a repository alone,
+with no tracker, revision, or task context, so CI can enforce the rule-discovery contract
+without vendoring a second implementation of it.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +18,7 @@ import json
 import re
 import subprocess
 import sys
+from collections import Counter
 from dataclasses import asdict, dataclass
 from functools import cache
 from fnmatch import fnmatchcase
@@ -54,16 +60,78 @@ class Resolution:
     warnings: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class RepositoryContext:
+    """Everything both modes derive from a repository, before task triggers apply."""
+
+    config: str
+    rules_dir: str
+    project_instructions: tuple[str, ...]
+    rules_loaded: tuple[RuleResult, ...]
+    rules_skipped: tuple[RuleResult, ...]
+    rules_excluded: tuple[RuleResult, ...]
+    warnings: tuple[str, ...]
+    registry_imports: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class CheckSummary:
+    repository: str
+    rules_dir: str
+    doctrine: int
+    gotcha: int
+    excluded: int
+    warnings: tuple[str, ...]
+
+    @property
+    def total(self) -> int:
+        return self.doctrine + self.gotcha + self.excluded
+
+
+REQUIRED_LIFECYCLE_OPTIONS = (
+    "--tracker-repo",
+    "--execution-repo",
+    "--execution-revision",
+)
+LIFECYCLE_OPTIONS = REQUIRED_LIFECYCLE_OPTIONS + (
+    "--objective",
+    "--definition-of-done",
+    "--changed-path",
+    "--format",
+)
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tracker-repo", required=True, type=Path)
-    parser.add_argument("--execution-repo", required=True, type=Path)
-    parser.add_argument("--execution-revision", required=True)
-    parser.add_argument("--objective", default="")
-    parser.add_argument("--definition-of-done", default="")
-    parser.add_argument("--changed-path", action="append", default=[])
-    parser.add_argument("--format", choices=("text", "json"), default="text")
-    return parser.parse_args(argv)
+    parser.add_argument("--check", metavar="REPO", type=Path)
+    parser.add_argument("--tracker-repo", type=Path)
+    parser.add_argument("--execution-repo", type=Path)
+    parser.add_argument("--execution-revision")
+    parser.add_argument("--objective")
+    parser.add_argument("--definition-of-done")
+    parser.add_argument("--changed-path", action="append")
+    parser.add_argument("--format", choices=("text", "json"))
+    args = parser.parse_args(argv)
+
+    supplied = tuple(
+        option
+        for option in LIFECYCLE_OPTIONS
+        if getattr(args, option.removeprefix("--").replace("-", "_")) is not None
+    )
+    if args.check is not None:
+        if supplied:
+            parser.error(
+                "--check runs a repository-only rules contract check and accepts no "
+                f"lifecycle options; remove {', '.join(supplied)}"
+            )
+        return args
+
+    missing = tuple(
+        option for option in REQUIRED_LIFECYCLE_OPTIONS if option not in supplied
+    )
+    if missing:
+        parser.error(f"the following arguments are required: {', '.join(missing)}")
+    return args
 
 
 def read_text(path: Path) -> str:
@@ -345,26 +413,27 @@ def harness_autoload_warning(execution_repo: Path, rules_dir: Path) -> str | Non
     return None
 
 
-def resolve(
-    tracker_repo: Path,
+def registry_import_diagnostic(config: str, imports: tuple[str, ...]) -> str:
+    return (
+        f"{config} still carries {len(imports)} `@` import line(s) under `## Rules`: "
+        f"{', '.join(imports)}. Discovery ignores them, but a harness that expands "
+        "imports still loads those files unconditionally, defeating gotcha triggers. "
+        "Run dev:setup to remove them."
+    )
+
+
+def repository_context(
     execution_repo: Path,
-    execution_revision: str,
     objective: str,
     definition_of_done: str,
     changed_paths: tuple[str, ...],
-) -> Resolution:
-    tracker_repo = tracker_repo.resolve()
-    execution_repo = execution_repo.resolve()
-    if not tracker_repo.is_dir():
-        raise ResolutionError(f"tracker repository is not a directory: {tracker_repo}")
-    if not execution_repo.is_dir():
-        raise ResolutionError(
-            f"execution repository is not a directory: {execution_repo}"
-        )
-    resolved_execution_revision = validate_execution_revision(
-        execution_repo, execution_revision
-    )
+) -> RepositoryContext:
+    """Read, discover, and classify one repository's rule context.
 
+    Both the lifecycle resolution and the repository-only check run through here, so a
+    contract change lands in one place and the CI check can never drift from the
+    behavior it is meant to enforce.
+    """
     config = find_config(execution_repo)
     config_text = read_text(config)
     config_metadata = frontmatter(config_text)
@@ -441,25 +510,88 @@ def resolve(
     autoload_warning = harness_autoload_warning(execution_repo, rules_dir)
     if autoload_warning:
         warnings.append(autoload_warning)
-    leftover_imports = rules_section_imports(config_text)
-    if leftover_imports:
+
+    return RepositoryContext(
+        config=relative_to_repo(config, execution_repo),
+        rules_dir=relative_to_repo(rules_dir, execution_repo),
+        project_instructions=instruction_paths,
+        rules_loaded=tuple(loaded),
+        rules_skipped=tuple(skipped),
+        rules_excluded=tuple(excluded),
+        warnings=tuple(warnings),
+        registry_imports=rules_section_imports(config_text),
+    )
+
+
+def resolve(
+    tracker_repo: Path,
+    execution_repo: Path,
+    execution_revision: str,
+    objective: str,
+    definition_of_done: str,
+    changed_paths: tuple[str, ...],
+) -> Resolution:
+    tracker_repo = tracker_repo.resolve()
+    execution_repo = execution_repo.resolve()
+    if not tracker_repo.is_dir():
+        raise ResolutionError(f"tracker repository is not a directory: {tracker_repo}")
+    if not execution_repo.is_dir():
+        raise ResolutionError(
+            f"execution repository is not a directory: {execution_repo}"
+        )
+    resolved_execution_revision = validate_execution_revision(
+        execution_repo, execution_revision
+    )
+    context = repository_context(
+        execution_repo, objective, definition_of_done, changed_paths
+    )
+
+    warnings = list(context.warnings)
+    if context.registry_imports:
         warnings.append(
-            f"{relative_to_repo(config, execution_repo)} still carries "
-            f"{len(leftover_imports)} `@` import line(s) under `## Rules`: "
-            f"{', '.join(leftover_imports)}. Discovery ignores them, but a harness that "
-            "expands imports still loads those files unconditionally, defeating gotcha "
-            "triggers. Run dev:setup to remove them."
+            registry_import_diagnostic(context.config, context.registry_imports)
         )
 
     return Resolution(
         tracker_repository=str(tracker_repo),
         execution_repository=str(execution_repo),
         execution_revision=resolved_execution_revision,
-        project_instructions=instruction_paths,
-        rules_loaded=tuple(loaded),
-        rules_skipped=tuple(skipped),
-        rules_excluded=tuple(excluded),
+        project_instructions=context.project_instructions,
+        rules_loaded=context.rules_loaded,
+        rules_skipped=context.rules_skipped,
+        rules_excluded=context.rules_excluded,
         warnings=tuple(warnings),
+    )
+
+
+def check_repository(repository: Path) -> CheckSummary:
+    """Enforce the rule-discovery contract against a repository, with no task context.
+
+    Triggers are not evaluated here: a gotcha's job in a contract check is to be
+    well-formed, not to match. A leftover `## Rules` import is fatal rather than a
+    warning, because a repository that keeps one has a rule graph its harnesses and this
+    resolver disagree about, and CI is where that gets settled.
+    """
+    repository = repository.resolve()
+    if not repository.is_dir():
+        raise ResolutionError(f"repository is not a directory: {repository}")
+    context = repository_context(repository, "", "", ())
+    if context.registry_imports:
+        raise ResolutionError(
+            registry_import_diagnostic(context.config, context.registry_imports)
+        )
+
+    tiers = Counter(
+        rule.tier
+        for rule in context.rules_loaded + context.rules_skipped + context.rules_excluded
+    )
+    return CheckSummary(
+        repository=str(repository),
+        rules_dir=context.rules_dir,
+        doctrine=tiers["doctrine"],
+        gotcha=tiers["gotcha"],
+        excluded=tiers["none"],
+        warnings=context.warnings,
     )
 
 
@@ -496,16 +628,38 @@ def render_text(result: Resolution) -> str:
     return "\n".join(lines)
 
 
+def render_check_summary(summary: CheckSummary) -> str:
+    return (
+        f"rules contract ok: {summary.repository} - {summary.total} rule file(s) "
+        f"under {summary.rules_dir} (doctrine {summary.doctrine}, "
+        f"gotcha {summary.gotcha}, excluded {summary.excluded})"
+    )
+
+
+def run_check(repository: Path) -> int:
+    try:
+        summary = check_repository(repository)
+    except (OSError, ResolutionError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+    for warning in summary.warnings:
+        print(f"warning: {warning}", file=sys.stderr)
+    print(render_check_summary(summary))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
+    if args.check is not None:
+        return run_check(args.check)
     try:
         result = resolve(
             args.tracker_repo,
             args.execution_repo,
             args.execution_revision,
-            args.objective,
-            args.definition_of_done,
-            tuple(args.changed_path),
+            args.objective or "",
+            args.definition_of_done or "",
+            tuple(args.changed_path or ()),
         )
     except (OSError, ResolutionError) as error:
         print(f"error: {error}", file=sys.stderr)

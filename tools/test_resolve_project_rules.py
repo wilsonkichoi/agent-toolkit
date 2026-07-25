@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import tempfile
 import textwrap
@@ -14,9 +15,107 @@ from typing import Any
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 RESOLVER = REPOSITORY_ROOT / "plugins/dev/scripts/resolve_project_rules.py"
+CHECK_SUMMARY_PREFIX = "rules contract ok:"
+ERROR_PREFIX = "error: "
 
 
-class ResolveProjectRulesTests(unittest.TestCase):
+def diagnostic_body(stderr: str) -> str:
+    body = stderr.strip()
+    if ERROR_PREFIX in body:
+        body = body.split(ERROR_PREFIX, maxsplit=1)[1]
+    return body.strip()
+
+
+class RepositoryFixtures:
+    """Fixture and CLI helpers shared by the lifecycle and check-mode suites."""
+
+    def write(self, repository: Path, relative_path: str, content: str) -> Path:
+        path = repository / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(textwrap.dedent(content).lstrip(), encoding="utf-8")
+        return path
+
+    def write_config(
+        self,
+        repository: Path,
+        *,
+        config_path: str = ".agent-toolkit/dev.md",
+        context_file: str = "AGENTS.md",
+        rules_dir: str = ".agent-toolkit/rules/",
+        rules_section: str = "",
+    ) -> Path:
+        return self.write(
+            repository,
+            config_path,
+            "---\n"
+            "tracker: linear\n"
+            f"context_file: {context_file}\n"
+            f"rules_dir: {rules_dir}\n"
+            "---\n\n"
+            "# Development configuration\n\n"
+            "## Rules\n\n"
+            f"{rules_section}\n",
+        )
+
+    def write_doctrine_file(
+        self,
+        repository: Path,
+        relative_path: str,
+        body: str = "Doctrine body.",
+    ) -> Path:
+        return self.write(
+            repository,
+            relative_path,
+            f"---\ntier: doctrine\n---\n\n{body}\n",
+        )
+
+    def check_process(
+        self, repository: Path, *arguments: str
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["uv", "run", str(RESOLVER), "--check", str(repository), *arguments],
+            cwd=REPOSITORY_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def assert_check_succeeds(self, repository: Path, *arguments: str) -> str:
+        result = self.check_process(repository, *arguments)
+        self.assertEqual(
+            result.returncode,
+            0,
+            "check mode failed\n"
+            f"stdout:\n{result.stdout}\n"
+            f"stderr:\n{result.stderr}",
+        )
+        summary_lines = [line for line in result.stdout.splitlines() if line.strip()]
+        self.assertEqual(len(summary_lines), 1, result.stdout)
+        summary = summary_lines[0]
+        self.assertTrue(summary.startswith(CHECK_SUMMARY_PREFIX), summary)
+        self.assertTrue(
+            str(repository) in summary or str(repository.resolve()) in summary,
+            summary,
+        )
+        return summary
+
+    def assert_check_fails(
+        self, repository: Path, expected_error: str, *arguments: str
+    ) -> str:
+        result = self.check_process(repository, *arguments)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn(ERROR_PREFIX, result.stderr)
+        self.assertIn(expected_error, result.stderr)
+        return result.stderr
+
+    def summary_counts(self, summary: str, repository: Path) -> list[int]:
+        remainder = summary
+        for candidate in (str(repository.resolve()), str(repository)):
+            remainder = remainder.replace(candidate, " ")
+        return [int(token) for token in re.findall(r"\d+", remainder)]
+
+
+class ResolveProjectRulesTests(RepositoryFixtures, unittest.TestCase):
     def setUp(self) -> None:
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary_directory.cleanup)
@@ -70,34 +169,6 @@ class ResolveProjectRulesTests(unittest.TestCase):
         elif staged.returncode != 0:
             self.fail(f"git diff --cached --quiet failed with {staged.returncode}")
         return self.run_git("rev-parse", "HEAD")
-
-    def write(self, repository: Path, relative_path: str, content: str) -> Path:
-        path = repository / relative_path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(textwrap.dedent(content).lstrip(), encoding="utf-8")
-        return path
-
-    def write_config(
-        self,
-        repository: Path,
-        *,
-        config_path: str = ".agent-toolkit/dev.md",
-        context_file: str = "AGENTS.md",
-        rules_dir: str = ".agent-toolkit/rules/",
-        rules_section: str = "",
-    ) -> Path:
-        return self.write(
-            repository,
-            config_path,
-            "---\n"
-            "tracker: linear\n"
-            f"context_file: {context_file}\n"
-            f"rules_dir: {rules_dir}\n"
-            "---\n\n"
-            "# Development configuration\n\n"
-            "## Rules\n\n"
-            f"{rules_section}\n",
-        )
 
     def resolver_process(
         self,
@@ -771,6 +842,479 @@ class ResolveProjectRulesTests(unittest.TestCase):
                 loaded = self.loaded_rules_by_name(result)
                 self.assertEqual(set(loaded), {shell_rule.name})
                 self.assertEqual(loaded[shell_rule.name]["tier"], "gotcha")
+
+    def test_registry_import_line_stops_check_mode_but_only_warns_in_lifecycle_mode(
+        self,
+    ) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(
+            self.execution_repository,
+            rules_section="@.agent-toolkit/rules/guard-suite.md\n",
+        )
+        self.write_doctrine(".agent-toolkit/rules/guard-suite.md")
+
+        lifecycle = self.resolver_process()
+        check = self.check_process(self.execution_repository)
+
+        self.assertEqual(lifecycle.returncode, 0, lifecycle.stderr)
+        lifecycle_result = json.loads(lifecycle.stdout)
+        self.assertEqual(len(lifecycle_result["warnings"]), 1)
+        self.assertIn(
+            ".agent-toolkit/rules/guard-suite.md", lifecycle_result["warnings"][0]
+        )
+        self.assertEqual(check.returncode, 1, check.stdout)
+        self.assertIn(ERROR_PREFIX, check.stderr)
+        self.assertIn(".agent-toolkit/rules/guard-suite.md", check.stderr)
+        self.assertNotEqual(lifecycle.returncode, check.returncode)
+
+    def assert_check_mode_repeats_the_lifecycle_failure(self, expected_error: str) -> None:
+        lifecycle = self.resolver_process()
+        check = self.check_process(self.execution_repository)
+
+        self.assertNotEqual(lifecycle.returncode, 0, lifecycle.stdout)
+        self.assertIn(expected_error, lifecycle.stderr)
+        self.assertEqual(check.returncode, 1, check.stdout)
+        self.assertIn(ERROR_PREFIX, check.stderr)
+        self.assertIn(diagnostic_body(lifecycle.stderr), check.stderr)
+
+    def test_check_mode_preserves_the_lifecycle_unclassified_diagnostic(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository)
+        self.write(
+            self.execution_repository,
+            ".agent-toolkit/rules/offender.md",
+            "Rule body with no frontmatter at all.\n",
+        )
+
+        self.assert_check_mode_repeats_the_lifecycle_failure("unclassified Markdown")
+
+    def test_check_mode_preserves_the_lifecycle_import_line_diagnostic(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository)
+        self.write(
+            self.execution_repository,
+            ".agent-toolkit/rules/chain/one.md",
+            "@.agent-toolkit/rules/chain/two.md\n",
+        )
+        self.write_doctrine(".agent-toolkit/rules/chain/two.md")
+
+        self.assert_check_mode_repeats_the_lifecycle_failure("`@` import line")
+
+    def test_check_mode_preserves_the_lifecycle_missing_context_file_diagnostic(
+        self,
+    ) -> None:
+        self.write_config(self.execution_repository, context_file="AGENTS.md")
+        self.write_doctrine(".agent-toolkit/rules/guard-suite.md")
+
+        self.assert_check_mode_repeats_the_lifecycle_failure("required file is missing")
+
+    def test_check_mode_preserves_the_lifecycle_escaping_context_file_diagnostic(
+        self,
+    ) -> None:
+        self.write(
+            Path(self.temporary_directory.name),
+            "outside-context/AGENTS.md",
+            "Outside the execution repository.\n",
+        )
+        self.write_config(
+            self.execution_repository,
+            context_file="../../outside-context/AGENTS.md",
+        )
+        self.write_doctrine(".agent-toolkit/rules/guard-suite.md")
+
+        self.assert_check_mode_repeats_the_lifecycle_failure(
+            "escapes execution repository"
+        )
+
+    def test_lifecycle_mode_still_requires_tracker_execution_and_revision(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository)
+        revision = self.commit_execution_repository()
+        incomplete_invocations = {
+            "no arguments": [],
+            "no execution revision": [
+                "--tracker-repo",
+                str(self.tracker_repository),
+                "--execution-repo",
+                str(self.execution_repository),
+            ],
+            "no execution repository": [
+                "--tracker-repo",
+                str(self.tracker_repository),
+                "--execution-revision",
+                revision,
+            ],
+            "no tracker repository": [
+                "--execution-repo",
+                str(self.execution_repository),
+                "--execution-revision",
+                revision,
+            ],
+        }
+        missing_option = {
+            "no arguments": "--tracker-repo",
+            "no execution revision": "--execution-revision",
+            "no execution repository": "--execution-repo",
+            "no tracker repository": "--tracker-repo",
+        }
+        for reason, arguments in incomplete_invocations.items():
+            with self.subTest(reason=reason):
+                result = subprocess.run(
+                    ["uv", "run", str(RESOLVER), *arguments],
+                    cwd=REPOSITORY_ROOT,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn("required", result.stderr)
+                self.assertIn(missing_option[reason], result.stderr)
+
+    def test_lifecycle_json_output_shape_is_unchanged(self) -> None:
+        self.write(self.execution_repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.execution_repository)
+        self.write_doctrine(".agent-toolkit/rules/guard-suite.md")
+        self.write(
+            self.execution_repository,
+            ".agent-toolkit/rules/docs.md",
+            """
+            ---
+            tier: gotcha
+            triggers:
+              paths:
+                - docs/README.md
+            ---
+            Documentation rule.
+            """,
+        )
+        self.write(
+            self.execution_repository,
+            ".agent-toolkit/rules/README.md",
+            "---\ntier: none\n---\n\nDirectory notes.\n",
+        )
+
+        result = self.run_resolver(
+            "--objective",
+            "Harden the release script",
+            "--definition-of-done",
+            "The release script is covered",
+            "--changed-path",
+            "scripts/release.sh",
+        )
+
+        for key in (
+            "tracker_repository",
+            "execution_repository",
+            "execution_revision",
+        ):
+            self.assertIsInstance(result[key], str)
+        for key in (
+            "project_instructions",
+            "rules_loaded",
+            "rules_skipped",
+            "rules_excluded",
+            "warnings",
+        ):
+            self.assertIsInstance(result[key], list)
+        self.assertEqual(set(self.loaded_rules_by_name(result)), {"guard-suite.md"})
+        self.assertEqual(set(self.skipped_rules_by_name(result)), {"docs.md"})
+        self.assertEqual(set(self.excluded_rules_by_name(result)), {"README.md"})
+        for rule in result["rules_loaded"] + result["rules_skipped"]:
+            self.assertLessEqual({"path", "tier", "matched_by"}, set(rule))
+
+
+class RulesContractCheckTests(RepositoryFixtures, unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary_directory.cleanup)
+        self.root = Path(self.temporary_directory.name)
+        self.repository = self.root / "check-repository"
+        self.repository.mkdir()
+
+    def write_compliant_repository(self) -> None:
+        self.write(self.repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.repository)
+        self.write_doctrine_file(self.repository, ".agent-toolkit/rules/guard-suite.md")
+
+    def test_check_mode_requires_only_the_repository_path(self) -> None:
+        self.write_compliant_repository()
+
+        result = self.check_process(self.repository)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("required", result.stderr)
+        self.assertTrue(result.stdout.startswith(CHECK_SUMMARY_PREFIX), result.stdout)
+
+    def test_check_mode_succeeds_on_a_directory_that_is_not_a_git_repository(
+        self,
+    ) -> None:
+        self.write_compliant_repository()
+
+        self.assertFalse((self.repository / ".git").exists())
+        self.assert_check_succeeds(self.repository)
+
+    def test_compliant_repository_prints_one_summary_line_with_per_tier_counts(
+        self,
+    ) -> None:
+        self.write(self.repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.repository)
+        for relative_path in (
+            ".agent-toolkit/rules/guard-suite.md",
+            ".agent-toolkit/rules/nested/migrations.md",
+            ".agent-toolkit/rules/nested/deep/release.md",
+        ):
+            self.write_doctrine_file(self.repository, relative_path)
+        for relative_path in (
+            ".agent-toolkit/rules/shell.md",
+            ".agent-toolkit/rules/docs.md",
+        ):
+            self.write(
+                self.repository,
+                relative_path,
+                """
+                ---
+                tier: gotcha
+                triggers:
+                  paths:
+                    - "scripts/**/*.sh"
+                ---
+                Conditional rule.
+                """,
+            )
+        self.write(
+            self.repository,
+            ".agent-toolkit/rules/README.md",
+            "---\ntier: none\n---\n\nDirectory notes.\n",
+        )
+
+        summary = self.assert_check_succeeds(self.repository)
+
+        counts = self.summary_counts(summary, self.repository)
+        for expected in (6, 3, 2, 1):
+            self.assertIn(expected, counts, summary)
+
+    def test_absent_rules_directory_is_compliant(self) -> None:
+        self.write(self.repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.repository)
+
+        self.assertFalse((self.repository / ".agent-toolkit/rules").exists())
+        summary = self.assert_check_succeeds(self.repository)
+
+        self.assertIn(0, self.summary_counts(summary, self.repository), summary)
+
+    def test_empty_rules_directory_is_compliant(self) -> None:
+        self.write(self.repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.repository)
+        (self.repository / ".agent-toolkit/rules").mkdir(parents=True)
+
+        summary = self.assert_check_succeeds(self.repository)
+
+        self.assertIn(0, self.summary_counts(summary, self.repository), summary)
+
+    def test_rules_directory_of_only_tier_none_markdown_is_compliant(self) -> None:
+        self.write(self.repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.repository)
+        for relative_path in (
+            ".agent-toolkit/rules/README.md",
+            ".agent-toolkit/rules/notes/decisions.md",
+        ):
+            self.write(
+                self.repository,
+                relative_path,
+                "---\ntier: none\n---\n\nHuman notes.\n",
+            )
+
+        summary = self.assert_check_succeeds(self.repository)
+
+        self.assertIn(2, self.summary_counts(summary, self.repository), summary)
+
+    def test_each_unclassified_class_fails_check_mode_with_its_diagnostic(self) -> None:
+        unclassified_classes = {
+            "no frontmatter": "Rule body with no frontmatter at all.\n",
+            "malformed frontmatter": "---\ntier: doctrine\n\nUnterminated frontmatter.\n",
+            "frontmatter does not declare tier": (
+                "---\nteir: gotcha\n---\n\nMisspelled tier key.\n"
+            ),
+            "unknown tier 'advisory'": "---\ntier: advisory\n---\n\nUnknown tier.\n",
+            "tier: gotcha declares no trigger": (
+                "---\ntier: gotcha\n---\n\nTrigger-free gotcha.\n"
+            ),
+        }
+        self.write_compliant_repository()
+        offender = self.repository / ".agent-toolkit/rules/offender.md"
+        for reason, content in unclassified_classes.items():
+            with self.subTest(reason=reason):
+                offender.write_text(content, encoding="utf-8")
+                try:
+                    stderr = self.assert_check_fails(
+                        self.repository, "unclassified Markdown"
+                    )
+                    self.assertIn(f".agent-toolkit/rules/offender.md ({reason})", stderr)
+                    self.assertNotIn("guard-suite.md", stderr)
+                finally:
+                    offender.unlink()
+        self.assert_check_succeeds(self.repository)
+
+    def test_import_line_inside_a_rule_file_fails_check_mode(self) -> None:
+        self.write(self.repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.repository)
+        self.write(
+            self.repository,
+            ".agent-toolkit/rules/chain/one.md",
+            "@.agent-toolkit/rules/chain/two.md\n",
+        )
+        self.write_doctrine_file(self.repository, ".agent-toolkit/rules/chain/two.md")
+
+        stderr = self.assert_check_fails(self.repository, "`@` import line")
+
+        self.assertIn(".agent-toolkit/rules/chain/one.md", stderr)
+
+    def test_rule_symlink_escaping_the_repository_fails_check_mode(self) -> None:
+        self.write_compliant_repository()
+        outside_rule = self.write_doctrine_file(
+            self.root, "outside/leaked.md", "Outside the checked repository."
+        )
+        link = self.repository / ".agent-toolkit/rules/leaked.md"
+        link.symlink_to(outside_rule)
+
+        stderr = self.assert_check_fails(self.repository, "escapes execution repository")
+
+        self.assertIn("leaked.md", stderr)
+
+    def test_missing_configured_context_file_fails_check_mode(self) -> None:
+        self.write_config(self.repository, context_file="AGENTS.md")
+        self.write_doctrine_file(self.repository, ".agent-toolkit/rules/guard-suite.md")
+
+        stderr = self.assert_check_fails(self.repository, "required file is missing")
+
+        self.assertIn("AGENTS.md", stderr)
+
+    def test_configured_context_file_escaping_the_repository_fails_check_mode(
+        self,
+    ) -> None:
+        self.write(self.root, "outside-context/AGENTS.md", "Outside instructions.\n")
+        self.write_doctrine_file(self.repository, ".agent-toolkit/rules/guard-suite.md")
+        escaping_context_files = {
+            "relative parent path": (
+                "../../outside-context/AGENTS.md",
+                "escapes execution repository",
+            ),
+            "absolute path outside the repository": (
+                str(self.root / "outside-context/AGENTS.md"),
+                "absolute import is not allowed",
+            ),
+        }
+        for reason, (context_file, diagnostic) in escaping_context_files.items():
+            with self.subTest(reason=reason):
+                self.write_config(self.repository, context_file=context_file)
+
+                stderr = self.assert_check_fails(self.repository, diagnostic)
+
+                self.assertIn("outside-context", stderr)
+                self.assertNotIn("Outside instructions.", stderr)
+
+    def test_relative_context_file_staying_inside_the_repository_is_not_an_escape(
+        self,
+    ) -> None:
+        self.write(self.repository, "docs/AGENTS.md", "Project instructions.\n")
+        self.write_config(self.repository, context_file="../docs/AGENTS.md")
+        self.write_doctrine_file(self.repository, ".agent-toolkit/rules/guard-suite.md")
+
+        stdout = self.assert_check_succeeds(self.repository)
+
+        self.assertEqual(self.summary_counts(stdout, self.repository), [1, 1, 0, 0])
+
+    def test_rules_dir_escaping_the_repository_fails_check_mode(self) -> None:
+        self.write(self.repository, "AGENTS.md", "Project instructions.\n")
+        self.write_doctrine_file(self.root, "outside-rules/leaked.md")
+        escaping_rules_dirs = {
+            "relative parent path": "../../outside-rules/",
+            "absolute path outside the repository": f"{self.root / 'outside-rules'}/",
+        }
+        for reason, rules_dir in escaping_rules_dirs.items():
+            with self.subTest(reason=reason):
+                self.write_config(self.repository, rules_dir=rules_dir)
+
+                result = self.check_process(self.repository)
+
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn(ERROR_PREFIX, result.stderr)
+                self.assertIn("outside-rules", result.stderr)
+                self.assertNotIn(CHECK_SUMMARY_PREFIX, result.stdout)
+
+    def test_relative_rules_dir_staying_inside_the_repository_is_not_an_escape(
+        self,
+    ) -> None:
+        self.write(self.repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.repository, rules_dir="../project-rules/")
+        self.write_doctrine_file(self.repository, "project-rules/guard-suite.md")
+
+        stdout = self.assert_check_succeeds(self.repository)
+
+        self.assertIn("project-rules", stdout)
+        self.assertEqual(self.summary_counts(stdout, self.repository), [1, 1, 0, 0])
+
+    def test_repository_without_dev_configuration_fails_check_mode(self) -> None:
+        self.write(self.repository, "AGENTS.md", "Project instructions.\n")
+        self.write_doctrine_file(self.repository, ".agent-toolkit/rules/guard-suite.md")
+
+        stderr = self.assert_check_fails(
+            self.repository, "execution repository has no dev configuration"
+        )
+
+        self.assertIn(".agent-toolkit/dev.md", stderr)
+
+    def test_registry_import_line_under_the_rules_section_fails_check_mode(self) -> None:
+        self.write(self.repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(
+            self.repository,
+            rules_section="@.agent-toolkit/rules/guard-suite.md\n",
+        )
+        self.write_doctrine_file(self.repository, ".agent-toolkit/rules/guard-suite.md")
+
+        stderr = self.assert_check_fails(
+            self.repository, ".agent-toolkit/rules/guard-suite.md"
+        )
+
+        self.assertIn("dev:setup", stderr)
+
+    def test_harness_autoload_advisory_does_not_change_the_check_verdict(self) -> None:
+        self.write(self.repository, "AGENTS.md", "Project instructions.\n")
+        self.write_config(self.repository, rules_dir=".claude/rules/")
+        self.write_doctrine_file(self.repository, ".claude/rules/guard-suite.md")
+
+        result = self.check_process(self.repository)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        summary_lines = [line for line in result.stdout.splitlines() if line.strip()]
+        self.assertEqual(len(summary_lines), 1, result.stdout)
+        self.assertTrue(summary_lines[0].startswith(CHECK_SUMMARY_PREFIX))
+        self.assertIn(".claude/rules", result.stderr)
+        self.assertNotIn(ERROR_PREFIX, result.stderr)
+
+    def test_check_mode_rejects_lifecycle_only_options(self) -> None:
+        self.write_compliant_repository()
+        lifecycle_only_options = {
+            "execution revision": ["--execution-revision", "0" * 40],
+            "tracker repository": ["--tracker-repo", str(self.root)],
+            "execution repository": ["--execution-repo", str(self.repository)],
+            "objective": ["--objective", "Harden the release script"],
+            "definition of done": ["--definition-of-done", "The script is covered"],
+            "changed path": ["--changed-path", "scripts/release.sh"],
+            "execution revision and objective": [
+                "--execution-revision",
+                "0" * 40,
+                "--objective",
+                "Harden the release script",
+            ],
+        }
+        for reason, arguments in lifecycle_only_options.items():
+            with self.subTest(reason=reason):
+                result = self.check_process(self.repository, *arguments)
+
+                self.assertEqual(result.returncode, 2, result.stdout)
+                self.assertIn(arguments[0], result.stderr)
 
 
 if __name__ == "__main__":

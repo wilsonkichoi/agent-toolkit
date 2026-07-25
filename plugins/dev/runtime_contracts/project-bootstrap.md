@@ -70,6 +70,32 @@ uv run <plugin-root>/scripts/resolve_project_rules.py \
   [--format text|json]
 ```
 
+## CI enforcement
+
+The same resolver enforces this contract against a repository alone, with no lifecycle
+invocation behind it. This is the supported entry point for CI and for any tool that needs to
+know whether a repository's rule files are contract-compliant; adopters must not vendor a second
+checker, because a copy drifts from the implementation it is meant to mirror.
+
+```text
+uv run <plugin-root>/scripts/resolve_project_rules.py --check <repo>
+```
+
+`--check` requires only the repository path. It accepts no tracker repository, execution
+revision, objective, Definition of Done, changed paths, or output format, and it validates no
+revision - so the repository need not be a git checkout. It shares the production parsing,
+discovery, path-containment, and diagnostic code with lifecycle resolution: every hard stop
+under "Rule discovery" exits nonzero with the same diagnostic text a lifecycle run emits.
+
+Two behaviors are specific to this mode:
+
+- A compliant repository exits 0 and prints one single-line summary on stdout. A `rules_dir` that
+  is absent, empty, or entirely `tier: none` is compliant. Non-fatal advisories, such as the
+  harness auto-load warning, go to stderr and change neither the exit code nor that line.
+- A bare `@path` line under the dev configuration's `## Rules` section is an error with a nonzero
+  exit, rather than the warning lifecycle resolution reports. A repository that keeps one has a
+  rule graph its harnesses and this resolver disagree about, and CI is where that is settled.
+
 ## Rule discovery
 
 **Discovery completeness.** Every Markdown file under the configured `rules_dir`, at any depth, is

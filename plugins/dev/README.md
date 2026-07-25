@@ -303,6 +303,23 @@ the bundled helper, which also runs standalone - it reports its plan first and o
 uv run plugins/dev/scripts/migrate_rules.py --repo <project-dir>
 ```
 
+**Enforcing the contract in CI.** The resolver doubles as a repository checker, so nobody has to
+vendor a second implementation of the rules that would then drift from this one:
+
+```bash
+uv run plugins/dev/scripts/resolve_project_rules.py --check <project-dir>
+```
+
+`--check` takes the repository path and nothing else - no tracker repository, revision,
+objective, Definition of Done, or changed paths - and it does not need the directory to be a git
+checkout. It runs the same discovery, classification, and path-containment code the lifecycle
+uses, and emits the same diagnostics, so every hard stop listed above fails the build with the
+message a lifecycle run would have printed. A compliant repository exits 0 with a one-line
+summary; an absent, empty, or entirely `tier: none` `rules_dir` is compliant. One rule is
+stricter here than in a lifecycle run: a leftover `@` import line under the config's `## Rules`
+section is an error, not a warning, because CI is where that gets settled rather than tolerated
+on every future run. `dev:setup` offers to wire this into a project's CI workflow.
+
 **Parity caveat for `rules_dir: .claude/rules/`.** Claude Code auto-loads that directory at
 session start regardless of this plugin's `tier` frontmatter, so a skipped gotcha or a
 `tier: none` file can still be in a Claude Code session's context while the bootstrap record
