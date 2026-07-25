@@ -69,7 +69,8 @@ ruleset targets `refs/tags/dev-v*` and `refs/tags/utils-v*` and applies the `del
 Confirm the active protection from any checkout with GitHub read access:
 
 ```bash
-gh api repos/wilsonkichoi/agent-toolkit/rulesets --jq '.[] | select(.name == "Immutable plugin release tags") | {id, target, enforcement, patterns: .conditions.ref_name.include, rules: [.rules[].type], bypass_actors}'
+ruleset_id=$(gh api repos/wilsonkichoi/agent-toolkit/rulesets --jq '.[] | select(.name == "Immutable plugin release tags") | .id')
+gh api "repos/wilsonkichoi/agent-toolkit/rulesets/$ruleset_id" --jq '{id, target, enforcement, patterns: .conditions.ref_name.include, rules: [.rules[].type], bypass_actors}'
 ```
 
 `plugins/dev/scripts/plugin_release.py` also creates tags through `POST /repos/{repo}/git/refs`,
