@@ -13,6 +13,13 @@ ownership rules, human gates, unattended operation) and the adoption guide. The 
 skills and agents read at runtime live in
 [runtime_contracts/](runtime_contracts/): tracker, project bootstrap, and shadow replay.
 
+## Overview
+
+[![Dev plugin lifecycle diagram](../../docs/workflow/dev-plugin-diagram.png)](https://wilsonkichoi.github.io/dev-plugin-diagram.html)
+
+Skill interactions, human gates, tracker state transitions, and the execute-review-verify
+pipeline. Click the image for the [interactive version](https://wilsonkichoi.github.io/dev-plugin-diagram.html).
+
 ## Status
 
 All skills implemented on both harnesses. Dogfooding: the full
