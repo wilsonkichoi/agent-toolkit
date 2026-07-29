@@ -177,10 +177,3 @@ plugins/dev/             # development-lifecycle plugin sources
 tools/                   # agent generator and repository validator
 ```
 
-## OpenAI Build Week 2026
-
-agent-toolkit is a Developer Tools submission for OpenAI Build Week 2026. The submission details
-how Codex and GPT-5.6 were used, runtime model use, installation, supported platforms, and judge
-testing instructions.
-
-[Read the OpenAI Build Week 2026 submission documentation](OpenAI-Build-Week-2026.md).
