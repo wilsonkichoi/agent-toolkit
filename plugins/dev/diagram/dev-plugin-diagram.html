@@ -2354,6 +2354,7 @@ a{color:#ec3013}a:hover{color:#b8240d}
     <div onClick="{{ scrimClose }}" style="{{ scrimStyle }}"></div>
 
     <div ref="{{ drawerRef }}" role="dialog" aria-modal="true" aria-labelledby="dw-title" onKeyDown="{{ onDrawerKey }}" style="{{ drawerStyle }}">
+      <div onPointerDown="{{ onResizeDown }}" style="{{ resizeHandleStyle }}" style-hover="background:var(--hair)"><div style="position:absolute;left:1px;top:50%;transform:translateY(-50%);width:3px;height:32px;border-radius:2px;background:var(--hair)"></div></div>
       <div style="flex:none;display:flex;align-items:flex-start;gap:12px;padding:16px 18px 12px;border-bottom:2px solid var(--rule);background:var(--surface)">
         <div style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:6px">
           <span style="display:flex;align-items:center;gap:8px">
@@ -2483,7 +2484,7 @@ const ROUTES = {
   "dev:review-pr|dev:review-pr fix": [[2940,560],[[2940,500,2940,420,2940,340]]],
   "dev:review-pr fix|dev:review-pr": [[3020,340],[[3020,420,3020,500,3020,560]]],
   "dev:verify|dev:review-pr fix": [[3380,560],[[3380,510,3340,460,3260,460],[3160,460,3100,440,3100,340]]],
-  "dev:plan|dev:architect": [[1560,560],[[1560,520,1520,500,1420,500],[1300,500,1220,500,1220,560]]],
+  "dev:plan|dev:architect": [[1500,700],[[1500,760,1460,790,1390,790],[1320,790,1280,760,1280,700]]],
   "dev:verify|dev:execute": [[3400,720],[[3400,760,3360,790,3280,790],[3100,790,2700,790,2600,790],[2540,790,2540,750,2540,720]]],
   "dev:review-pr|dev:backlog": [[2940,720],[[2940,780,2900,870,2800,870],[2400,870,1800,870,1700,880],[1660,900,1600,960,1600,1040]]],
   "dev:verify|dev:backlog": [[3460,720],[[3460,800,3420,950,3300,950],[2600,950,1820,950,1740,960],[1700,980,1680,1010,1680,1040]]],
@@ -2505,7 +2506,7 @@ const REGIONS = [
 const LADJ = {
   "dev:review-pr|dev:review-pr fix": [-90, 0],
   "dev:review-pr fix|dev:review-pr": [110, 40],
-  "dev:plan|dev:architect": [0, -38],
+  "dev:plan|dev:architect": [0, 0, 0],
   "dev:backlog|task_tracker": [330, -14, 0]
 };
 
@@ -2569,7 +2570,7 @@ function labelPoint(route){
 const slug = id => id.replace(/[^A-Za-z0-9_]+/g, "-").replace(/^-|-$/g, "");
 
 class Component extends DCLogic {
-  state = { sel: null, open: false, hover: null, filter: "all", tx: 0, ty: 0, s: 1, narrow: false, theme: null, copied: null, dragging: false };
+  state = { sel: null, open: false, hover: null, filter: "all", tx: 0, ty: 0, s: 1, narrow: false, theme: null, copied: null, dragging: false, drawerW: null, resizing: false };
 
   // ---------- data helpers ----------
   lane(id){
@@ -2613,13 +2614,20 @@ class Component extends DCLogic {
       return { s, tx: px - (px - st.tx) * k, ty: py - (py - st.ty) * k };
     });
   }
+  drawerWidth(){
+    const { w } = this.vpSize();
+    const dw = this.state.drawerW;
+    if (dw !== null) return Math.max(280, Math.min(dw, w - 200));
+    return Math.round(w * 0.5);
+  }
   center(id){
     const p = DATA.positions[id];
     if (!p) return;
     const { w, h } = this.vpSize();
     const narrow = this.state.narrow;
     const s = Math.max(this.state.s, 0.72);
-    const availW = narrow ? w : Math.max(320, w - 480);
+    const dw = this.drawerWidth();
+    const availW = narrow ? w : Math.max(320, w - dw);
     const availH = narrow ? h * 0.44 : h;
     this.setState({ s, tx: availW / 2 - (p.x + CW / 2) * s, ty: availH / 2 - (p.y + CH / 2) * s });
   }
@@ -2949,9 +2957,11 @@ class Component extends DCLogic {
     this.nodes().forEach(n => { counts[n.lane] = (counts[n.lane] || 0) + 1; });
     const fStyle = active => ({
       display: "flex", alignItems: "baseline", gap: "6px", padding: "5px 9px",
-      background: active ? "var(--ink)" : "transparent",
+      background: active ? "var(--muted)" : "transparent",
       color: active ? "var(--bg)" : "var(--ink)",
-      border: "1.5px solid " + (active ? "var(--ink)" : "var(--hair)"),
+      borderStyle: "solid",
+      borderWidth: "1.5px",
+      borderColor: active ? "var(--muted)" : "var(--hair)",
       borderLeftWidth: "5px",
       cursor: "pointer", fontFamily: "var(--sans)", textAlign: "left"
     });
@@ -2974,22 +2984,28 @@ class Component extends DCLogic {
     };
 
     const narrow = st.narrow;
+    const dw = narrow ? 0 : this.drawerWidth();
     const drawerStyle = {
       position: "absolute", zIndex: 7, display: "flex", flexDirection: "column",
-      background: "var(--surface)", overflow: "hidden", outline: "none",
+      background: "var(--surface)", overflow: "hidden", outline: "none", cursor: "default",
       right: 0, bottom: 0,
       left: narrow ? 0 : "auto",
       top: narrow ? "auto" : 0,
-      width: narrow ? "auto" : "480px",
+      width: narrow ? "auto" : dw + "px",
       maxWidth: "100%",
       height: narrow ? "82%" : "auto",
       borderLeft: narrow ? "none" : "2px solid var(--rule)",
       borderTop: narrow ? "2px solid var(--rule)" : "none",
       boxShadow: open ? "0 0 44px rgba(0,0,0,.16)" : "none",
       transform: open ? "none" : (narrow ? "translateY(103%)" : "translateX(103%)"),
-      transition: "transform .34s cubic-bezier(.22,.72,.16,1)",
+      transition: st.resizing ? "none" : "transform .34s cubic-bezier(.22,.72,.16,1)",
       visibility: open ? "visible" : "hidden",
       "--lane": d.laneColor
+    };
+    const resizeHandleStyle = {
+      position: "absolute", left: 0, top: 0, bottom: 0, width: "6px",
+      cursor: "col-resize", zIndex: 10, background: "transparent",
+      display: narrow ? "none" : "block"
     };
     const scrimStyle = {
       position: "absolute", inset: 0, zIndex: 4, background: "var(--scrim)",
@@ -3033,7 +3049,25 @@ class Component extends DCLogic {
         willChange: "transform"
       },
       cards, edges, labels, filters, d,
-      drawerStyle, scrimStyle,
+      drawerStyle, scrimStyle, resizeHandleStyle,
+      onResizeDown: e => {
+        e.preventDefault(); e.stopPropagation();
+        this._resizeStartX = e.clientX;
+        this._resizeStartW = this.drawerWidth();
+        this.setState({ resizing: true });
+        const onMove = ev => {
+          const delta = this._resizeStartX - ev.clientX;
+          const newW = this._resizeStartW + delta;
+          this.setState({ drawerW: newW });
+        };
+        const onUp = () => {
+          this.setState({ resizing: false });
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", onUp);
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+      },
       vpRef: el => { this.vpEl = el; },
       drawerRef: el => { this.drawerEl = el; if (el) el.tabIndex = -1; },
       closeDrawer: () => this.close(),

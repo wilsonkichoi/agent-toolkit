@@ -25,3 +25,5 @@ __pycache__/
 .local/
 .kiro/
 CLAUDE.local.md
+
+.playwright-mcp/
