@@ -34,12 +34,11 @@ extraction into this file — the curation is the point.
 ## The round trip
 
 **Recommended repo layout** — keep the bundle as one self-contained directory
-rather than flattening it into `docs/workflow/`, so its `CLAUDE.md` scopes to
-the diagram and not to every doc in the folder.
+rather than flattening it into the plugin root, so its `CLAUDE.md` scopes to
+the diagram and not to every file in the plugin.
 
 ```
-docs/workflow/
-  skills.json                       <- upstream data DATA is derived from
+plugins/dev/
   diagram/
     CLAUDE.md                       <- rules for Claude Code (scoped to this dir)
     README.md                       <- this file
