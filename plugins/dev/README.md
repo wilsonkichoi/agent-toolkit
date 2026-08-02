@@ -15,7 +15,7 @@ skills and agents read at runtime live in
 
 ## Overview
 
-[![Dev plugin lifecycle diagram](../../docs/workflow/dev-plugin-diagram.png)](https://wilsonkichoi.github.io/dev-plugin-diagram.html)
+[![Dev plugin lifecycle diagram](../../docs/workflow/diagram/dev-plugin-diagram.png)](https://wilsonkichoi.github.io/dev-plugin-diagram.html)
 
 Skill interactions, human gates, tracker state transitions, and the execute-review-verify
 pipeline. Click the image for the [interactive version](https://wilsonkichoi.github.io/dev-plugin-diagram.html).
