@@ -121,7 +121,7 @@ a{color:#ec3013}a:hover{color:#b8240d}
               </sc-if>
             </span>
             <span style="font-family:var(--mono);font-size:14.5px;font-weight:700;letter-spacing:-0.01em;line-height:1.15;width:100%;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ c.title }}</span>
-            <span style="font-size:11px;line-height:1.45;color:var(--muted);text-wrap:pretty;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden">
+            <span style="font-size:11px;line-height:1.45;color:var(--muted);text-wrap:pretty;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">
               <sc-for list="{{ c.runs }}" as="r" hint-placeholder-count="2">
                 <sc-if value="{{ r.m }}" hint-placeholder-val="{{ false }}"><code style="font-family:var(--mono);font-size:9.5px;color:var(--ink)">{{ r.t }}</code></sc-if>
                 <sc-if value="{{ r.n }}" hint-placeholder-val="{{ true }}"><span>{{ r.t }}</span></sc-if>
@@ -265,13 +265,13 @@ const ROUTES = {
   "dev:review-pr|dev:review-pr fix": [[2940,560],[[2940,500,2940,420,2940,340]]],
   "dev:review-pr fix|dev:review-pr": [[3020,340],[[3020,420,3020,500,3020,560]]],
   "dev:verify|dev:review-pr fix": [[3380,560],[[3380,510,3340,460,3260,460],[3160,460,3100,440,3100,340]]],
-  "dev:plan|dev:architect": [[1500,700],[[1500,760,1460,790,1390,790],[1320,790,1280,760,1280,700]]],
+  "dev:plan|dev:architect": [[1560,720],[[1560,770,1500,790,1400,790],[1300,790,1220,770,1220,720]]],
   "dev:verify|dev:execute": [[3400,720],[[3400,760,3360,790,3280,790],[3100,790,2700,790,2600,790],[2540,790,2540,750,2540,720]]],
   "dev:review-pr|dev:backlog": [[2940,720],[[2940,780,2900,870,2800,870],[2400,870,1800,870,1700,880],[1660,900,1600,960,1600,1040]]],
   "dev:verify|dev:backlog": [[3460,720],[[3460,800,3420,950,3300,950],[2600,950,1820,950,1740,960],[1700,980,1680,1010,1680,1040]]],
   "dev:retro|dev:backlog": [[3860,720],[[3860,1000,3860,1290,3700,1290],[3000,1290,2000,1290,1760,1290],[1660,1290,1600,1280,1600,1200]]],
   "dev:verify|dev:merge-pr": [[3520,720],[[3520,820,3520,940,3520,1040]]],
-  "dev:backlog|task_tracker": [[1520,1040],[[1520,970,1520,890,1520,830],[1520,775,1560,760,1660,760],[1900,760,2080,760,2080,720]]],
+  "dev:backlog|task_tracker": [[1520,1040],[[1520,970,1520,890,1520,830],[1520,775,1560,760,1700,760],[1900,760,2080,800,2080,720]]],
   "dev:backlog|dev:discover": [[1500,1080],[[1400,1080,900,1080,700,1080],[700,1000,700,860,700,720]]],
   "dev:backlog|dev:architect": [[1500,1160],[[1420,1160,1160,1160,1160,1060],[1160,900,1160,800,1160,720]]]
 };
@@ -287,8 +287,10 @@ const REGIONS = [
 const LADJ = {
   "dev:review-pr|dev:review-pr fix": [-90, 0],
   "dev:review-pr fix|dev:review-pr": [110, 40],
-  "dev:plan|dev:architect": [0, 0, 0],
-  "dev:backlog|task_tracker": [330, -14, 0]
+  "dev:plan|dev:architect": [-120, 20, 0],
+  "dev:backlog|task_tracker": [330, -14, 0],
+  "dev:backlog|dev:architect": [0, 0, 0],
+  "dev:backlog|dev:discover": [-80, 0, 0]
 };
 
 
@@ -669,7 +671,7 @@ class Component extends DCLogic {
         aria: (isAux ? n.label : n.id) + " — lane " + lane.order + ", " + lane.display + ". Open details.",
         wrapStyle: {
           position: "absolute", left: p.x + "px", top: p.y + "px", width: CW + "px", height: CH + "px",
-          boxSizing: "border-box",
+          boxSizing: "border-box", overflow: "hidden",
           borderTop: (isAux ? "1.5px dashed " : "1.5px solid ") + "var(--hair)",
           borderRight: (isAux ? "1.5px dashed " : "1.5px solid ") + "var(--hair)",
           borderBottom: (isAux ? "1.5px dashed " : "1.5px solid ") + "var(--hair)",
@@ -695,7 +697,7 @@ class Component extends DCLogic {
       if (!route) return null;
       const on = matches(e.from) && matches(e.to);
       const isHi = !!hi && (e.from === hi || e.to === hi);
-      const showLabel = on && (labelMode === "all" ? true : (labelMode === "minimal" ? isHi : (e.kind === "loop" ? isHi : (isHi || !hi))));
+      const showLabel = on && (labelMode === "all" ? true : (labelMode === "minimal" ? isHi : (isHi || !hi)));
       if (showLabel) {
         const [lx0, ly0, deg] = labelPoint(route);
         const adj = LADJ[e.from + "|" + e.to] || [0, 0];
@@ -708,12 +710,14 @@ class Component extends DCLogic {
           style: {
             position: "absolute", left: lx + "px", top: ly + "px", zIndex: 1,
             transform: "translate(-50%," + (inBand ? "-100%" : "-50%") + ") rotate(" + (inBand ? 0 : rot).toFixed(1) + "deg)",
-            maxWidth: e.kind === "loop" ? "150px" : "212px",
-            padding: e.kind === "loop" ? "3px 6px" : "1px 5px",
-            border: e.kind === "loop" ? "1px solid var(--hair)" : "none",
-            background: "var(--bg)", pointerEvents: "none",
+            maxWidth: "212px",
+            padding: "2px 6px",
+            border: "none",
+            background: "transparent",
+            pointerEvents: "none",
             fontFamily: "var(--sans)", fontSize: "10px", fontWeight: 600,
             lineHeight: 1.3, textAlign: "center", textWrap: "pretty",
+            textShadow: "-3px 0 0 var(--bg), 3px 0 0 var(--bg), 0 -3px 0 var(--bg), 0 3px 0 var(--bg), -2px -2px 0 var(--bg), 2px -2px 0 var(--bg), -2px 2px 0 var(--bg), 2px 2px 0 var(--bg), -3px -1px 0 var(--bg), 3px -1px 0 var(--bg), -3px 1px 0 var(--bg), 3px 1px 0 var(--bg), -1px -3px 0 var(--bg), 1px -3px 0 var(--bg), -1px 3px 0 var(--bg), 1px 3px 0 var(--bg)",
             color: isHi ? "var(--accent)" : "var(--muted)",
             opacity: hi ? (isHi ? 1 : 0.3) : 0.95
           }
@@ -742,7 +746,9 @@ class Component extends DCLogic {
       color: active ? "var(--bg)" : "var(--ink)",
       borderStyle: "solid",
       borderWidth: "1.5px",
-      borderColor: active ? "var(--muted)" : "var(--hair)",
+      borderTopColor: active ? "var(--muted)" : "var(--hair)",
+      borderRightColor: active ? "var(--muted)" : "var(--hair)",
+      borderBottomColor: active ? "var(--muted)" : "var(--hair)",
       borderLeftWidth: "5px",
       cursor: "pointer", fontFamily: "var(--sans)", textAlign: "left"
     });
