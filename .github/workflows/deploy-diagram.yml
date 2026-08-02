@@ -1,0 +1,49 @@
+name: Deploy diagram
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - plugins/dev/diagram/dev-plugin-diagram.html
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-diagram
+  cancel-in-progress: true
+
+jobs:
+  deploy-diagram:
+    name: deploy-diagram
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - name: Check out Pages repo
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: wilsonkichoi/wilsonkichoi.github.io
+          token: ${{ secrets.DEPLOY_PAT }}
+          path: pages-repo
+
+      - name: Deploy
+        env:
+          SRC: plugins/dev/diagram/dev-plugin-diagram.html
+          DEST: pages-repo/dev-plugin-diagram.html
+        run: |
+          set -euo pipefail
+          cp "$SRC" "$DEST"
+          cd pages-repo
+          if git diff --quiet; then
+            echo "No changes to deploy"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dev-plugin-diagram.html
+          git commit -m "Update dev-plugin-diagram.html"
+          git push
