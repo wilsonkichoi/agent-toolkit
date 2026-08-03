@@ -12,6 +12,14 @@ notes from that section at the tagged commit.
 
 Entries are newest first. Each release entry is headed by its exact tag name.
 
+## dev-v0.0.73
+
+- Added one shared work-summary parser for execute, review, and verify across tracker backends.
+- Planned GitHub tasks now validate and re-read the exact posted work summary before transitioning
+  to `status:in-review`; malformed or unposted summaries leave the task in progress.
+- Added focused structural and GitHub lifecycle contract tests for required fields, supported
+  classifications, full execution revisions, and producer-side handoff failures.
+
 ## dev-v0.0.72
 
 - Enforced the `dev-v*` and `utils-v*` release-tag namespaces with the active `Immutable plugin

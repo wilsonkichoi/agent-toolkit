@@ -50,6 +50,9 @@ from the current directory. Every `gh pr`, `gh issue`, and `gh run` call uses
    that it is open with exactly `status:in-review`. Any other lifecycle state is a failed execute
    handoff: report it and stop without reviewing or repairing the issue. External and secondary
    work has no queue-state precondition.
+   Before those routing and binding checks, pass the exact candidate comment body through the shared
+   `scripts/work_summary.py validate --file <path>` validator. Do not duplicate its heading,
+   required-field, classification, duplicate-field, or full-40-character revision rules.
    Also accept the resolved execution repository and revision, changed paths, and exact bootstrap
    file list; these are project-context facts, not implementation opinions.
    Fetch the PR diff and CI results via `gh`, and the spec sections the packet references,

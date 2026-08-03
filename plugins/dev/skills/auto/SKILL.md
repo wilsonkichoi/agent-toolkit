@@ -162,8 +162,9 @@ orchestrator holds the implementer's report, so it is not independent.
 
    `max_fix_attempts` applies inside the implementation phase; a `Blocked` result stops
    the pipeline. Before review, validate the execute work summary through `tracker.md` "Trusted
-   GitHub work-summary routing"; never accept a bare `Queue classification:` field from the latest
-   comment. For planned primary-GitHub work, re-read the canonical issue and require exactly
+   GitHub work-summary routing" and the shared `scripts/work_summary.py` validator; never accept a
+   bare `Queue classification:` field from the latest comment. For planned primary-GitHub work,
+   re-read the canonical issue and require exactly
    `status:in-review`. A missing, untrusted, unbound, or failed handoff record stops the pipeline;
    review never repairs execute-owned state.
 3. **Review** - fresh `reviewer` agent, exactly as `dev:review-pr` delegation (the dispatch

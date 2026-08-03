@@ -18,6 +18,20 @@ LIFECYCLE_CLI = (
     REPOSITORY_ROOT / "plugins/dev/scripts/github_task_lifecycle.py"
 )
 TEST_REPOSITORY = "example/project"
+VALID_WORK_SUMMARY = (
+    "## Work summary (dev:execute - 2026-08-03)\n"
+    "- PR: https://github.com/example/project/pull/11\n"
+    "- Branch: task/10-example\n"
+    "- Queue classification: planned\n"
+    "- Execution repository: /workspace/example-project\n"
+    "- Execution revision: "
+    + "a" * 40
+    + "\n"
+    "- Implemented: shared work-summary validation.\n"
+    "- Key decisions: none\n"
+    "- Obstacles: none\n"
+    "- Spec gaps found: none\n"
+)
 
 
 FAKE_GH = r'''#!/usr/bin/env -S uv run --script
@@ -85,6 +99,7 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
         self.fake_bin.mkdir()
         self.scenario_path = root / "scenario.json"
         self.calls_path = root / "calls.jsonl"
+        self.summary_path = root / "work-summary.md"
         self.calls_path.write_text("", encoding="utf-8")
         fake_gh = self.fake_bin / "gh"
         fake_gh.write_text(textwrap.dedent(FAKE_GH), encoding="utf-8")
@@ -126,6 +141,7 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
         comments: tuple[dict[str, Any], ...] = (),
         auth_statuses: tuple[dict[str, Any], ...] = (),
         issue_number: int = 10,
+        work_summary: str | None = None,
     ) -> subprocess.CompletedProcess[str]:
         scenario = {
             "responses": {
@@ -143,6 +159,9 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
         environment["GITHUB_LIFECYCLE_TEST_SCENARIO"] = str(self.scenario_path)
         environment["GITHUB_LIFECYCLE_TEST_CALLS"] = str(self.calls_path)
         environment["GH_REPO"] = "wrong/inferred-repository"
+        if work_summary is not None:
+            self.summary_path.write_text(work_summary, encoding="utf-8")
+            arguments = (*arguments, "--work-summary-file", str(self.summary_path))
         return subprocess.run(
             [
                 "uv",
@@ -413,24 +432,81 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
             "status:in-review",
             views=(
                 self.response(self.issue("status:in-progress")),
+                self.response(self.issue(comments=(VALID_WORK_SUMMARY,))),
                 self.response(self.issue("status:in-review")),
             ),
             edits=(self.response(),),
+            work_summary=VALID_WORK_SUMMARY,
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.gh_calls()
-        self.assertEqual([call[1] for call in calls], ["view", "edit", "view"])
+        self.assertEqual(
+            [call[1] for call in calls], ["view", "view", "edit", "view"]
+        )
         self.assert_explicit_repository(calls)
-        edit = calls[1]
+        edit = calls[2]
         self.assertEqual(
             self.option_values(edit, "--remove-label"), ["status:in-progress"]
         )
         self.assertEqual(
             self.option_values(edit, "--add-label"), ["status:in-review"]
         )
-        for view in (calls[0], calls[2]):
+        for index in (0, 1, 3):
+            view = calls[index]
+            if index == 1:
+                self.assertEqual(self.json_fields(view), {"comments"})
+                continue
             self.assertEqual({"state", "labels"} - self.json_fields(view), set())
+
+    def test_transition_requires_a_work_summary_for_review_handoff(self) -> None:
+        result = self.lifecycle_process(
+            "transition",
+            "--from-status",
+            "status:in-progress",
+            "--to-status",
+            "status:in-review",
+            views=(self.response(self.issue("status:in-progress")),),
+        )
+
+        self.assert_failure_contains(result, "--work-summary-file")
+        self.assertEqual([call[1] for call in self.gh_calls()], [])
+
+    def test_transition_rejects_malformed_summary_without_editing_status(self) -> None:
+        malformed = VALID_WORK_SUMMARY.replace(
+            "Execution revision: " + "a" * 40,
+            "Execution revision: " + "a" * 7,
+        )
+        result = self.lifecycle_process(
+            "transition",
+            "--from-status",
+            "status:in-progress",
+            "--to-status",
+            "status:in-review",
+            views=(self.response(self.issue("status:in-progress")),),
+            work_summary=malformed,
+        )
+
+        self.assert_failure_contains(result, "Execution revision")
+        self.assert_failure_contains(result, "40 hexadecimal characters")
+        self.assertEqual([call[1] for call in self.gh_calls()], ["view"])
+
+    def test_transition_rejects_summary_that_was_not_posted_exactly(self) -> None:
+        result = self.lifecycle_process(
+            "transition",
+            "--from-status",
+            "status:in-progress",
+            "--to-status",
+            "status:in-review",
+            views=(
+                self.response(self.issue("status:in-progress")),
+                self.response(self.issue(comments=(VALID_WORK_SUMMARY + "\n",))),
+            ),
+            work_summary=VALID_WORK_SUMMARY,
+        )
+
+        self.assert_failure_contains(result, "exact posted comment")
+        self.assertEqual([call[1] for call in self.gh_calls()], ["view", "view"])
 
     def test_transition_rejects_incorrect_post_write_state(self) -> None:
         result = self.lifecycle_process(
@@ -441,14 +517,16 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
             "status:in-review",
             views=(
                 self.response(self.issue("status:in-progress")),
+                self.response(self.issue(comments=(VALID_WORK_SUMMARY,))),
                 self.response(self.issue("status:in-progress")),
             ),
             edits=(self.response(),),
+            work_summary=VALID_WORK_SUMMARY,
         )
 
         self.assert_failure_contains(result, "status:in-review")
         calls = self.gh_calls()
-        self.assertEqual([call[1] for call in calls], ["view", "edit", "view"])
+        self.assertEqual([call[1] for call in calls], ["view", "view", "edit", "view"])
         self.assert_explicit_repository(calls)
 
     def test_transition_rejects_wrong_pre_read_without_mutation(self) -> None:
@@ -459,6 +537,7 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
             "--to-status",
             "status:in-review",
             views=(self.response(self.issue("status:todo")),),
+            work_summary=VALID_WORK_SUMMARY,
         )
 
         self.assert_failure_contains(result, "status:in-progress")

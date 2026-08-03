@@ -289,6 +289,15 @@ If no visual criteria exist in the DoD, skip to step 7.
    - Spec gaps found: <list, or "none">
    ```
 
+   Before the lifecycle handoff, re-read the exact posted body and run the shared
+   `scripts/work_summary.py validate --file <path>` validator against it. For a planned
+   primary-GitHub task, pass the same file to the shared transition command as
+   `--work-summary-file <path>`; it validates the body and verifies that the exact contents are
+   present in the canonical issue comments before editing `status:in-review`. For Linear, local,
+   and other backends, run the shared validator after the tracker comment write and before that
+   backend's transition. A validation failure leaves the task in `In Progress`; do not treat a
+   successful comment write as a successful handoff.
+
    This comment is the primary input for `dev:review-pr` and `dev:retro` - write it for a
    reader with zero context from this session. On GitHub, post it with the same authenticated
    account that opened the PR. The PR URL, branch, and full execution-revision SHA are routing

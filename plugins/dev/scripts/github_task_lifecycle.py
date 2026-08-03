@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NoReturn, Sequence
 
+from work_summary import WorkSummaryError, parse_work_summary
+
 
 LIFECYCLE_STATUSES = (
     "status:backlog",
@@ -226,10 +228,26 @@ def claim(repo: str, issue: int) -> None:
     print_result(repo, issue, "status:in-progress", assignees=snapshot.assignees)
 
 
-def transition(repo: str, issue: int, from_status: str, to_status: str) -> None:
+def transition(
+    repo: str,
+    issue: int,
+    from_status: str,
+    to_status: str,
+    work_summary_file: Path | None = None,
+) -> None:
     if from_status == to_status:
         fail("--from-status and --to-status must differ")
+    if to_status == "status:in-review":
+        if work_summary_file is None:
+            fail(
+                "transition to status:in-review requires --work-summary-file so "
+                "the posted work summary can be validated before the handoff"
+            )
+    elif work_summary_file is not None:
+        fail("--work-summary-file is only valid for status:in-review transitions")
     require_status(read_issue(repo, issue), from_status, repo, issue)
+    if to_status == "status:in-review":
+        validate_posted_work_summary(repo, issue, work_summary_file)
     edit_status(repo, issue, from_status, to_status)
     verify_transition(repo, issue, to_status)
     print_result(repo, issue, to_status)
@@ -260,6 +278,28 @@ def read_comment_bodies(repo: str, issue: int) -> tuple[str, ...]:
             string_field(comment.get("body"), "body", f"{context} comments[{index}]")
         )
     return tuple(bodies)
+
+
+def validate_posted_work_summary(
+    repo: str,
+    issue: int,
+    summary_file: Path,
+) -> None:
+    try:
+        summary = summary_file.read_text(encoding="utf-8")
+    except OSError as error:
+        fail(f"cannot read work summary {summary_file}: {error}")
+
+    try:
+        parse_work_summary(summary)
+    except WorkSummaryError as error:
+        fail(str(error))
+
+    if summary not in read_comment_bodies(repo, issue):
+        fail(
+            f"work summary {summary_file} was not found as an exact posted comment "
+            f"on planned task #{issue} in {repo}"
+        )
 
 
 def block(repo: str, issue: int, from_status: str, comment_file: Path) -> None:
@@ -375,6 +415,7 @@ def build_parser() -> argparse.ArgumentParser:
     transition_parser.add_argument(
         "--to-status", required=True, choices=LIFECYCLE_STATUSES
     )
+    transition_parser.add_argument("--work-summary-file", type=Path)
 
     block_parser = subparsers.add_parser("block")
     add_target_arguments(block_parser)
@@ -398,6 +439,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 arguments.issue,
                 arguments.from_status,
                 arguments.to_status,
+                arguments.work_summary_file,
             )
         elif arguments.command == "block":
             block(

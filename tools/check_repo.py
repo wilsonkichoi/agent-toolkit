@@ -595,6 +595,21 @@ def check_github_task_lifecycle() -> None:
         raise CheckFailure(f"GitHub task lifecycle tests failed:\n{details}")
 
 
+def check_work_summary_validator() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools/test_work_summary.py")],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        details = "\n".join(
+            part.strip() for part in (result.stdout, result.stderr) if part.strip()
+        )
+        raise CheckFailure(f"work-summary validator tests failed:\n{details}")
+
+
 def check_github_pr_helper() -> None:
     result = subprocess.run(
         [sys.executable, str(ROOT / "tools/test_github_pr_merge.py")],
@@ -725,6 +740,9 @@ def check_github_lifecycle_adoption() -> None:
             "transition --from-status",
             "block --from-status",
             "verification read",
+            "scripts/work_summary.py",
+            "Shared work-summary validation",
+            "--work-summary-file",
             "Trusted GitHub work-summary routing",
             "comment author's login must equal the PR author's login",
             "no candidate validates",
@@ -734,12 +752,15 @@ def check_github_lifecycle_adoption() -> None:
             "shared `claim` command",
             "shared `block` command",
             "--to-status status:in-review",
+            "work_summary.py validate",
+            "--work-summary-file",
             "Queue classification:",
             "same authenticated account that opened the PR",
         ),
         ROOT / "plugins/dev/skills/review-pr/SKILL.md": (
             "Queue classification: planned",
             "Trusted GitHub work-summary routing",
+            "work_summary.py validate",
             "Never pass a bare",
             "require that it is open with exactly `status:in-review`",
             "never sets `status:in-progress`, `status:in-review`, or `status:blocked`",
@@ -747,22 +768,26 @@ def check_github_lifecycle_adoption() -> None:
         ROOT / "plugins/dev/skills/verify/SKILL.md": (
             "Queue classification: planned",
             "Trusted GitHub work-summary routing",
+            "work_summary.py validate",
             "Never pass a bare",
             "does not create `In Progress`, `In Review`,",
         ),
         ROOT / "plugins/dev/skills/auto/SKILL.md": (
             "verified `validate-todo` and `claim` commands",
             "Trusted GitHub work-summary routing",
+            "work_summary.py",
             "require exactly\n   `status:in-review`",
         ),
         ROOT / "plugins/dev/agents/reviewer.md": (
             "Trusted GitHub work-summary routing",
+            "work_summary.py validate",
             "comment author must equal the PR author",
             "open with exactly `status:in-review`",
             "Never add, remove, or repair lifecycle labels",
         ),
         ROOT / "plugins/dev/agents/verifier.md": (
             "Trusted GitHub work-summary routing",
+            "work_summary.py validate",
             "comment author must equal the PR author",
             "Never create or repair `In Progress`, `In",
         ),
@@ -1186,6 +1211,7 @@ CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("rule-discovery-contract", check_rule_discovery_contract),
     ("rules-composite-action", check_rules_composite_action),
     ("github-task-lifecycle", check_github_task_lifecycle),
+    ("work-summary-validator", check_work_summary_validator),
     ("github-pr-helper", check_github_pr_helper),
     ("plugin-release", check_plugin_release),
     ("shadow-replay", check_shadow_replay),
