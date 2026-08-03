@@ -246,11 +246,12 @@ partial state without duplicating the comment: a diagnostic posted before a fail
 a `status:blocked` label left without its diagnostic by an interrupted older invocation.
 
 The `status:in-review` transition is additionally a producer handoff gate. It requires
-`--work-summary-file <path>`, validates that file with the shared `scripts/work_summary.py`
-parser, then re-reads the canonical issue comments and requires the exact file contents to be
-present as a posted comment before editing the lifecycle label. A missing, malformed, or
-unposted summary exits nonzero and leaves the task in its current status. Other lifecycle
-transitions reject `--work-summary-file`.
+`--work-summary-file <path>` and the canonical current PR URL as `--pr-url <url>`, validates that
+file with the shared `scripts/work_summary.py` parser, binds the comment author, PR URL, head
+branch, and execution revision ancestry to that PR, then re-reads the canonical issue comments
+and requires the exact file contents to be present as a posted comment before editing the lifecycle
+label. A missing, malformed, unposted, or unbound summary exits nonzero and leaves the task in its
+current status. Other lifecycle transitions reject both handoff arguments.
 
 No caller may treat a successful `gh issue edit` or `gh issue comment` exit code as proof that a
 transition completed. The helper's successful verification result is the gate before isolation,

@@ -18,9 +18,11 @@ LIFECYCLE_CLI = (
     REPOSITORY_ROOT / "plugins/dev/scripts/github_task_lifecycle.py"
 )
 TEST_REPOSITORY = "example/project"
+CURRENT_PR_URL = "https://github.com/example/project/pull/11"
+CURRENT_PR_HEAD = "a" * 40
 VALID_WORK_SUMMARY = (
     "## Work summary (dev:execute - 2026-08-03)\n"
-    "- PR: https://github.com/example/project/pull/11\n"
+    f"- PR: {CURRENT_PR_URL}\n"
     "- Branch: task/10-example\n"
     "- Queue classification: planned\n"
     "- Execution repository: /workspace/example-project\n"
@@ -52,6 +54,10 @@ with calls_path.open("a", encoding="utf-8") as calls_file:
 
 if len(arguments) >= 2 and arguments[0] == "issue":
     operation = arguments[1]
+elif len(arguments) >= 2 and arguments[:2] == ["pr", "view"]:
+    operation = "pr-view"
+elif len(arguments) >= 2 and arguments[0] == "api" and "/compare/" in arguments[1]:
+    operation = "compare"
 elif arguments[:2] == ["auth", "status"]:
     operation = "auth-status"
 else:
@@ -124,12 +130,31 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
         state: str = "OPEN",
         assignees: tuple[str, ...] = (),
         comments: tuple[str, ...] = (),
+        comment_author: str = "test-user",
     ) -> dict[str, Any]:
         return {
             "state": state,
             "labels": [{"name": label} for label in labels],
             "assignees": [{"login": login} for login in assignees],
-            "comments": [{"body": body} for body in comments],
+            "comments": [
+                {"author": {"login": comment_author}, "body": body}
+                for body in comments
+            ],
+        }
+
+    def pull_request(
+        self,
+        *,
+        url: str = CURRENT_PR_URL,
+        author: str = "test-user",
+        branch: str = "task/10-example",
+        head_oid: str = CURRENT_PR_HEAD,
+    ) -> dict[str, Any]:
+        return {
+            "author": {"login": author},
+            "headRefName": branch,
+            "headRefOid": head_oid,
+            "url": url,
         }
 
     def lifecycle_process(
@@ -137,15 +162,24 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
         command: str,
         *arguments: str,
         views: tuple[dict[str, Any], ...] = (),
+        pull_requests: tuple[dict[str, Any], ...] = (),
+        comparisons: tuple[dict[str, Any], ...] = (),
         edits: tuple[dict[str, Any], ...] = (),
         comments: tuple[dict[str, Any], ...] = (),
         auth_statuses: tuple[dict[str, Any], ...] = (),
         issue_number: int = 10,
         work_summary: str | None = None,
+        pr_url: str | None = CURRENT_PR_URL,
     ) -> subprocess.CompletedProcess[str]:
+        if work_summary is not None and not pull_requests:
+            pull_requests = (self.response(self.pull_request()),)
+        if work_summary is not None and not comparisons:
+            comparisons = (self.response("identical\n"),)
         scenario = {
             "responses": {
                 "view": list(views),
+                "pr-view": list(pull_requests),
+                "compare": list(comparisons),
                 "edit": list(edits),
                 "comment": list(comments),
                 "auth-status": list(auth_statuses),
@@ -162,6 +196,8 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
         if work_summary is not None:
             self.summary_path.write_text(work_summary, encoding="utf-8")
             arguments = (*arguments, "--work-summary-file", str(self.summary_path))
+            if pr_url is not None:
+                arguments = (*arguments, "--pr-url", pr_url)
         return subprocess.run(
             [
                 "uv",
@@ -210,12 +246,20 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
                     self.option_values(call, "--hostname"), ["github.com"]
                 )
                 continue
-            self.assertEqual(call[:1], ["issue"])
-            self.assertEqual(
-                self.option_values(call, "--repo"),
-                [TEST_REPOSITORY],
-                f"gh call did not explicitly target the configured repository: {call}",
-            )
+            if call[:1] in (["issue"], ["pr"]):
+                self.assertEqual(
+                    self.option_values(call, "--repo"),
+                    [TEST_REPOSITORY],
+                    f"gh call did not explicitly target the configured repository: {call}",
+                )
+                continue
+            if call[:1] == ["api"]:
+                self.assertTrue(
+                    call[1].startswith(f"repos/{TEST_REPOSITORY}/compare/"),
+                    f"gh api call did not explicitly target the configured repository: {call}",
+                )
+                continue
+            self.fail(f"unexpected gh call: {call}")
 
     def assert_issue_operation(
         self,
@@ -442,19 +486,28 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.gh_calls()
         self.assertEqual(
-            [call[1] for call in calls], ["view", "view", "edit", "view"]
+            [call[1] if call[0] != "api" else call[0] for call in calls],
+            ["view", "view", "view", "api", "edit", "view"],
         )
         self.assert_explicit_repository(calls)
-        edit = calls[2]
+        self.assertEqual(
+            self.option_values(calls[1], "--json"),
+            ["url,author,headRefName,headRefOid"],
+        )
+        self.assertEqual(
+            calls[3][1],
+            f"repos/{TEST_REPOSITORY}/compare/{CURRENT_PR_HEAD}...{CURRENT_PR_HEAD}",
+        )
+        edit = calls[4]
         self.assertEqual(
             self.option_values(edit, "--remove-label"), ["status:in-progress"]
         )
         self.assertEqual(
             self.option_values(edit, "--add-label"), ["status:in-review"]
         )
-        for index in (0, 1, 3):
+        for index in (0, 2, 5):
             view = calls[index]
-            if index == 1:
+            if index == 2:
                 self.assertEqual(self.json_fields(view), {"comments"})
                 continue
             self.assertEqual({"state", "labels"} - self.json_fields(view), set())
@@ -506,7 +559,110 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
         )
 
         self.assert_failure_contains(result, "exact posted comment")
-        self.assertEqual([call[1] for call in self.gh_calls()], ["view", "view"])
+        self.assertEqual(
+            [call[1] for call in self.gh_calls()], ["view", "view", "view"]
+        )
+
+    def test_transition_rejects_summary_with_wrong_pr_url(self) -> None:
+        summary = VALID_WORK_SUMMARY.replace(
+            CURRENT_PR_URL,
+            "https://github.com/example/project/pull/12",
+        )
+        result = self.lifecycle_process(
+            "transition",
+            "--from-status",
+            "status:in-progress",
+            "--to-status",
+            "status:in-review",
+            views=(
+                self.response(self.issue("status:in-progress")),
+                self.response(self.issue(comments=(summary,))),
+            ),
+            work_summary=summary,
+        )
+
+        self.assert_failure_contains(result, "PR")
+        self.assert_failure_contains(result, "current pull request URL")
+        self.assertNotIn("edit", [call[1] for call in self.gh_calls()])
+
+    def test_transition_rejects_summary_with_wrong_branch(self) -> None:
+        summary = VALID_WORK_SUMMARY.replace(
+            "Branch: task/10-example",
+            "Branch: task/other-branch",
+        )
+        result = self.lifecycle_process(
+            "transition",
+            "--from-status",
+            "status:in-progress",
+            "--to-status",
+            "status:in-review",
+            views=(
+                self.response(self.issue("status:in-progress")),
+                self.response(self.issue(comments=(summary,))),
+            ),
+            work_summary=summary,
+        )
+
+        self.assert_failure_contains(result, "Branch")
+        self.assert_failure_contains(result, "head branch")
+        self.assertNotIn("edit", [call[1] for call in self.gh_calls()])
+
+    def test_transition_rejects_summary_from_non_pr_author(self) -> None:
+        result = self.lifecycle_process(
+            "transition",
+            "--from-status",
+            "status:in-progress",
+            "--to-status",
+            "status:in-review",
+            views=(
+                self.response(self.issue("status:in-progress")),
+                self.response(
+                    self.issue(
+                        comments=(VALID_WORK_SUMMARY,),
+                        comment_author="other-user",
+                    )
+                ),
+            ),
+            work_summary=VALID_WORK_SUMMARY,
+        )
+
+        self.assert_failure_contains(result, "comment author")
+        self.assert_failure_contains(result, "pull request author")
+        self.assertNotIn("edit", [call[1] for call in self.gh_calls()])
+
+    def test_transition_rejects_non_ancestor_execution_revision(self) -> None:
+        result = self.lifecycle_process(
+            "transition",
+            "--from-status",
+            "status:in-progress",
+            "--to-status",
+            "status:in-review",
+            views=(
+                self.response(self.issue("status:in-progress")),
+                self.response(self.issue(comments=(VALID_WORK_SUMMARY,))),
+            ),
+            comparisons=(self.response("diverged\n"),),
+            work_summary=VALID_WORK_SUMMARY,
+        )
+
+        self.assert_failure_contains(result, "Execution revision")
+        self.assert_failure_contains(result, "ancestor")
+        self.assertNotIn("edit", [call[1] for call in self.gh_calls()])
+
+    def test_transition_requires_current_pr_url_for_review_handoff(self) -> None:
+        result = self.lifecycle_process(
+            "transition",
+            "--from-status",
+            "status:in-progress",
+            "--to-status",
+            "status:in-review",
+            views=(self.response(self.issue("status:in-progress")),),
+            work_summary=VALID_WORK_SUMMARY,
+            pr_url=None,
+        )
+
+        self.assert_failure_contains(result, "--pr-url")
+        self.assertEqual(self.gh_calls(), [])
 
     def test_transition_rejects_incorrect_post_write_state(self) -> None:
         result = self.lifecycle_process(
@@ -526,7 +682,10 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
 
         self.assert_failure_contains(result, "status:in-review")
         calls = self.gh_calls()
-        self.assertEqual([call[1] for call in calls], ["view", "view", "edit", "view"])
+        self.assertEqual(
+            [call[1] if call[0] != "api" else call[0] for call in calls],
+            ["view", "view", "view", "api", "edit", "view"],
+        )
         self.assert_explicit_repository(calls)
 
     def test_transition_rejects_wrong_pre_read_without_mutation(self) -> None:

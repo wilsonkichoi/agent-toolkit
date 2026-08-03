@@ -278,7 +278,8 @@ If no visual criteria exist in the DoD, skip to step 7.
 
    ```
    ## Work summary (dev:execute - <date>)
-   - PR: <url>  Branch: task/<id>-<slug>
+   - PR: <url>
+   - Branch: task/<id>-<slug>
    - Queue classification: <planned | external | secondary>
    - Execution repository: <resolved repository>
    - Execution revision: <resolved commit>
@@ -292,22 +293,24 @@ If no visual criteria exist in the DoD, skip to step 7.
    Before the lifecycle handoff, re-read the exact posted body and run the shared
    `scripts/work_summary.py validate --file <path>` validator against it. For a planned
    primary-GitHub task, pass the same file to the shared transition command as
-   `--work-summary-file <path>`; it validates the body and verifies that the exact contents are
-   present in the canonical issue comments before editing `status:in-review`. For Linear, local,
-   and other backends, run the shared validator after the tracker comment write and before that
-   backend's transition. A validation failure leaves the task in `In Progress`; do not treat a
-   successful comment write as a successful handoff.
+   `--work-summary-file <path> --pr-url <canonical current PR URL>`; it validates the body, binds
+   its author, PR URL, branch, and execution revision to that current PR, and verifies that the
+   exact contents are present in the canonical issue comments before editing `status:in-review`.
+   For Linear, local, and other backends, run the shared validator after the tracker comment write
+   and before that backend's transition. A validation failure leaves the task in `In Progress`;
+   do not treat a successful comment write as a successful handoff.
 
    This comment is the primary input for `dev:review-pr` and `dev:retro` - write it for a
    reader with zero context from this session. On GitHub, post it with the same authenticated
    account that opened the PR. The PR URL, branch, and full execution-revision SHA are routing
-   bindings validated by later lifecycle skills; do not abbreviate or omit them.
+   bindings validated by the handoff and later lifecycle skills; do not abbreviate or omit them.
 
 3. Transition the task to `In Review`. For a planned primary-GitHub task, use the shared
-   `transition` command with `--from-status status:in-progress --to-status status:in-review` and
-   stop if its canonical re-read does not verify exactly `status:in-review`. Skip the transition
-   for an external fork contribution; it has no queue state. Post the same work summary on its
-   canonical issue instead.
+   `transition` command with `--from-status status:in-progress --to-status status:in-review`,
+   `--work-summary-file <path>`, and `--pr-url <canonical current PR URL>`, then stop if its
+   canonical re-read does not verify exactly `status:in-review`. Skip the transition for an
+   external fork contribution; it has no queue state. Post the same work summary on its canonical
+   issue instead.
 4. Report: task, PR URL, CI status, spec gaps. Next step: `dev:review-pr`, then
    `dev:verify`. **Stop. Do not merge. Do not start another task in this session** (fresh
    context per task) - except in loop mode below.

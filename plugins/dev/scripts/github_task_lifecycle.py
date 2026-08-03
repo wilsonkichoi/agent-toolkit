@@ -16,6 +16,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NoReturn, Sequence
+from urllib.parse import urlsplit
 
 from work_summary import WorkSummaryError, parse_work_summary
 
@@ -43,6 +44,20 @@ class IssueSnapshot:
     @property
     def lifecycle_labels(self) -> tuple[str, ...]:
         return tuple(label for label in self.labels if label.startswith("status:"))
+
+
+@dataclass(frozen=True)
+class IssueComment:
+    body: str
+    author: str
+
+
+@dataclass(frozen=True)
+class PullRequestSnapshot:
+    url: str
+    author: str
+    branch: str
+    head_oid: str
 
 
 def fail(message: str) -> NoReturn:
@@ -79,6 +94,12 @@ def parse_json_object(raw: str, context: str) -> dict[str, Any]:
 def string_field(value: Any, field: str, context: str) -> str:
     if not isinstance(value, str) or not value:
         fail(f"{context} field {field!r} must be a non-empty string")
+    return value
+
+
+def object_field(value: Any, field: str, context: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        fail(f"{context} field {field!r} must be an object")
     return value
 
 
@@ -234,6 +255,7 @@ def transition(
     from_status: str,
     to_status: str,
     work_summary_file: Path | None = None,
+    pr_url: str | None = None,
 ) -> None:
     if from_status == to_status:
         fail("--from-status and --to-status must differ")
@@ -243,11 +265,19 @@ def transition(
                 "transition to status:in-review requires --work-summary-file so "
                 "the posted work summary can be validated before the handoff"
             )
-    elif work_summary_file is not None:
-        fail("--work-summary-file is only valid for status:in-review transitions")
+        if pr_url is None:
+            fail(
+                "transition to status:in-review requires --pr-url so the "
+                "work summary can be bound to the current pull request"
+            )
+    elif work_summary_file is not None or pr_url is not None:
+        fail(
+            "--work-summary-file and --pr-url are only valid for "
+            "status:in-review transitions"
+        )
     require_status(read_issue(repo, issue), from_status, repo, issue)
     if to_status == "status:in-review":
-        validate_posted_work_summary(repo, issue, work_summary_file)
+        validate_posted_work_summary(repo, issue, work_summary_file, pr_url)
     edit_status(repo, issue, from_status, to_status)
     verify_transition(repo, issue, to_status)
     print_result(repo, issue, to_status)
@@ -280,10 +310,130 @@ def read_comment_bodies(repo: str, issue: int) -> tuple[str, ...]:
     return tuple(bodies)
 
 
+def parse_pull_request_number(repo: str, pr_url: str) -> int:
+    parsed = urlsplit(pr_url)
+    parts = parsed.path.strip("/").split("/")
+    if (
+        parsed.scheme != "https"
+        or parsed.netloc != "github.com"
+        or parsed.query
+        or parsed.fragment
+        or len(parts) != 4
+        or parts[2] != "pull"
+        or not parts[3].isdigit()
+    ):
+        fail(
+            "work summary field 'PR' must be an exact GitHub pull-request URL "
+            "in https://github.com/OWNER/REPO/pull/NUMBER form"
+        )
+    target_repo = "/".join(parts[:2])
+    if target_repo != repo:
+        fail(
+            f"work summary field 'PR' must target the configured repository "
+            f"{repo!r}; found {target_repo!r}"
+        )
+    return int(parts[3])
+
+
+def read_pull_request(repo: str, pr_url: str) -> PullRequestSnapshot:
+    pr_number = parse_pull_request_number(repo, pr_url)
+    context = f"pull request {pr_url} in {repo}"
+    raw = run_gh(
+        (
+            "pr",
+            "view",
+            str(pr_number),
+            "--repo",
+            repo,
+            "--json",
+            "url,author,headRefName,headRefOid",
+        )
+    )
+    value = parse_json_object(raw, context)
+    author = object_field(value.get("author"), "author", context)
+    current_url = string_field(value.get("url"), "url", context)
+    if current_url != pr_url:
+        fail(
+            f"current pull request URL {current_url!r} does not match the "
+            f"requested URL {pr_url!r}"
+        )
+    return PullRequestSnapshot(
+        url=current_url,
+        author=string_field(author.get("login"), "login", f"{context} author"),
+        branch=string_field(value.get("headRefName"), "headRefName", context),
+        head_oid=string_field(value.get("headRefOid"), "headRefOid", context),
+    )
+
+
+def read_issue_comments(repo: str, issue: int) -> tuple[IssueComment, ...]:
+    context = f"comments for issue #{issue} in {repo}"
+    raw = run_gh(
+        (
+            "issue",
+            "view",
+            str(issue),
+            "--repo",
+            repo,
+            "--json",
+            "comments",
+        )
+    )
+    value = parse_json_object(raw, context)
+    comments = value.get("comments")
+    if not isinstance(comments, list):
+        fail(f"{context} field 'comments' must be an array")
+    parsed_comments: list[IssueComment] = []
+    for index, comment in enumerate(comments):
+        if not isinstance(comment, dict):
+            fail(f"{context} comments[{index}] must be an object")
+        author = object_field(
+            comment.get("author"),
+            "author",
+            f"{context} comments[{index}]",
+        )
+        parsed_comments.append(
+            IssueComment(
+                body=string_field(
+                    comment.get("body"),
+                    "body",
+                    f"{context} comments[{index}]",
+                ),
+                author=string_field(
+                    author.get("login"),
+                    "login",
+                    f"{context} comments[{index}] author",
+                ),
+            )
+        )
+    return tuple(parsed_comments)
+
+
+def validate_revision_ancestry(
+    repo: str,
+    execution_revision: str,
+    current_head: str,
+) -> None:
+    comparison = run_gh(
+        (
+            "api",
+            f"repos/{repo}/compare/{execution_revision}...{current_head}",
+            "--jq",
+            ".status",
+        )
+    ).strip()
+    if comparison not in ("identical", "ahead"):
+        fail(
+            "work summary field 'Execution revision' must be the current pull "
+            "request head or its ancestor; "
+            f"GitHub compare returned status {comparison!r}"
+        )
+
+
 def validate_posted_work_summary(
     repo: str,
     issue: int,
     summary_file: Path,
+    pr_url: str,
 ) -> None:
     try:
         summary = summary_file.read_text(encoding="utf-8")
@@ -291,15 +441,49 @@ def validate_posted_work_summary(
         fail(f"cannot read work summary {summary_file}: {error}")
 
     try:
-        parse_work_summary(summary)
+        parsed_summary = parse_work_summary(summary)
     except WorkSummaryError as error:
         fail(str(error))
 
-    if summary not in read_comment_bodies(repo, issue):
+    if parsed_summary.queue_classification != "planned":
+        fail(
+            "planned GitHub transition requires work summary field "
+            "'Queue classification' to be 'planned'"
+        )
+
+    pull_request = read_pull_request(repo, pr_url)
+    if parsed_summary.pr != pull_request.url:
+        fail(
+            f"work summary field 'PR' must match the current pull request URL "
+            f"{pull_request.url!r}; found {parsed_summary.pr!r}"
+        )
+    if parsed_summary.branch != pull_request.branch:
+        fail(
+            f"work summary field 'Branch' must match the current pull request "
+            f"head branch {pull_request.branch!r}; found {parsed_summary.branch!r}"
+        )
+
+    matching_comments = [
+        comment
+        for comment in read_issue_comments(repo, issue)
+        if comment.body == summary
+    ]
+    if not matching_comments:
         fail(
             f"work summary {summary_file} was not found as an exact posted comment "
             f"on planned task #{issue} in {repo}"
         )
+    if not any(comment.author == pull_request.author for comment in matching_comments):
+        authors = ", ".join(sorted({comment.author for comment in matching_comments}))
+        fail(
+            "work summary comment author must equal the pull request author "
+            f"{pull_request.author!r}; found: {authors}"
+        )
+    validate_revision_ancestry(
+        repo,
+        parsed_summary.execution_revision,
+        pull_request.head_oid,
+    )
 
 
 def block(repo: str, issue: int, from_status: str, comment_file: Path) -> None:
@@ -416,6 +600,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--to-status", required=True, choices=LIFECYCLE_STATUSES
     )
     transition_parser.add_argument("--work-summary-file", type=Path)
+    transition_parser.add_argument(
+        "--pr-url",
+        help="canonical current pull-request URL for a status:in-review handoff",
+    )
 
     block_parser = subparsers.add_parser("block")
     add_target_arguments(block_parser)
@@ -440,6 +628,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 arguments.from_status,
                 arguments.to_status,
                 arguments.work_summary_file,
+                arguments.pr_url,
             )
         elif arguments.command == "block":
             block(

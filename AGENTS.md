@@ -128,7 +128,9 @@ authoritative without its author, PR identity, branch, and revision binding. Pla
 also require exactly `status:in-review`; review reports other states without repairing them.
 The shared structural format is implemented once in `plugins/dev/scripts/work_summary.py` and is
 invoked by execute, review, and verify for every tracker backend. The planned GitHub transition
-requires `--work-summary-file` and verifies the exact posted comment before changing the label.
+requires `--work-summary-file` and the canonical current PR URL as `--pr-url`; it verifies the
+posted comment's author, PR URL, branch, revision ancestry, and exact body before changing the
+label.
 
 Primary-GitHub planned-task lifecycle writes share
 `plugins/dev/scripts/github_task_lifecycle.py` and the contract in `plugins/dev/runtime_contracts/tracker.md`.

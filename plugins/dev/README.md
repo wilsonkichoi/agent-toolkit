@@ -132,7 +132,8 @@ reclassify planned work. Planned review also requires the canonical issue to hav
 `scripts/work_summary.py` validator owns the work-summary heading, required fields, supported
 classifications, and full 40-character execution revision for execute, review, and verify across
 all tracker backends. A planned GitHub handoff validates the exact posted comment before changing
-the status label.
+the status label, binding its author, PR URL, branch, and revision ancestry to the canonical
+current PR supplied to the transition command.
 
 ## GitHub PR merge and cleanup
 
@@ -584,7 +585,7 @@ execute-owned `In Progress`, `In Review`, or `Blocked` state.
 | `dev:architect` | Unchanged local spec, roadmap, ADR, and context-file authoring; no tracker or GitHub mutation. |
 | `dev:plan` | Produces the full local dry run; a read-only contributor stops before pushing packets or queue metadata and hands the approved plan to a maintainer. |
 | `dev:backlog` | Read-only `add` creates a packet-complete canonical contribution issue with no queue metadata; triage, promotion, reprioritization, split, and `Wont Do` remain maintainer-only. |
-| `dev:execute` | Planned maintainer tasks require a shared-parser-validated work summary plus verified `status:todo → status:in-progress → status:in-review` or `status:blocked` writes. External work rejects incomplete intake or an active linked PR unless explicitly overridden, branches from `upstream/main`, pushes to `origin`, and opens the canonical cross-repository PR without queue transitions. |
+| `dev:execute` | Planned maintainer tasks require a shared-parser-validated and PR-bound work summary plus verified `status:todo → status:in-progress → status:in-review` or `status:blocked` writes. External work rejects incomplete intake or an active linked PR unless explicitly overridden, branches from `upstream/main`, pushes to `origin`, and opens the canonical cross-repository PR without queue transitions. |
 | `dev:review-pr` | Reviews and comments on the canonical PR and issue; fixes push to `origin`; the structured review remains bound to the reviewed HEAD SHA. |
 | `dev:verify` | A read-only contributor posts complete SHA-bound evidence and stops at `ready for maintainer decision`; a maintainer reuses current evidence, rechecks gates, then merges and cleans up canonical state. |
 | `dev:status` | Reads the canonical repository and lists external contributions separately from planned queue progress, WIP, and next-task selection. |

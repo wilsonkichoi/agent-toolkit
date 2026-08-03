@@ -754,6 +754,7 @@ def check_github_lifecycle_adoption() -> None:
             "--to-status status:in-review",
             "work_summary.py validate",
             "--work-summary-file",
+            "--pr-url",
             "Queue classification:",
             "same authenticated account that opened the PR",
         ),
