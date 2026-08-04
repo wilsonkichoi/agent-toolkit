@@ -45,6 +45,12 @@ records do not acquire queue state from incidental labels. Use legacy routing on
 has no classification field in any comment; never use a missing lifecycle label alone to infer
 external work.
 
+Before applying that routing or any PR/revision binding, pass each candidate's exact comment body
+through the shared `scripts/work_summary.py validate --file <path>` validator. It owns the heading,
+required-field, classification, duplicate-field, and full-40-character revision rules for both
+GitHub and non-GitHub trackers. The reviewer must not reproduce those checks independently; a
+parser failure is an untrusted or malformed execute handoff.
+
 Before gathering or posting a review for a validated planned primary-GitHub task, re-read the
 canonical issue and require that it is open with exactly `status:in-review`. `status:in-progress`,
 `status:blocked`, a missing label, or multiple lifecycle labels mean `dev:execute` did not complete

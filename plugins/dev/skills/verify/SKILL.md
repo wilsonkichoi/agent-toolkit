@@ -45,6 +45,12 @@ transition. Use legacy routing only when no task comment contains the field; nev
 lifecycle label alone to infer that no planned queue task exists. `dev:verify` does not create `In
 Progress`, `In Review`, or `Blocked` state to repair an execute failure.
 
+Before applying routing or any PR/revision binding, pass the exact candidate work-summary body
+through the shared `scripts/work_summary.py validate --file <path>` validator. It is the single
+implementation of the heading, required-field, classification, duplicate-field, and
+full-40-character revision rules for GitHub and non-GitHub tracker paths. Do not duplicate those
+checks in verification logic; a parser failure is a malformed execute handoff.
+
 After the minimal task/PR fetch needed to identify the execution repository, follow
 `runtime_contracts/project-bootstrap.md` before checking preconditions or gathering evidence. Pass every
 changed path from the PR or branch diff to the resolver and read every reported project

@@ -131,6 +131,10 @@ an artifact-only spike PR through the normal review, CI, human-approval, and mer
 Primary-GitHub lifecycle routing binds execute work summaries to the PR author, URL, branch, and
 commit ancestry before review or verification uses their queue classification. Planned reviews
 start only after the canonical issue verifies exactly `status:in-review`.
+The shared `plugins/dev/scripts/work_summary.py` validator checks the exact heading, required
+fields, supported classification, and full 40-character execution revision before that binding;
+the planned execute handoff receives the canonical current PR URL, verifies the comment's author,
+URL, branch, revision ancestry, and exact posted body before changing the status label.
 
 Manual `dev:review-pr` commands are one-pass actions. Review mode posts one verdict and stops;
 fix mode applies one current findings batch, pushes and replies, records the need for re-review,
@@ -176,4 +180,3 @@ plugins/utils/           # utility plugin sources
 plugins/dev/             # development-lifecycle plugin sources
 tools/                   # agent generator and repository validator
 ```
-

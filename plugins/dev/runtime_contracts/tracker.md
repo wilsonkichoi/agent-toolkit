@@ -245,10 +245,38 @@ exactly the target label. Exhausted execution attempts use `block --from-status 
 partial state without duplicating the comment: a diagnostic posted before a failed label edit, or
 a `status:blocked` label left without its diagnostic by an interrupted older invocation.
 
+The `status:in-review` transition is additionally a producer handoff gate. It requires
+`--work-summary-file <path>` and the canonical current PR URL as `--pr-url <url>`, validates that
+file with the shared `scripts/work_summary.py` parser, binds the comment author, PR URL, head
+branch, and execution revision ancestry to that PR, then re-reads the canonical issue comments
+and requires the exact file contents to be present as a posted comment before editing the lifecycle
+label. A missing, malformed, unposted, or unbound summary exits nonzero and leaves the task in its
+current status. Other lifecycle transitions reject both handoff arguments.
+
 No caller may treat a successful `gh issue edit` or `gh issue comment` exit code as proof that a
 transition completed. The helper's successful verification result is the gate before isolation,
 handoff, or a blocked stop. Failed verification is a lifecycle failure, not a reason for
 `dev:review-pr` or `dev:verify` to repair labels they do not own.
+
+### Shared work-summary validation
+
+The executable structural validator is `scripts/work_summary.py`. It is the one implementation
+for the work-summary format across `dev:execute`, `dev:review-pr`, and `dev:verify`, regardless of
+tracker backend. Invoke it as `work_summary.py validate --file <path>` against the exact comment
+body before applying any routing or lifecycle decision. It requires:
+
+- the exact `## Work summary (dev:execute - <date>)` heading;
+- exactly one non-empty `PR`, `Branch`, `Queue classification`, `Execution repository`, and
+  `Execution revision` field;
+- `Queue classification` equal to `planned`, `external`, or `secondary`; and
+- `Execution revision` equal to exactly 40 hexadecimal characters.
+
+Additional work-summary fields use the same `- Field: value` syntax. Structural failures name the
+violated field or rule. The producer validates the exact body after posting and before a planned
+handoff. GitHub consumers validate the fetched candidate body with this parser before applying
+author, PR URL, branch, and revision binding. Non-GitHub consumers do the same against the exact
+tracker comment body. No lifecycle surface duplicates these field or revision checks in prose or
+code.
 
 ### Trusted GitHub work-summary routing
 
@@ -258,10 +286,11 @@ PR:
 
 1. Read the PR's URL, author login, head branch, and head SHA from the canonical repository. Fetch
    issue comments with each comment's body, author login, creation time, and URL.
-2. A candidate must have the exact `## Work summary (dev:execute - <date>)` heading and the
-   documented `PR:`, `Branch:`, `Queue classification:`, `Execution repository:`, and
-   `Execution revision:` fields. The classification must be `planned`, `external`, or
-   `secondary`; the revision must be a full commit SHA.
+2. Pass the exact candidate body through the shared `scripts/work_summary.py` validator. A
+   candidate must therefore have the exact heading and documented `PR:`, `Branch:`, `Queue
+   classification:`, `Execution repository:`, and `Execution revision:` fields. The parser
+   accepts only `planned`, `external`, or `secondary` classifications and a full 40-character
+   hexadecimal revision.
 3. Bind identity and PR: the comment author's login must equal the PR author's login, and the
    recorded PR URL and branch must equal the current PR URL and head branch. A comment from another
    issue participant is never a routing record, regardless of how accurately it copies the format.
