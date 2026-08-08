@@ -12,6 +12,23 @@ notes from that section at the tagged commit.
 
 Entries are newest first. Each release entry is headed by its exact tag name.
 
+## dev-v0.0.74
+
+- Added the generated clone/copy distribution for dev skills and named agents in supported
+  single-root Kiro IDE workspaces.
+- Validated the human-gated manual lifecycle, named-agent and denial safe stops, stale-revision and
+  interrupted-state handling, and bounded `dev:auto` with standing auto-merge policy.
+- Documented exact permission behavior, installation and removal, and unsupported Kiro CLI,
+  multi-root, explicit-resource, and `dev:shadow` surfaces.
+
+## utils-v0.0.5
+
+- Added generated collision-safe Kiro IDE utility skills, including the non-ASCII
+  `utils-retro-zh` alias and automatic security-scan activation guidance.
+- Validated global and workspace installation, workspace precedence, slash invocation, automatic
+  activation, trailing arguments, and execution outside the source checkout.
+- Documented the single-root Kiro IDE clone/copy and exact-removal flow and unsupported surfaces.
+
 ## dev-v0.0.73
 
 - Added one shared work-summary parser for execute, review, and verify across tracker backends.

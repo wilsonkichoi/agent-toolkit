@@ -55,6 +55,7 @@ docs/RELEASING.md       # maintainer release procedure (tags + GitHub Releases)
 docs/adr/               # architecture decision records for this repository
 dist/                   # generated / copy-me artifacts, not plugin-installable
   codex/agents/         #   Codex agent TOMLs (copy to ~/.codex/agents/ or project .codex/agents/)
+  kiro/                 #   generated Kiro preview skills, agents, and provenance manifest
 .codex/agents/          # generated project-scoped Codex agents
 plugins/<name>/         # Each plugin
   .claude-plugin/       #   Claude plugin manifest (plugin.json)
@@ -217,15 +218,25 @@ project-scoped `.codex/agents/` files and distributable `dist/codex/agents/` fil
 uv run tools/generate_codex_agents.py
 ```
 
+Kiro preview artifacts are generated from authoritative skills and agents using the committed
+safe-name map. They are the committed clone/copy distribution for the validated **single-root Kiro
+IDE** preview, not a Kiro plugin-marketplace package. Kiro CLI, multi-root workspaces, explicit
+agent resources, and `dev:shadow` are unsupported. Regenerate them with:
+
+```bash
+uv run tools/generate_kiro.py
+```
+
 Check generated-file drift without writing, then validate manifests, marketplaces, versions,
-skill frontmatter, agent sources, and shared authoring invariants with:
+skill frontmatter, agent sources, generator fixtures, and shared authoring invariants with:
 
 ```bash
 uv run tools/generate_codex_agents.py --check
+uv run tools/generate_kiro.py --check
 uv run tools/check_repo.py
 ```
 
-Both tools are dependency-free PEP 723 scripts. Do not add a project `pyproject.toml`,
+These tools are dependency-free PEP 723 scripts. Do not add a project `pyproject.toml`,
 `.python-version`, `uv.lock`, or script lockfile for them.
 
 ## Git workflow
@@ -254,8 +265,11 @@ Before any commit that adds, removes, or modifies files under `skills/` or `agen
 3. Version bumped in `.claude-plugin/marketplace.json` (matching entry)
 4. `plugins/<plugin>/README.md` updated
 5. Agent sources changed? Regenerate `.codex/agents/*.toml` and `dist/codex/agents/*.toml`
-6. `.claude-plugin/marketplace.json` description/keywords updated if needed
-7. `README.md` (repo root) and `AGENTS.md` updated if plugin behavior/description changed
+6. Skill sources, agent sources, safe-name map, or affected plugin versions changed? Regenerate
+   `dist/kiro/` so generated content and `manifest.json.plugin_versions` are current
+7. `.claude-plugin/marketplace.json` description/keywords updated if needed
+8. `README.md` (repo root) and `AGENTS.md` updated if plugin behavior/description changed
+9. Run both generated drift checks and `uv run tools/check_repo.py`
 
 Do not commit skill changes without completing this checklist. Read the checklist, don't rely
 on memory.

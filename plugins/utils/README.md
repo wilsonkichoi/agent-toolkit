@@ -3,9 +3,17 @@
 General-purpose utility skills for research, investigation, knowledge synthesis, session retrospectives, and security auditing.
 
 **Invocation across harnesses:** the `/research` / `/utils:research` forms below are Claude
-Code. On Codex invoke explicitly as `$research`. `research` and `retro` never fire implicitly
-(guarded per harness). The `回顧` skill keeps its CJK name on Claude Code and Codex. Install
-per harness: repo-root [README](../../README.md).
+Code. On Codex invoke explicitly as `$research`; the `回顧` skill keeps its CJK name on both.
+The generated single-root Kiro IDE preview uses `/utils-research`, `/utils-llm-wiki`,
+`/utils-retro`, `/utils-retro-zh`, and `/utils-security-scan`. Kiro automatic activation,
+global/workspace installation, workspace precedence, and trailing arguments are runtime-validated;
+Kiro CLI, multi-root workspaces, explicit agent resources, and `dev:shadow` remain unsupported.
+`research` and `retro` never fire implicitly on Claude Code or Codex (guarded per harness).
+
+Install Claude Code and Codex plugins from the repo-root [README](../../README.md). Kiro is not a
+plugin-marketplace install: follow the clone/copy, update, and exact-removal guidance in
+[`dist/kiro/README.md`](../../dist/kiro/README.md). No installer is needed for that repeatable copy
+flow.
 
 ## Skills
 

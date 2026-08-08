@@ -94,6 +94,8 @@ git push origin --delete "$BRANCH"
 | `plugins/<plugin>/README.md` and plugin docs | Authoritative | User and maintainer documentation |
 | `.codex/agents/*.toml` | Generated, committed | Project-scoped Codex agents loaded in this repository |
 | `dist/codex/agents/*.toml` | Generated, committed | Copy-me Codex agents for unrelated projects or `~/.codex/agents/` |
+| `dist/kiro/skills/*` and `dist/kiro/agents/*` | Generated, committed single-root Kiro IDE preview | Clone/copy distribution generated from plugin sources |
+| `dist/kiro/manifest.json` | Generated, committed single-root Kiro IDE preview | Source mapping, plugin versions, and deterministic file hashes |
 
 `plugins/*/agents/*.md` is the only agent-authoring location. The generator writes both TOML
 directories from those sources, and matching files must have identical bytes. Do not edit either
@@ -103,6 +105,12 @@ generated directory directly.
 named Codex agent definitions. Users copy the distributable TOMLs into an unrelated project's
 `.codex/agents/` or their user-level `~/.codex/agents/`. Contributors working in this clone receive
 the project-scoped `.codex/agents/` through `git pull` and do not copy them manually.
+
+`dist/kiro/` is the generated clone/copy distribution for the validated single-root Kiro IDE
+preview. It is not installed through either plugin marketplace; Kiro CLI, multi-root workspaces,
+explicit agent resources, and `dev:shadow` remain unsupported. Do not edit it directly; change the
+authoritative plugin source or `tools/kiro_names.json`, then regenerate. Version changes also
+require regeneration because `manifest.json` records both plugin versions.
 
 ## Add a plugin
 
@@ -222,16 +230,19 @@ documentation or generated files.
 
 ## Generate and validate
 
-Generate Codex agents after any authoritative agent change:
+Generate Codex agents after any authoritative agent change, and regenerate the Kiro preview after
+any authoritative skill or agent change or safe-name-map update:
 
 ```bash
 uv run tools/generate_codex_agents.py
+uv run tools/generate_kiro.py
 ```
 
 Before every handoff, run drift detection and the complete repository validator:
 
 ```bash
 uv run tools/generate_codex_agents.py --check
+uv run tools/generate_kiro.py --check
 uv run tools/check_repo.py
 ```
 

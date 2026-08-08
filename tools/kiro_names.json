@@ -1,0 +1,29 @@
+{
+  "agents": {
+    "plugins/dev/agents/reviewer.md": "dev-reviewer",
+    "plugins/dev/agents/test-writer.md": "dev-test-writer",
+    "plugins/dev/agents/verifier.md": "dev-verifier"
+  },
+  "skills": {
+    "plugins/dev/skills/architect": "dev-architect",
+    "plugins/dev/skills/auto": "dev-auto",
+    "plugins/dev/skills/backlog": "dev-backlog",
+    "plugins/dev/skills/discover": "dev-discover",
+    "plugins/dev/skills/execute": "dev-execute",
+    "plugins/dev/skills/feedback": "dev-feedback",
+    "plugins/dev/skills/merge-pr": "dev-merge-pr",
+    "plugins/dev/skills/plan": "dev-plan",
+    "plugins/dev/skills/release": "dev-release",
+    "plugins/dev/skills/retro": "dev-retro",
+    "plugins/dev/skills/review-pr": "dev-review-pr",
+    "plugins/dev/skills/setup": "dev-setup",
+    "plugins/dev/skills/shadow": "dev-shadow",
+    "plugins/dev/skills/status": "dev-status",
+    "plugins/dev/skills/verify": "dev-verify",
+    "plugins/utils/skills/llm-wiki": "utils-llm-wiki",
+    "plugins/utils/skills/research": "utils-research",
+    "plugins/utils/skills/retro": "utils-retro",
+    "plugins/utils/skills/security-scan": "utils-security-scan",
+    "plugins/utils/skills/回顧": "utils-retro-zh"
+  }
+}

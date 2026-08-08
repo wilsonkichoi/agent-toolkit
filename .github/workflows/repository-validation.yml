@@ -25,6 +25,9 @@ jobs:
       - name: Check generated Codex agents
         run: uv run tools/generate_codex_agents.py --check
 
+      - name: Check generated Kiro preview
+        run: uv run tools/generate_kiro.py --check
+
       - name: Validate repository
         run: uv run tools/check_repo.py
 

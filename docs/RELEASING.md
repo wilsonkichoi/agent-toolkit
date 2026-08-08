@@ -85,10 +85,11 @@ force-updates, or moves a tag or edits a release.
 
 1. **Change and validate the three lockstep version fields.** Apply the minimum semver increment
    per `AGENTS.md` (patch while a plugin is `0.0.x`) to all three fields on a feature branch, then
-   run both repository checks:
+   run all release checks:
 
 ```bash
 uv run tools/generate_codex_agents.py --check
+uv run tools/generate_kiro.py --check
 uv run tools/check_repo.py
 ```
 

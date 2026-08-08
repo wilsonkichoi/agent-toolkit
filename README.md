@@ -2,7 +2,7 @@
 
 Installable agent workflows for research, knowledge management, security review, and a
 tracker-backed software-development lifecycle. The `utils` and `dev` plugins support Claude Code
-and Codex.
+and Codex; a generated distribution supports the proven single-root Kiro IDE preview scope.
 
 ## Install with Claude Code
 
@@ -47,6 +47,27 @@ explicitly with `$<name>`, for example `$research` or `$execute`.
 Codex installed plugins are cached. Plugin authors testing working-tree changes must reinstall the
 plugin and open a new thread. See [CONTRIBUTING.md](CONTRIBUTING.md#test-codex-working-tree-changes)
 for the complete local-marketplace workflow.
+
+## Install with Kiro IDE (single-root preview)
+
+Kiro uses the generated copy-only distribution under [`dist/kiro/`](dist/kiro/README.md), not the
+Claude Code or Codex plugin marketplaces. Clone this repository, copy `dist/kiro/skills/` and
+`dist/kiro/agents/` into either `<project>/.kiro/` or `~/.kiro/`, then open a fresh single-root Kiro
+window. The generated README contains exact `ditto` update commands and manifest-owned uninstall
+paths. Clone/copy is the supported repeatable installation path; there is no Kiro marketplace
+manifest, Power, or installer.
+
+The preview supports all utility skills, the named dev agents, the human-gated
+`setup → plan → execute → review-pr → verify` lifecycle, and bounded `dev:auto`. Kiro CLI,
+multi-root workspaces, explicit agent `resources:`, and `dev:shadow` are unsupported. Although
+`dev-shadow` is generated for source completeness, do not invoke it in Kiro. Generated agents use
+Kiro's default steering inheritance and intentionally omit `resources:`.
+
+Kiro owns permission and trust decisions; installation does not modify them. Start in a disposable
+or trusted project, keep wildcard command trust disabled, and approve only expected operations.
+Lifecycle skills can create files, commits, branches, worktrees, tracker updates, and merges after
+their documented gates. Treat denied tools and unavailable required named agents as safe stops:
+do not retry with another tool, substitute inline work, or bypass the denial.
 
 ## Updating
 
@@ -102,6 +123,12 @@ Plugin-specific documentation is in [plugins/utils/README.md](plugins/utils/READ
 | `dev:execute` loop mode | Supported through Claude Code's loop primitive | Not available; run one task or use `dev:auto` |
 | Bundled `dev` agents | Loaded from the plugin | Copy TOML files and select them with `agent_type` |
 | Implicit `research` and `retro` routing | Description guard | Disabled; invoke explicitly |
+
+Kiro's generated preview is a separate copy-only distribution, not a third plugin marketplace.
+Its supported surface is single-root Kiro IDE workspaces: utility skills, named dev agents, the
+manual lifecycle, and bounded `dev:auto`. Invoke generated names such as `/utils-research` and
+`/dev-execute`; the non-ASCII retrospective alias is `/utils-retro-zh`. CLI, multi-root,
+explicit-resource, and shadow behavior are outside the supported surface.
 
 Codex's default `agents.max_depth = 1` prevents nested subagent spawning. The `dev:auto` Codex path
 therefore dispatches its implementation worker and `test-writer` as siblings. Standalone
@@ -176,6 +203,7 @@ listed in [CHANGELOG.md](CHANGELOG.md).
 .agents/plugins/         # Codex marketplace manifest
 .codex/agents/           # generated project-scoped Codex agents
 dist/codex/agents/       # generated copy-me Codex agents for other projects
+dist/kiro/               # generated single-root Kiro IDE skills, agents, install guide, manifest
 plugins/utils/           # utility plugin sources
 plugins/dev/             # development-lifecycle plugin sources
 tools/                   # agent generator and repository validator
