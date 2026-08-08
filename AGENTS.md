@@ -290,8 +290,9 @@ Before any commit that adds, removes, or modifies files under `skills/` or `agen
 3. Version bumped in `.claude-plugin/marketplace.json` (matching entry)
 4. `plugins/<plugin>/README.md` updated
 5. Agent sources changed? Regenerate `.codex/agents/*.toml` and `dist/codex/agents/*.toml`
-6. Skill sources, agent sources, safe-name map, or affected plugin versions changed? Regenerate
-   `dist/kiro/` so generated content and `manifest.json.plugin_versions` are current
+6. Skill sources, agent sources, a `runtime_contracts/` contract, a `scripts/` helper, the
+   safe-name map, or affected plugin versions changed? Regenerate `dist/kiro/` so generated
+   content, each skill's recorded closure, and `manifest.json.plugin_versions` are current
 7. `.claude-plugin/marketplace.json` description/keywords updated if needed
 8. `README.md` (repo root) and `AGENTS.md` updated if plugin behavior/description changed
 9. Run both generated drift checks and `uv run tools/check_repo.py`

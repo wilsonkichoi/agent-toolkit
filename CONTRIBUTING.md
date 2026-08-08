@@ -107,10 +107,14 @@ named Codex agent definitions. Users copy the distributable TOMLs into an unrela
 the project-scoped `.codex/agents/` through `git pull` and do not copy them manually.
 
 `dist/kiro/` is the generated clone/copy distribution for the validated single-root Kiro IDE
-preview. It is not installed through either plugin marketplace; Kiro CLI, multi-root workspaces,
-explicit agent resources, and `dev:shadow` remain unsupported. Do not edit it directly; change the
-authoritative plugin source or `tools/kiro_names.json`, then regenerate. Version changes also
-require regeneration because `manifest.json` records both plugin versions.
+preview. It is not installed through either plugin marketplace; Kiro CLI, multi-root workspaces, and
+explicit agent resources remain unsupported. It ships a subset of the dev plugin - `feedback`,
+`release`, and `shadow` are excluded through `EXCLUDED_SKILL_SOURCES` - and each generated dev skill
+bundles only the shared contracts and helpers it needs. See
+[docs/adr/0002](docs/adr/0002-kiro-generated-distribution.md). Do not edit it directly; change the
+authoritative plugin source or `tools/kiro_names.json`, then regenerate. Adding, removing, or
+excluding a skill requires the same `tools/kiro_names.json` update, and version changes also require
+regeneration because `manifest.json` records both plugin versions.
 
 ## Add a plugin
 
@@ -231,7 +235,9 @@ documentation or generated files.
 ## Generate and validate
 
 Generate Codex agents after any authoritative agent change, and regenerate the Kiro preview after
-any authoritative skill or agent change or safe-name-map update:
+any change to a skill, an agent, a `plugins/dev/runtime_contracts/` contract, a
+`plugins/dev/scripts/` helper, the safe-name map, or an affected plugin version. A contract or
+helper edit can change which files each skill's closure pulls in, not only their content:
 
 ```bash
 uv run tools/generate_codex_agents.py
