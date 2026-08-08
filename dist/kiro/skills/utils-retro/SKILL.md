@@ -1,7 +1,7 @@
 ---
 name: utils-retro
 description: "Brutally honest retrospective on the user's working session. Analyzes conversation history, git activity, and file changes to identify habits, blind spots, and the single highest-impact improvement. Triggered ONLY by explicit slash commands: /utils-retro or /review-my-work. Also supports /utils-retro {commit-hash} to review a specific commit's work session. Do NOT trigger from general questions about work quality or vague \"how am I doing\" queries unless the exact slash command is used."
-compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, explicit resources, and dev:shadow unsupported
+compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, and explicit agent resources unsupported
 metadata:
   source-plugin: utils
   source-skill: "retro"
@@ -13,8 +13,8 @@ metadata:
 > generated path and invocation guidance takes precedence over retained Claude Code or Codex
 > examples. The artifact comes from the harness-neutral plugin source; do not edit it directly.
 > This preview is supported only in a single-root Kiro IDE workspace. Kiro CLI, multi-root
-> active-folder isolation, explicit agent resources, and `dev:shadow` are unsupported; stop if
-> inactive-root instructions, steering, or resources appear.
+> active-folder isolation, and explicit agent resources are unsupported; stop if inactive-root
+> instructions, steering, or resources appear.
 
 # Session Retrospective
 

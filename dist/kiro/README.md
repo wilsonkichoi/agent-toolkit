@@ -1,11 +1,16 @@
 # Kiro preview installation
 
-This generated artifact supports **single-root Kiro IDE workspaces only**. Kiro CLI,
-multi-root active-folder isolation, explicit agent resources, and `dev:shadow` are not supported.
-All utility skills, the named dev agents, the human-gated manual lifecycle, and bounded `dev:auto`
-have passed fresh single-root IDE runtime probes; what was run, on which Kiro build, and with what
-outcome is recorded in this repository's `docs/kiro-preview-validation.md`. `dev-shadow` remains in
-the generated set for source completeness but must not be invoked in Kiro.
+This generated artifact supports **single-root Kiro IDE workspaces only**. Kiro CLI, multi-root
+active-folder isolation, and explicit agent resources are not supported. All utility skills, the
+named dev agents, the human-gated manual lifecycle, and bounded `dev:auto` have passed fresh
+single-root IDE runtime probes; what was run, on which Kiro build, and with what outcome is
+recorded in this repository's `docs/kiro-preview-validation.md`.
+
+This is a subset of the dev plugin, not a mirror of it. `dev:feedback` and `dev:release` act on the
+agent-toolkit repository itself rather than your project, and `dev:shadow` is unsupported in Kiro,
+so none of the three is generated here. Use Claude Code or Codex for those. Each generated skill
+bundles only the shared contracts and helpers it actually needs; `manifest.json` records that set
+per skill.
 
 Kiro owns permission and trust decisions; this distribution does not install or modify those
 settings. Start in a disposable or trusted project and approve only expected operations. Lifecycle
@@ -52,14 +57,11 @@ rm -rf \
   "$TARGET/skills/dev-backlog" \
   "$TARGET/skills/dev-discover" \
   "$TARGET/skills/dev-execute" \
-  "$TARGET/skills/dev-feedback" \
   "$TARGET/skills/dev-merge-pr" \
   "$TARGET/skills/dev-plan" \
-  "$TARGET/skills/dev-release" \
   "$TARGET/skills/dev-retro" \
   "$TARGET/skills/dev-review-pr" \
   "$TARGET/skills/dev-setup" \
-  "$TARGET/skills/dev-shadow" \
   "$TARGET/skills/dev-status" \
   "$TARGET/skills/dev-verify" \
   "$TARGET/skills/utils-llm-wiki" \

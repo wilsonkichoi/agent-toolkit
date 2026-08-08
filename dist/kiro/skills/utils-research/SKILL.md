@@ -1,7 +1,7 @@
 ---
 name: utils-research
 description: "This skill should ONLY be used when the user explicitly invokes /utils-research or /utils-research. Do NOT trigger on general research-related phrases like \"research a topic\", \"investigate\", \"deep dive into\", etc. Only activate on explicit slash command invocation."
-compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, explicit resources, and dev:shadow unsupported
+compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, and explicit agent resources unsupported
 metadata:
   source-plugin: utils
   source-skill: "research"
@@ -13,8 +13,8 @@ metadata:
 > generated path and invocation guidance takes precedence over retained Claude Code or Codex
 > examples. The artifact comes from the harness-neutral plugin source; do not edit it directly.
 > This preview is supported only in a single-root Kiro IDE workspace. Kiro CLI, multi-root
-> active-folder isolation, explicit agent resources, and `dev:shadow` are unsupported; stop if
-> inactive-root instructions, steering, or resources appear.
+> active-folder isolation, and explicit agent resources are unsupported; stop if inactive-root
+> instructions, steering, or resources appear.
 
 # Research
 

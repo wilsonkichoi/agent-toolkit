@@ -65,7 +65,7 @@ class KiroGenerationTests(unittest.TestCase):
         skill_paths = kiro.discover_skill_paths()
         agents = kiro.discover_agents()
         skill_map, agent_map = kiro.load_name_map(skill_paths, agents)
-        self.assertEqual(len(skill_map), 20)
+        self.assertEqual(len(skill_map), 17)
         self.assertEqual(len(agent_map), 3)
         self.assertEqual(skill_map["plugins/dev/skills/retro"], "dev-retro")
         self.assertEqual(skill_map["plugins/utils/skills/retro"], "utils-retro")
@@ -75,7 +75,7 @@ class KiroGenerationTests(unittest.TestCase):
         self.assertTrue(all(kiro.KIRO_NAME_RE.fullmatch(name) for name in names))
 
     def test_generated_schema_and_dependency_closure(self) -> None:
-        self.assertEqual(len(self.first_manifest["skills"]), 20)
+        self.assertEqual(len(self.first_manifest["skills"]), 17)
         self.assertEqual(len(self.first_manifest["agents"]), 3)
         readme = (self.first / "README.md").read_text(encoding="utf-8")
         self.assertIn("single-root Kiro IDE workspaces only", readme)
@@ -109,14 +109,14 @@ class KiroGenerationTests(unittest.TestCase):
         setup_text = (setup / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn(
             "compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, "
-            "explicit resources, and dev:shadow unsupported",
+            "and explicit agent resources unsupported",
             setup_text,
         )
         self.assertIn("supported only in a single-root Kiro IDE workspace", setup_text)
         self.assertIn("safe-stop probes, and bounded", setup_text)
         self.assertIn("`dev:auto`", setup_text)
         self.assertIn("Kiro CLI, multi-root", setup_text)
-        self.assertIn("active-folder isolation, explicit agent resources", setup_text)
+        self.assertIn("active-folder isolation, and explicit agent resources", setup_text)
         for path in self.first.rglob("*"):
             if path.is_file() and path.suffix in {".md", ".json", ".py", ".yaml", ".yml"}:
                 text = path.read_text(encoding="utf-8")
@@ -299,9 +299,6 @@ class KiroGenerationTests(unittest.TestCase):
         status = (self.first / "skills/dev-status/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("id/title/status.", status)
         self.assertNotIn("id/title/dev-status.", status)
-        feedback = (self.first / "skills/dev-feedback/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("`plugins/dev/skills/feedback/SKILL.md`", feedback)
-        self.assertNotIn("plugins/dev/skills/dev-feedback/SKILL.md", feedback)
         tracker = (
             self.first / "skills/dev-verify/references/runtime_contracts/tracker.md"
         ).read_text(encoding="utf-8")
@@ -322,7 +319,7 @@ class KiroGenerationTests(unittest.TestCase):
         self.assertEqual(renderings - emitted, set())
 
     def test_dev_preamble_states_the_invocation_mapping(self) -> None:
-        for name in ("dev-feedback", "dev-merge-pr", "dev-release", "dev-execute"):
+        for name in ("dev-merge-pr", "dev-status", "dev-plan", "dev-execute"):
             text = (self.first / f"skills/{name}/SKILL.md").read_text(encoding="utf-8")
             self.assertIn(
                 "Every bare `dev:<name>` reference below names a source skill whose Kiro",
@@ -332,6 +329,92 @@ class KiroGenerationTests(unittest.TestCase):
             self.assertIn("invocation is `/dev-<name>`", text, name)
         utils = (self.first / "skills/utils-research/SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn("`dev:<name>` reference", utils)
+
+    def closure_of(self, name: str) -> tuple[list[str], list[str]]:
+        for record in self.first_manifest["skills"]:
+            if record["name"] == name:
+                return record["bundled_contracts"], record["bundled_helpers"]
+        self.fail(f"no manifest record for {name}")
+
+    def test_each_dev_skill_bundles_only_what_it_needs(self) -> None:
+        self.assertEqual(self.closure_of("dev-merge-pr"), ([], ["github_pr.py"]))
+        self.assertEqual(self.closure_of("dev-architect"), ([], []))
+        contracts, helpers = self.closure_of("dev-verify")
+        self.assertEqual(contracts, ["project-bootstrap.md", "tracker.md"])
+        self.assertIn("github_pr.py", helpers)
+        self.assertIn("work_summary.py", helpers)
+        every_helper = {
+            helper
+            for record in self.first_manifest["skills"]
+            for helper in record.get("bundled_helpers", ())
+        }
+        for unreachable in ("shadow_replay.py", "shadow_pricing.json", "plugin_release.py"):
+            self.assertNotIn(unreachable, every_helper)
+        for record in self.first_manifest["skills"]:
+            skill_dir = self.first / "skills" / record["name"]
+            for helper in record.get("bundled_helpers", ()):
+                self.assertTrue((skill_dir / "scripts" / helper).is_file())
+            for contract in record.get("bundled_contracts", ()):
+                self.assertTrue(
+                    (skill_dir / "references/runtime_contracts" / contract).is_file()
+                )
+
+    def test_a_helper_never_ships_without_its_governing_contract(self) -> None:
+        # dev-status names resolve_project_rules.py directly but never names
+        # project-bootstrap.md, so only the reverse closure step brings the contract in.
+        contracts, helpers = self.closure_of("dev-status")
+        self.assertIn("resolve_project_rules.py", helpers)
+        self.assertIn("project-bootstrap.md", contracts)
+        source = (kiro.ROOT / "plugins/dev/skills/status/SKILL.md").read_text(encoding="utf-8")
+        self.assertNotIn("project-bootstrap.md", source)
+        for record in self.first_manifest["skills"]:
+            shipped = set(record.get("bundled_contracts", ()))
+            for helper in record.get("bundled_helpers", ()):
+                governing = kiro.HELPER_GOVERNING_CONTRACT.get(helper)
+                if governing is not None:
+                    self.assertIn(governing, shipped, f"{record['name']} / {helper}")
+
+    def test_forward_only_closure_would_be_rejected(self) -> None:
+        record = {
+            "bundled_contracts": ["tracker.md"],
+            "bundled_helpers": ["work_summary.py", "resolve_project_rules.py"],
+        }
+        skill_file = self.stage_skill(
+            "forward-only",
+            {
+                "skills/demo-fwd/SKILL.md": "---\nname: demo-fwd\n---\nBody\n",
+                "skills/demo-fwd/references/runtime_contracts/tracker.md": "t\n",
+                "skills/demo-fwd/scripts/work_summary.py": "a\n",
+                "skills/demo-fwd/scripts/resolve_project_rules.py": "b\n",
+            },
+        ) / "skills/demo-fwd/SKILL.md"
+        with self.assertRaisesRegex(
+            kiro.KiroGenerationError, "without its governing contract project-bootstrap.md"
+        ):
+            kiro.validate_skill_closure(skill_file, record)
+
+    def test_excluded_skills_are_absent_and_unreferenced(self) -> None:
+        emitted = {record["name"] for record in self.first_manifest["skills"]}
+        for excluded in ("dev-feedback", "dev-release", "dev-shadow"):
+            self.assertNotIn(excluded, emitted)
+            self.assertFalse((self.first / "skills" / excluded).exists())
+        # The exclusion is only safe because nothing shipped hands off to them.
+        for path in (self.first / "skills").rglob("SKILL.md"):
+            text = path.read_text(encoding="utf-8")
+            for name in ("feedback", "release", "shadow"):
+                self.assertNotIn(f"/dev-{name}", text, f"{path.parent.name} -> {name}")
+                self.assertNotIn(f"dev:{name}", text, f"{path.parent.name} -> {name}")
+
+    def test_excluded_sources_must_exist(self) -> None:
+        original = kiro.EXCLUDED_SKILL_SOURCES
+        kiro.EXCLUDED_SKILL_SOURCES = frozenset({"plugins/dev/skills/not-a-skill"})
+        try:
+            with self.assertRaisesRegex(
+                kiro.KiroGenerationError, "names missing skill source"
+            ):
+                kiro.discover_skill_paths()
+        finally:
+            kiro.EXCLUDED_SKILL_SOURCES = original
 
     def test_copy_rejects_symlinked_resources(self) -> None:
         resource_root = self.temp / "symlinks"

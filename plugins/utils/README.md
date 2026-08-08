@@ -8,7 +8,7 @@ The generated single-root Kiro IDE preview uses `/utils-research`, `/utils-llm-w
 `/utils-retro`, `/utils-retro-zh`, and `/utils-security-scan`. Kiro global/workspace installation,
 workspace precedence, and trailing arguments are runtime-validated against the record in
 [docs/kiro-preview-validation.md](../../docs/kiro-preview-validation.md);
-Kiro CLI, multi-root workspaces, explicit agent resources, and `dev:shadow` remain unsupported.
+Kiro CLI, multi-root workspaces, and explicit agent resources remain unsupported.
 `research`, `retro`, and `security-scan` never fire implicitly on any harness - each requires its
 explicit invocation (`/utils:security-scan` on Claude Code, `$utils:security-scan` on Codex,
 `/utils-security-scan` in the Kiro preview).

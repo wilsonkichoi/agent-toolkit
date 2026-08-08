@@ -1,7 +1,7 @@
 ---
 name: utils-security-scan
 description: "On-demand security audit of the current repository. Scans for secrets/credentials, code vulnerabilities, infrastructure misconfigs, dependency risks, and optionally git history for leaked secrets. This skill should ONLY be used when the user explicitly invokes /utils-security-scan or /sec-scan. Do NOT trigger on general security-related phrases like \"is this safe?\", \"anything sensitive?\", \"audit this\", \"check for leaks\", or questions about whether a repository is safe to push, publish, or share. Only activate on explicit slash command invocation."
-compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, explicit resources, and dev:shadow unsupported
+compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, and explicit agent resources unsupported
 metadata:
   source-plugin: utils
   source-skill: "security-scan"
@@ -13,8 +13,8 @@ metadata:
 > generated path and invocation guidance takes precedence over retained Claude Code or Codex
 > examples. The artifact comes from the harness-neutral plugin source; do not edit it directly.
 > This preview is supported only in a single-root Kiro IDE workspace. Kiro CLI, multi-root
-> active-folder isolation, explicit agent resources, and `dev:shadow` are unsupported; stop if
-> inactive-root instructions, steering, or resources appear.
+> active-folder isolation, and explicit agent resources are unsupported; stop if inactive-root
+> instructions, steering, or resources appear.
 
 # Security Scan
 

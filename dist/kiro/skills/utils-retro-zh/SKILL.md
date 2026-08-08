@@ -1,7 +1,7 @@
 ---
 name: utils-retro-zh
 description: "用旁觀者角度對使用者的工作階段做殘酷誠實的回顧。分析對話紀錄、git 活動、檔案變更， 找出習慣、盲點、以及影響最大的單一改進點。僅在使用者輸入 /utils-retro-zh, /retro-zh 時觸發。 也支援 /utils-retro-zh {commit-hash} 來回顧特定 commit 的工作過程。 不要因為使用者問「我做得怎樣」之類的模糊問題就觸發，必須是明確的斜線指令。"
-compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, explicit resources, and dev:shadow unsupported
+compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, and explicit agent resources unsupported
 metadata:
   source-plugin: utils
   source-skill: "回顧"
@@ -13,8 +13,8 @@ metadata:
 > generated path and invocation guidance takes precedence over retained Claude Code or Codex
 > examples. The artifact comes from the harness-neutral plugin source; do not edit it directly.
 > This preview is supported only in a single-root Kiro IDE workspace. Kiro CLI, multi-root
-> active-folder isolation, explicit agent resources, and `dev:shadow` are unsupported; stop if
-> inactive-root instructions, steering, or resources appear.
+> active-folder isolation, and explicit agent resources are unsupported; stop if inactive-root
+> instructions, steering, or resources appear.
 
 # 工作階段回顧
 

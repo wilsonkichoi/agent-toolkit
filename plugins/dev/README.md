@@ -26,10 +26,13 @@ All skills are implemented for Claude Code and Codex. The generated Kiro preview
 human-gated `setup → plan → execute → review-pr → verify` lifecycle, named reviewer/test-writer/
 verifier isolation and failure propagation, required safe stops, and bounded `dev:auto` in fresh
 single-root Kiro IDE workspaces; the probe record, Kiro build, and explicitly unestablished
-outcomes are in [docs/kiro-preview-validation.md](../../docs/kiro-preview-validation.md).
-Kiro CLI, multi-root workspaces, explicit agent `resources:`, and
-`dev:shadow` are unsupported; `dev-shadow` is generated for source completeness but must not be
-invoked in Kiro. Dogfooding: the full lifecycle passed end-to-end on the local, GitHub Issues, and
+outcomes are in [docs/kiro-preview-validation.md](../../docs/kiro-preview-validation.md), and the
+distribution decision is in
+[docs/adr/0002](../../docs/adr/0002-kiro-generated-distribution.md). The preview ships 12 of these
+skills: `dev:feedback` and `dev:release` act on the agent-toolkit repository rather than an
+adopter's project, and `dev:shadow` is unsupported there, so none of the three is generated.
+Kiro CLI, multi-root workspaces, and explicit agent `resources:` are unsupported.
+Dogfooding: the full lifecycle passed end-to-end on the local, GitHub Issues, and
 Linear backends (2026-07-06, Linear milestone runs through 2026-07-14), `dev:auto` completed real
 tasks on Claude Code and Codex, and the 0.0.54 encapsulated-config migration is dogfooded in this
 repository (`.agent-toolkit/dev.md` drives its own contribution workflow). Brownfield adoption is

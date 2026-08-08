@@ -220,14 +220,33 @@ uv run tools/generate_codex_agents.py
 
 Kiro preview artifacts are generated from authoritative skills and agents using the committed
 safe-name map. They are the committed clone/copy distribution for the validated **single-root Kiro
-IDE** preview, not a Kiro plugin-marketplace package. Kiro CLI, multi-root workspaces, explicit
-agent resources, and `dev:shadow` are unsupported. The runtime evidence behind every "validated"
-or "passed" Kiro claim is recorded in `docs/kiro-preview-validation.md`; no surface may claim more
-than that file records. Name rewriting is invocation-positional - a bare `/<skill>` is rewritten
-only at the start of the text or after whitespace, a backtick, or an opening paren - so path
-segments and prose keep their source spelling, and generation fails closed on a bundled
-`references/`/`scripts/`/`assets/` citation that does not resolve or on a shared contract or helper
-copy that is not byte-identical across skills. Regenerate them with:
+IDE** preview, not a Kiro plugin-marketplace package. Kiro CLI, multi-root workspaces, and explicit
+agent resources are unsupported. The runtime evidence behind every "validated" or "passed" Kiro
+claim is recorded in `docs/kiro-preview-validation.md`; no surface may claim more than that file
+records. The distribution decision and its scope are recorded in
+`docs/adr/0002-kiro-generated-distribution.md`.
+
+The preview ships a subset: `EXCLUDED_SKILL_SOURCES` in `tools/generate_kiro.py` keeps `feedback`,
+`release`, and `shadow` out, and the safe-name map covers exactly what is emitted. That exclusion
+is only sound because no shipped skill hands off to any of the three; `tools/test_generate_kiro.py`
+asserts that property, so never exclude a skill another shipped skill points at without also
+removing the pointer.
+
+Kiro follows the Agent Skills standard, where the skill directory is the unit of distribution and
+references resolve relative to `SKILL.md`. There is no plugin root, so every shared contract or
+helper a dev skill needs is copied inside it. `shared_closure` computes the smallest correct copy
+set from the shared file names the source names, closed in both directions: a contract brings the
+helpers it names, and a helper brings the contract that governs it. Never ship a helper without
+that contract - `dev:status` names `resolve_project_rules.py` and never names
+`project-bootstrap.md`, and the reverse step is what keeps the resolver from arriving unexplained.
+`manifest.json` records each skill's closure and `validate_skill_closure` enforces it.
+
+Name rewriting is invocation-positional - a bare `/<skill>` is rewritten only at the start of the
+text or after whitespace, a backtick, or an opening paren - so path segments and prose keep their
+source spelling. Generation fails closed on a bundled `references/`/`scripts/`/`assets/` citation
+that does not resolve, on a shared contract or helper copy that is not byte-identical across
+skills, and on any `FORBIDDEN_GENERATED_TEXT` string, which includes the plugin-root tautology a
+blind harness-mapping substitution would produce. Regenerate them with:
 
 ```bash
 uv run tools/generate_kiro.py

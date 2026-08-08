@@ -21,7 +21,14 @@ Entries are newest first. Each release entry is headed by its exact tag name.
   scope, Kiro build, and explicitly unestablished outcomes are recorded in
   [docs/kiro-preview-validation.md](docs/kiro-preview-validation.md).
 - Documented exact permission behavior, installation and removal, and unsupported Kiro CLI,
-  multi-root, explicit-resource, and `dev:shadow` surfaces.
+  multi-root, and explicit-resource surfaces.
+- The Kiro preview ships 12 dev skills. `dev:feedback` and `dev:release` act on the agent-toolkit
+  repository rather than an adopter's project, and `dev:shadow` is unsupported there, so none of
+  the three is generated; all remain available on Claude Code and Codex.
+- Each generated dev skill bundles only the shared contracts and helpers it needs, closed in both
+  directions so a helper never ships without the contract that governs its use. The generated tree
+  is 1.1 MB across 70 files instead of 4.3 MB across 206, and `manifest.json` records each skill's
+  closure. Rationale in [docs/adr/0002](docs/adr/0002-kiro-generated-distribution.md).
 - Generated skill text now rewrites a bare `/<skill>` only in an invocation position, so path
   segments and prose such as `plugins/dev/skills/feedback/SKILL.md`, `review/verify`, and
   `id/title/status` keep their source spelling.

@@ -1,7 +1,7 @@
 ---
 name: dev-plan
 description: "This skill should be used when the user asks to \"plan the milestone\", \"break down the milestone into tasks\", \"create task packets\", \"generate the backlog from the spec\", or invokes /dev-plan. Decomposes a roadmap milestone into self-contained task packets and pushes them to the configured tracker after a human-approved dry run."
-compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, explicit resources, and dev:shadow unsupported
+compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, and explicit agent resources unsupported
 metadata:
   source-plugin: dev
   source-skill: "plan"
@@ -13,8 +13,8 @@ metadata:
 > generated path and invocation guidance takes precedence over retained Claude Code or Codex
 > examples. The artifact comes from the harness-neutral plugin source; do not edit it directly.
 > This preview is supported only in a single-root Kiro IDE workspace. Kiro CLI, multi-root
-> active-folder isolation, explicit agent resources, and `dev:shadow` are unsupported; stop if
-> inactive-root instructions, steering, or resources appear.
+> active-folder isolation, and explicit agent resources are unsupported; stop if inactive-root
+> instructions, steering, or resources appear.
 
 > Every bare `dev:<name>` reference below names a source skill whose Kiro
 > invocation is `/dev-<name>`; `dev:execute` is `/dev-execute`, `dev:verify` is `/dev-verify`.

@@ -60,10 +60,17 @@ manifest, Power, or installer.
 The preview supports all utility skills, the named dev agents, the human-gated
 `setup → plan → execute → review-pr → verify` lifecycle, and bounded `dev:auto`; the probes behind
 that scope, the Kiro build they ran on, and the outcomes they did *not* establish are recorded in
-[docs/kiro-preview-validation.md](docs/kiro-preview-validation.md). Kiro CLI,
-multi-root workspaces, explicit agent `resources:`, and `dev:shadow` are unsupported. Although
-`dev-shadow` is generated for source completeness, do not invoke it in Kiro. Generated agents use
-Kiro's default steering inheritance and intentionally omit `resources:`.
+[docs/kiro-preview-validation.md](docs/kiro-preview-validation.md). Kiro CLI, multi-root workspaces,
+and explicit agent `resources:` are unsupported; generated agents use Kiro's default steering
+inheritance and intentionally omit `resources:`.
+
+It ships a subset of the dev plugin: `dev:feedback` and `dev:release` act on the agent-toolkit
+repository rather than your project, and `dev:shadow` is unsupported in Kiro, so none of the three
+is generated. Use Claude Code or Codex for those. Because Kiro follows the
+[Agent Skills](https://agentskills.io/specification) standard, where a skill directory is the unit
+of distribution and references resolve relative to `SKILL.md`, each generated skill bundles only the
+shared contracts and helpers it needs; `dist/kiro/manifest.json` records that set per skill. The
+reasoning is in [docs/adr/0002](docs/adr/0002-kiro-generated-distribution.md).
 
 Kiro owns permission and trust decisions; installation does not modify them. Start in a disposable
 or trusted project, keep wildcard command trust disabled, and approve only expected operations.
@@ -129,8 +136,9 @@ Plugin-specific documentation is in [plugins/utils/README.md](plugins/utils/READ
 Kiro's generated preview is a separate copy-only distribution, not a third plugin marketplace.
 Its supported surface is single-root Kiro IDE workspaces: utility skills, named dev agents, the
 manual lifecycle, and bounded `dev:auto`. Invoke generated names such as `/utils-research` and
-`/dev-execute`; the non-ASCII retrospective alias is `/utils-retro-zh`. CLI, multi-root,
-explicit-resource, and shadow behavior are outside the supported surface.
+`/dev-execute`; the non-ASCII retrospective alias is `/utils-retro-zh`. `dev:feedback`,
+`dev:release`, and `dev:shadow` are not generated for Kiro. CLI, multi-root, and explicit-resource
+behavior are outside the supported surface.
 
 Codex's default `agents.max_depth = 1` prevents nested subagent spawning. The `dev:auto` Codex path
 therefore dispatches its implementation worker and `test-writer` as siblings. Standalone

@@ -28,14 +28,30 @@ NAME_MAP_PATH = ROOT / "tools/kiro_names.json"
 GENERATOR_VERSION = 1
 KIRO_NAME_RE = re.compile(r"[a-z0-9-]{1,64}")
 SKILL_SOURCE_GLOB = "plugins/*/skills/*/SKILL.md"
+# Skill sources deliberately kept out of the Kiro preview. `feedback` and `release` act on the
+# agent-toolkit repository itself rather than an adopter's project, and `shadow` is unsupported in
+# Kiro. No shipped skill hands off to any of them, so excluding them leaves no dead pointer; the
+# tests assert that property rather than trusting this comment.
+EXCLUDED_SKILL_SOURCES = frozenset(
+    {
+        "plugins/dev/skills/feedback",
+        "plugins/dev/skills/release",
+        "plugins/dev/skills/shadow",
+    }
+)
 SKILL_FIELDS = {"name", "description", "argument-hint"}
 SKILL_OUTPUT_FIELDS = {"name", "description", "compatibility", "metadata"}
 AGENT_OUTPUT_FIELDS = {"name", "description", "tools"}
+KIRO_SKILL_DIRECTORY = "the installed Kiro skill directory"
+# A harness-mapping sentence whose two sides both resolve to the Kiro directory renders as
+# "`X` is `X`". Guard the result rather than trusting the rewrite that avoids it.
+PLUGIN_ROOT_TAUTOLOGY = f"`{KIRO_SKILL_DIRECTORY}` is `{KIRO_SKILL_DIRECTORY}`"
 FORBIDDEN_GENERATED_TEXT = (
     "${CLAUDE_PLUGIN_ROOT}",
     "../../runtime_contracts/",
     "../../scripts/",
     "<plugin-root>",
+    PLUGIN_ROOT_TAUTOLOGY,
 )
 AGENT_TOOL_MAP = {
     "Read": "read",
@@ -175,9 +191,17 @@ def parse_skill(source: Path, emitted_name: str, *, root: Path = ROOT) -> Skill:
     )
 
 def discover_skill_paths(root: Path = ROOT) -> list[Path]:
-    paths = sorted(root.glob(SKILL_SOURCE_GLOB), key=lambda path: path.as_posix())
-    if not paths:
+    discovered = sorted(root.glob(SKILL_SOURCE_GLOB), key=lambda path: path.as_posix())
+    if not discovered:
         fail(f"no authoritative skill sources matched {SKILL_SOURCE_GLOB!r}")
+    unknown = EXCLUDED_SKILL_SOURCES - {relative(path.parent, root) for path in discovered}
+    if unknown:
+        fail(f"EXCLUDED_SKILL_SOURCES names missing skill source(s): {', '.join(sorted(unknown))}")
+    paths = [
+        path for path in discovered if relative(path.parent, root) not in EXCLUDED_SKILL_SOURCES
+    ]
+    if not paths:
+        fail("every discovered skill source is excluded from the Kiro preview")
     for path in paths:
         if path.is_symlink() or path.parent.is_symlink():
             fail(f"refusing symlinked skill source: {path}")
@@ -259,6 +283,16 @@ def transform_markdown(
     )
 
     if rewrite_resources:
+        # Collapse the Claude-Code/Codex plugin-root mapping sentence before the substitutions
+        # below reach it. Rewriting both of its sides to the Kiro directory would emit the
+        # tautology "`the installed Kiro skill directory` is `the installed Kiro skill
+        # directory`", which PLUGIN_ROOT_TAUTOLOGY guards against if this stops matching.
+        text = re.sub(
+            r"On Claude Code `<plugin-root>` is `\$\{CLAUDE_PLUGIN_ROOT\}`; "
+            r"on Codex the script is",
+            "In Kiro the script is",
+            text,
+        )
         for old in ("${CLAUDE_PLUGIN_ROOT}/runtime_contracts/", "../../runtime_contracts/"):
             text = text.replace(old, "references/runtime_contracts/")
         text = re.sub(
@@ -272,8 +306,8 @@ def transform_markdown(
             "<plugin-root>/scripts/",
         ):
             text = text.replace(old, "scripts/")
-        text = text.replace("${CLAUDE_PLUGIN_ROOT}", "the installed Kiro skill directory")
-        text = text.replace("<plugin-root>", "the installed Kiro skill directory")
+        text = text.replace("${CLAUDE_PLUGIN_ROOT}", KIRO_SKILL_DIRECTORY)
+        text = text.replace("<plugin-root>", KIRO_SKILL_DIRECTORY)
     text = re.sub(
         r"render your harness's invocation for it \(Claude Code: `(/[^`]+)`; Codex: `\$[^`]+`\)",
         r"render the Kiro invocation as `\1`",
@@ -292,8 +326,8 @@ def skill_note(skill: Skill) -> str:
 > generated path and invocation guidance takes precedence over retained Claude Code or Codex
 > examples. The artifact comes from the harness-neutral plugin source; do not edit it directly.
 > This preview is supported only in a single-root Kiro IDE workspace. Kiro CLI, multi-root
-> active-folder isolation, explicit agent resources, and `dev:shadow` are unsupported; stop if
-> inactive-root instructions, steering, or resources appear.
+> active-folder isolation, and explicit agent resources are unsupported; stop if inactive-root
+> instructions, steering, or resources appear.
 
 """
     if skill.plugin != "dev":
@@ -333,7 +367,7 @@ def render_skill(
         "---\n"
         f"name: {skill.emitted_name}\n"
         f"description: {json.dumps(description, ensure_ascii=False)}\n"
-        "compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, explicit resources, and dev:shadow unsupported\n"
+        "compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, and explicit agent resources unsupported\n"
         "metadata:\n"
         f"  source-plugin: {skill.plugin}\n"
         f"  source-skill: {json.dumps(skill.source_name, ensure_ascii=False)}\n"
@@ -400,12 +434,17 @@ def render_install_readme(
     agent_removals = " \\\n  ".join(f'"$TARGET/agents/{name}"' for name in agent_files)
     document = f"""# Kiro preview installation
 
-This generated artifact supports **single-root Kiro IDE workspaces only**. Kiro CLI,
-multi-root active-folder isolation, explicit agent resources, and `dev:shadow` are not supported.
-All utility skills, the named dev agents, the human-gated manual lifecycle, and bounded `dev:auto`
-have passed fresh single-root IDE runtime probes; what was run, on which Kiro build, and with what
-outcome is recorded in this repository's `docs/kiro-preview-validation.md`. `dev-shadow` remains in
-the generated set for source completeness but must not be invoked in Kiro.
+This generated artifact supports **single-root Kiro IDE workspaces only**. Kiro CLI, multi-root
+active-folder isolation, and explicit agent resources are not supported. All utility skills, the
+named dev agents, the human-gated manual lifecycle, and bounded `dev:auto` have passed fresh
+single-root IDE runtime probes; what was run, on which Kiro build, and with what outcome is
+recorded in this repository's `docs/kiro-preview-validation.md`.
+
+This is a subset of the dev plugin, not a mirror of it. `dev:feedback` and `dev:release` act on the
+agent-toolkit repository itself rather than your project, and `dev:shadow` is unsupported in Kiro,
+so none of the three is generated here. Use Claude Code or Codex for those. Each generated skill
+bundles only the shared contracts and helpers it actually needs; `manifest.json` records that set
+per skill.
 
 Kiro owns permission and trust decisions; this distribution does not install or modify those
 settings. Start in a disposable or trusted project and approve only expected operations. Lifecycle
@@ -459,6 +498,82 @@ skills, or agents. `manifest.json` records every generated source mapping and fi
 
 
 CODEX_ONLY_SKILL_RESOURCES = {"agents/openai.yaml"}
+
+CONTRACTS_SOURCE = "plugins/dev/runtime_contracts"
+SCRIPTS_SOURCE = "plugins/dev/scripts"
+
+
+def shared_sources(root: Path) -> tuple[dict[str, Path], dict[str, Path]]:
+    contracts = {
+        path.name: path
+        for path in sorted((root / CONTRACTS_SOURCE).iterdir())
+        if path.is_file() and path.suffix == ".md"
+    }
+    helpers = {
+        path.name: path
+        for path in sorted((root / SCRIPTS_SOURCE).iterdir())
+        if path.is_file() and path.suffix in {".py", ".json"}
+    }
+    if not contracts or not helpers:
+        fail("no shared dev contracts or helpers were discovered")
+    return contracts, helpers
+
+
+def shared_closure(
+    text: str, contracts: dict[str, Path], helpers: dict[str, Path]
+) -> tuple[list[str], list[str]]:
+    """The shared contracts and helpers one dev skill needs, from its source SKILL.md.
+
+    Kiro follows the Agent Skills standard, where a skill directory is the unit of distribution
+    and file references resolve relative to `SKILL.md`. There is no plugin root, so anything a
+    skill shares has to be copied inside it. This computes the smallest correct copy set:
+
+    1. Seed from the shared file names the skill's own text mentions, in any form - a full
+       `runtime_contracts/tracker.md` path, a bare `tracker.md`, or a `scripts/work_summary.py`
+       command. Substring matching over the known shared file names deliberately over-includes
+       rather than parse every citation shape.
+    2. Close it in both directions to a fixpoint: a contract brings every shared helper it names,
+       a helper brings the contract that governs it, and a contract brings any contract it names.
+       The reverse direction is what keeps a helper from shipping without the contract that
+       explains how to run it - `dev:status` names `resolve_project_rules.py` directly but never
+       names `project-bootstrap.md`, and would otherwise ship the resolver with no contract.
+
+    A dependency that appears only as untraceable prose ("run the shared validator", with no file
+    name anywhere) is outside what this can see. The bidirectional step covers the realistic
+    cases, because such prose refers to helpers the governing contract already pulls in.
+    """
+    contract_helpers: dict[str, set[str]] = {}
+    contract_contracts: dict[str, set[str]] = {}
+    for name, path in contracts.items():
+        contract_text = normalized_text(path)
+        contract_helpers[name] = {
+            helper for helper in helpers if helper in contract_text
+        }
+        contract_contracts[name] = {
+            other for other in contracts if other != name and other in contract_text
+        }
+    governing = {
+        helper: name
+        for name, owned in contract_helpers.items()
+        for helper in owned
+    }
+
+    needed_contracts = {name for name in contracts if name in text}
+    needed_helpers = {helper for helper in helpers if helper in text}
+    while True:
+        grown_contracts = set(needed_contracts)
+        grown_contracts |= {
+            governing[helper] for helper in needed_helpers if helper in governing
+        }
+        for name in list(grown_contracts):
+            grown_contracts |= contract_contracts[name]
+        grown_helpers = set(needed_helpers)
+        for name in grown_contracts:
+            grown_helpers |= contract_helpers[name]
+        if grown_contracts == needed_contracts and grown_helpers == needed_helpers:
+            break
+        needed_contracts, needed_helpers = grown_contracts, grown_helpers
+    return sorted(needed_contracts), sorted(needed_helpers)
 
 
 def write_bytes(path: Path, content: bytes) -> None:
@@ -558,26 +673,35 @@ def build_stage(
     skill_records: list[dict[str, object]] = []
     agent_records: list[dict[str, str]] = []
 
+    contracts, helpers = shared_sources(root)
+    closures: dict[str, tuple[list[str], list[str]]] = {}
+
     for skill in skills:
         destination = stage / "skills" / skill.emitted_name
         write_bytes(destination / "SKILL.md", render_skill(skill, skill_map, agent_map))
         if skill.plugin == "dev":
-            copy_tree(
-                root / "plugins/dev/runtime_contracts",
-                destination / "references/runtime_contracts",
-                transform_markdown_files=True,
-                skill=skill,
-                skill_map=skill_map,
-                agent_map=agent_map,
+            needed_contracts, needed_helpers = shared_closure(
+                normalized_text(skill.source_dir / "SKILL.md"), contracts, helpers
             )
-            copy_tree(
-                root / "plugins/dev/scripts",
-                destination / "scripts",
-                transform_markdown_files=False,
-                skill=skill,
-                skill_map=skill_map,
-                agent_map=agent_map,
-            )
+            closures[skill.emitted_name] = (needed_contracts, needed_helpers)
+            for name in needed_contracts:
+                copy_file(
+                    contracts[name],
+                    destination / "references/runtime_contracts" / name,
+                    transform=True,
+                    skill=skill,
+                    skill_map=skill_map,
+                    agent_map=agent_map,
+                )
+            for name in needed_helpers:
+                copy_file(
+                    helpers[name],
+                    destination / "scripts" / name,
+                    transform=False,
+                    skill=skill,
+                    skill_map=skill_map,
+                    agent_map=agent_map,
+                )
         copy_tree(
             skill.source_dir,
             destination,
@@ -587,13 +711,16 @@ def build_stage(
             agent_map=agent_map,
             excluded={"SKILL.md", *CODEX_ONLY_SKILL_RESOURCES},
         )
-        skill_records.append(
-            {
-                "source": relative(skill.source_dir, root),
-                "name": skill.emitted_name,
-                "argument_hint": skill.argument_hint,
-            }
-        )
+        record: dict[str, object] = {
+            "source": relative(skill.source_dir, root),
+            "name": skill.emitted_name,
+            "argument_hint": skill.argument_hint,
+        }
+        if skill.emitted_name in closures:
+            needed_contracts, needed_helpers = closures[skill.emitted_name]
+            record["bundled_contracts"] = needed_contracts
+            record["bundled_helpers"] = needed_helpers
+        skill_records.append(record)
 
     for agent in agents:
         source_key = relative(agent.source, root)
@@ -704,6 +831,50 @@ def cited_bundled_paths(text: str) -> list[str]:
     return cited
 
 
+HELPER_GOVERNING_CONTRACT = {
+    "resolve_project_rules.py": "project-bootstrap.md",
+    "github_task_lifecycle.py": "tracker.md",
+    "work_summary.py": "tracker.md",
+    "shadow_replay.py": "shadow.md",
+    "shadow_pricing.json": "shadow.md",
+}
+
+
+def validate_skill_closure(skill_file: Path, record: dict[str, object]) -> None:
+    """A dev skill ships exactly its recorded closure, and no helper without its contract.
+
+    The manifest records what `shared_closure` computed; this asserts the emitted tree matches it
+    and that the bidirectional rule actually held. A helper shipped without the contract that
+    governs it is the failure mode that a purely forward closure produces, so it is checked
+    independently of the code that computes the closure.
+    """
+    skill_dir = skill_file.parent
+    for field, subdirectory in (
+        ("bundled_contracts", "references/runtime_contracts"),
+        ("bundled_helpers", "scripts"),
+    ):
+        recorded = record.get(field)
+        if not isinstance(recorded, list):
+            fail(f"{skill_file}: manifest is missing a {field} list")
+        expected = sorted(str(name) for name in recorded)
+        directory = skill_dir / subdirectory
+        emitted = sorted(path.name for path in directory.iterdir()) if directory.is_dir() else []
+        if emitted != expected:
+            fail(
+                f"{skill_file}: emitted {subdirectory} contents {emitted} do not match the "
+                f"recorded closure {expected}"
+            )
+
+    shipped_contracts = set(str(name) for name in record["bundled_contracts"])  # type: ignore[union-attr]
+    for helper in record["bundled_helpers"]:  # type: ignore[union-attr]
+        governing = HELPER_GOVERNING_CONTRACT.get(str(helper))
+        if governing is not None and governing not in shipped_contracts:
+            fail(
+                f"{skill_file}: bundles {helper} without its governing contract {governing}; "
+                "a helper must never ship without the contract that documents its use"
+            )
+
+
 def validate_bundled_references(stage: Path, skill_names: list[str]) -> None:
     unresolved: list[str] = []
     for name in skill_names:
@@ -790,17 +961,7 @@ def validate_stage(stage: Path, manifest: dict[str, object]) -> None:
         if generated_name(skill_file) != name:
             fail(f"{skill_file}: generated name does not match its directory")
         if str(record.get("source", "")).startswith("plugins/dev/"):
-            for required in (
-                "references/runtime_contracts/project-bootstrap.md",
-                "references/runtime_contracts/shadow.md",
-                "references/runtime_contracts/tracker.md",
-                "scripts/resolve_project_rules.py",
-                "scripts/shadow_pricing.json",
-            ):
-                if not (skill_file.parent / required).is_file():
-                    fail(f"{skill_file}: missing bundled dependency {required}")
-        # Every dev skill receives the complete shared contract/helper closure above;
-        # local resources are copied recursively, so no source-relative runtime dependency remains.
+            validate_skill_closure(skill_file, record)
 
     skill_names = [str(record["name"]) for record in skills]
     validate_bundled_references(stage, skill_names)

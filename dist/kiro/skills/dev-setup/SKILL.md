@@ -1,7 +1,7 @@
 ---
 name: dev-setup
 description: "This skill should be used when the user asks to \"set up the dev workflow\", \"initialize this project for dev\", \"run dev setup\", \"adopt the dev plugin\", \"configure the tracker\", or invokes /dev-setup. Initializes a project (greenfield or existing/brownfield) for the dev plugin: scaffolds the docs layout, selects the tracker backend, and writes .agent-toolkit/dev.md."
-compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, explicit resources, and dev:shadow unsupported
+compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, and explicit agent resources unsupported
 metadata:
   source-plugin: dev
   source-skill: "setup"
@@ -13,8 +13,8 @@ metadata:
 > generated path and invocation guidance takes precedence over retained Claude Code or Codex
 > examples. The artifact comes from the harness-neutral plugin source; do not edit it directly.
 > This preview is supported only in a single-root Kiro IDE workspace. Kiro CLI, multi-root
-> active-folder isolation, explicit agent resources, and `dev:shadow` are unsupported; stop if
-> inactive-root instructions, steering, or resources appear.
+> active-folder isolation, and explicit agent resources are unsupported; stop if inactive-root
+> instructions, steering, or resources appear.
 
 > Every bare `dev:<name>` reference below names a source skill whose Kiro
 > invocation is `/dev-<name>`; `dev:execute` is `/dev-execute`, `dev:verify` is `/dev-verify`.
@@ -142,7 +142,7 @@ uv run scripts/migrate_rules.py --repo <project-dir>
 uv run scripts/migrate_rules.py --repo <project-dir> --apply
 ```
 
-On Claude Code `the installed Kiro skill directory` is `the installed Kiro skill directory`; on Codex the script is
+In Kiro the script is
 `scripts/migrate_rules.py` relative to this skill's directory. Run the dry form first and
 show the user the plan. The helper is idempotent - re-running it on a migrated project reports
 no changes - and it covers the migration cases without guessing:

@@ -1,7 +1,7 @@
 ---
 name: dev-verify
 description: "This skill should be used when the user asks to \"verify the task\", \"check the definition of done\", \"merge the dev task PR\", \"close out task <id>\", or invokes /dev-verify. Gathers evidence for every Definition of Done criterion, posts a verification report, and only then, on explicit human approval, merges the PR and transitions the task to Done. For standalone ad hoc PR merge or branch cleanup requests, use dev:merge-pr instead."
-compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, explicit resources, and dev:shadow unsupported
+compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, and explicit agent resources unsupported
 metadata:
   source-plugin: dev
   source-skill: "verify"
@@ -13,8 +13,8 @@ metadata:
 > generated path and invocation guidance takes precedence over retained Claude Code or Codex
 > examples. The artifact comes from the harness-neutral plugin source; do not edit it directly.
 > This preview is supported only in a single-root Kiro IDE workspace. Kiro CLI, multi-root
-> active-folder isolation, explicit agent resources, and `dev:shadow` are unsupported; stop if
-> inactive-root instructions, steering, or resources appear.
+> active-folder isolation, and explicit agent resources are unsupported; stop if inactive-root
+> instructions, steering, or resources appear.
 
 > Every bare `dev:<name>` reference below names a source skill whose Kiro
 > invocation is `/dev-<name>`; `dev:execute` is `/dev-execute`, `dev:verify` is `/dev-verify`.
