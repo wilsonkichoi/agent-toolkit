@@ -239,9 +239,14 @@ def transform_markdown(
         parts = Path(source_key).parts
         source_plugin, name = parts[1], parts[-1]
         text = text.replace(f"/{source_plugin}:{name}", f"/{target}")
+    # Rewrite a bare `/<source-name>` only in a genuine invocation position: the start of the
+    # text, or immediately after whitespace, a backtick, or an opening parenthesis. The lead is
+    # a positive constraint rather than a blocklist so path segments and prose keep their source
+    # spelling - `plugins/dev/skills/feedback/SKILL.md`, `runtime_contracts/shadow.md`,
+    # `id/title/status`, and `review/verify` are all left alone.
     text = re.sub(
-        rf"/{re.escape(source_name)}(?![A-Za-z0-9_-])",
-        f"/{emitted_name}",
+        rf"(?P<lead>\A|[\s`(])/{re.escape(source_name)}(?![A-Za-z0-9_-])",
+        lambda match: f"{match.group('lead')}/{emitted_name}",
         text,
     )
     for source_key, target in sorted(agent_map.items()):
@@ -293,12 +298,15 @@ def skill_note(skill: Skill) -> str:
 """
     if skill.plugin != "dev":
         return common
-    return common + """> The single-root Kiro IDE lifecycle preview has passed the manual
+    return common + """> Every bare `dev:<name>` reference below names a source skill whose Kiro
+> invocation is `/dev-<name>`; `dev:execute` is `/dev-execute`, `dev:verify` is `/dev-verify`.
+> The single-root Kiro IDE lifecycle preview has passed the manual
 > `setup → plan → execute → review-pr → verify` lifecycle, safe-stop probes, and bounded
-> `dev:auto`. Use Kiro named subagents and the plugin's explicit worktree procedure; do not
-> substitute inline review, test authoring, or verification when a required isolated profile is
-> unavailable. Dispatch `dev-reviewer`, `dev-test-writer`, and `dev-verifier` by exact name and
-> wait for results.
+> `dev:auto`; the recorded scope, Kiro version, and outcomes are in this repository's
+> `docs/kiro-preview-validation.md`. Use Kiro named subagents and the plugin's explicit worktree
+> procedure; do not substitute inline review, test authoring, or verification when a required
+> isolated profile is unavailable. Dispatch `dev-reviewer`, `dev-test-writer`, and
+> `dev-verifier` by exact name and wait for results.
 
 """
 
@@ -395,8 +403,9 @@ def render_install_readme(
 This generated artifact supports **single-root Kiro IDE workspaces only**. Kiro CLI,
 multi-root active-folder isolation, explicit agent resources, and `dev:shadow` are not supported.
 All utility skills, the named dev agents, the human-gated manual lifecycle, and bounded `dev:auto`
-have passed fresh single-root IDE runtime probes. `dev-shadow` remains in the generated set for
-source completeness but must not be invoked in Kiro.
+have passed fresh single-root IDE runtime probes; what was run, on which Kiro build, and with what
+outcome is recorded in this repository's `docs/kiro-preview-validation.md`. `dev-shadow` remains in
+the generated set for source completeness but must not be invoked in Kiro.
 
 Kiro owns permission and trust decisions; this distribution does not install or modify those
 settings. Start in a disposable or trusted project and approve only expected operations. Lifecycle
@@ -639,6 +648,110 @@ def generated_name(path: Path) -> str:
     fail(f"{path}: generated frontmatter has no name")
 
 
+BUNDLED_RESOURCE_ROOTS = ("references/", "scripts/", "assets/")
+SHARED_CLOSURE_ROOTS = ("references/runtime_contracts/", "scripts/")
+CODE_SPAN_RE = re.compile(r"`([^`\n]+)`")
+PARENTHETICAL_RE = re.compile(r"\([^()]*\)", re.DOTALL)
+PATH_SHAPED_RE = re.compile(r"[^\s`]+/[^\s`]*\.[A-Za-z0-9]+")
+
+
+def leading_token(span: str) -> str:
+    parts = span.split()
+    return parts[0] if parts else ""
+
+
+def path_shaped(token: str) -> bool:
+    if "<" in token or ">" in token or "*" in token:
+        return False
+    return PATH_SHAPED_RE.fullmatch(token) is not None
+
+
+def cited_bundled_paths(text: str) -> list[str]:
+    """Bundled-resource paths a generated SKILL.md cites in backticks.
+
+    Discrimination rule: a backticked path under `references/`, `scripts/`, or `assets/` is a
+    citation of a file the skill must ship, unless it sits inside a parenthesized enumeration
+    that also lists a path-shaped span outside those roots. Source prose uses exactly that mixed
+    shape to illustrate path *forms* - `scripts/tool.py` next to `config/settings.yml` and
+    `src/module.mjs` in the feedback redaction rules - and never cites a bundled file beside a
+    path the skill cannot own. Bare directory mentions (`scripts/`) carry no extension and
+    command spans (`scripts/work_summary.py validate --file <path>`) reduce to their leading
+    token, so neither is treated as a distinct citation. The rule can under-include (a real
+    citation listed beside a foreign path is skipped); it must not over-include, because a false
+    positive here would be unfixable without editing harness-neutral source prose.
+    """
+    illustrative: set[int] = set()
+    for group in PARENTHETICAL_RE.finditer(text):
+        spans = list(CODE_SPAN_RE.finditer(group.group(0)))
+        paths = [
+            token
+            for token in (leading_token(span.group(1)) for span in spans)
+            if path_shaped(token)
+        ]
+        if len(paths) >= 2 and any(
+            not token.startswith(BUNDLED_RESOURCE_ROOTS) for token in paths
+        ):
+            illustrative.update(group.start() + span.start() for span in spans)
+
+    cited: list[str] = []
+    for match in CODE_SPAN_RE.finditer(text):
+        token = leading_token(match.group(1))
+        if not token.startswith(BUNDLED_RESOURCE_ROOTS) or not path_shaped(token):
+            continue
+        if match.start() in illustrative or token in cited:
+            continue
+        cited.append(token)
+    return cited
+
+
+def validate_bundled_references(stage: Path, skill_names: list[str]) -> None:
+    unresolved: list[str] = []
+    for name in skill_names:
+        skill_file = stage / "skills" / name / "SKILL.md"
+        for cited in cited_bundled_paths(normalized_text(skill_file)):
+            if not (skill_file.parent / cited).is_file():
+                unresolved.append(f"{name} -> {cited}")
+    if unresolved:
+        fail(
+            "generated skills cite bundled resources that do not resolve: "
+            + "; ".join(sorted(unresolved))
+        )
+
+
+def validate_shared_copies(stage: Path, skill_names: list[str]) -> None:
+    """Require every copy of a shared closure file to be byte-identical across skills.
+
+    Scoped to the generated shared closure roots, which are copied into each dev skill from one
+    source tree. Per-skill content legitimately differs at the same relative path - `SKILL.md`
+    above all - so a whole-tree comparison would be wrong.
+    """
+    digests: dict[str, dict[str, list[str]]] = {}
+    for name in skill_names:
+        skill_dir = stage / "skills" / name
+        for path in sorted(skill_dir.rglob("*"), key=lambda item: item.as_posix()):
+            if not path.is_file():
+                continue
+            relative_path = path.relative_to(skill_dir).as_posix()
+            if not relative_path.startswith(SHARED_CLOSURE_ROOTS):
+                continue
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            digests.setdefault(relative_path, {}).setdefault(digest, []).append(name)
+
+    divergent = sorted(
+        relative_path for relative_path, groups in digests.items() if len(groups) > 1
+    )
+    if divergent:
+        details = "; ".join(
+            f"{relative_path}: "
+            + " vs ".join(
+                "[" + ", ".join(sorted(names)) + "]"
+                for _, names in sorted(digests[relative_path].items())
+            )
+            for relative_path in divergent
+        )
+        fail(f"shared bundled copies are not byte-identical across skills: {details}")
+
+
 def validate_stage(stage: Path, manifest: dict[str, object]) -> None:
     skills = manifest.get("skills")
     agents = manifest.get("agents")
@@ -688,6 +801,10 @@ def validate_stage(stage: Path, manifest: dict[str, object]) -> None:
                     fail(f"{skill_file}: missing bundled dependency {required}")
         # Every dev skill receives the complete shared contract/helper closure above;
         # local resources are copied recursively, so no source-relative runtime dependency remains.
+
+    skill_names = [str(record["name"]) for record in skills]
+    validate_bundled_references(stage, skill_names)
+    validate_shared_copies(stage, skill_names)
 
     for record in agents:
         if not isinstance(record, dict) or not isinstance(record.get("name"), str):

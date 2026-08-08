@@ -16,12 +16,15 @@ metadata:
 > active-folder isolation, explicit agent resources, and `dev:shadow` are unsupported; stop if
 > inactive-root instructions, steering, or resources appear.
 
+> Every bare `dev:<name>` reference below names a source skill whose Kiro
+> invocation is `/dev-<name>`; `dev:execute` is `/dev-execute`, `dev:verify` is `/dev-verify`.
 > The single-root Kiro IDE lifecycle preview has passed the manual
 > `setup → plan → execute → review-pr → verify` lifecycle, safe-stop probes, and bounded
-> `dev:auto`. Use Kiro named subagents and the plugin's explicit worktree procedure; do not
-> substitute inline review, test authoring, or verification when a required isolated profile is
-> unavailable. Dispatch `dev-reviewer`, `dev-test-writer`, and `dev-verifier` by exact name and
-> wait for results.
+> `dev:auto`; the recorded scope, Kiro version, and outcomes are in this repository's
+> `docs/kiro-preview-validation.md`. Use Kiro named subagents and the plugin's explicit worktree
+> procedure; do not substitute inline review, test authoring, or verification when a required
+> isolated profile is unavailable. Dispatch `dev-reviewer`, `dev-test-writer`, and
+> `dev-verifier` by exact name and wait for results.
 
 # dev:status
 
@@ -49,7 +52,7 @@ must remain available to contributors who inherit the configuration in their for
 
 ## Gather
 
-1. **Tracker:** `list <milestone>` - counts by status, plus per-task id/title/dev-status.
+1. **Tracker:** `list <milestone>` - counts by status, plus per-task id/title/status.
 2. **PRs:** open PRs on `task/*` branches (`gh pr list`), each with CI state
    (`gh pr checks`) and review verdict. Skip when no GitHub remote. When
    `secondary_intake: github` is set (`references/runtime_contracts/tracker.md`), a `task/*` PR that links a `#N` issue but

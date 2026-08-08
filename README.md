@@ -58,7 +58,9 @@ paths. Clone/copy is the supported repeatable installation path; there is no Kir
 manifest, Power, or installer.
 
 The preview supports all utility skills, the named dev agents, the human-gated
-`setup → plan → execute → review-pr → verify` lifecycle, and bounded `dev:auto`. Kiro CLI,
+`setup → plan → execute → review-pr → verify` lifecycle, and bounded `dev:auto`; the probes behind
+that scope, the Kiro build they ran on, and the outcomes they did *not* establish are recorded in
+[docs/kiro-preview-validation.md](docs/kiro-preview-validation.md). Kiro CLI,
 multi-root workspaces, explicit agent `resources:`, and `dev:shadow` are unsupported. Although
 `dev-shadow` is generated for source completeness, do not invoke it in Kiro. Generated agents use
 Kiro's default steering inheritance and intentionally omit `resources:`.

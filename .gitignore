@@ -26,4 +26,7 @@ __pycache__/
 .kiro/
 CLAUDE.local.md
 
+# Abandoned generate_kiro.py staging trees (a crashed run leaves one behind)
+dist/.kiro-generation-*/
+
 .playwright-mcp/

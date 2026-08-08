@@ -62,7 +62,7 @@ Ownership rules - who may set what:
 | `Backlog` | `dev:backlog` intake, manual tickets | Captured, not committed. |
 | `Todo` | `dev:plan` (approved milestone tasks), human promotion, `dev:backlog` on instruction | Committed. The only status `dev:execute` claims from. |
 | `In Progress` | `dev:execute` claim | One session is implementing it. |
-| `In Review` | `dev:execute` when PR is up and CI is green | Awaiting review/dev-verify. |
+| `In Review` | `dev:execute` when PR is up and CI is green | Awaiting review/verify. |
 | `Done` | `dev:verify` only, after DoD evidence and merge | Actually done. |
 | `Blocked` | `dev:execute` after `max_fix_attempts` failures, or anyone with a reason comment | Needs human attention; always accompanied by a diagnostic comment. |
 | `Wont Do` | `dev:backlog` or human, with a rationale comment | Deliberately not doing; the reason must survive. |
@@ -75,7 +75,7 @@ All backends use the same algorithm:
 
 1. **WIP gate first:** count tasks with status `In Progress` or `In Review`. If the count is
    `>= work_in_progress_limit` (from `.agent-toolkit/dev.md`, default 3), return nothing and report that the WIP
-   limit is reached - review/dev-verify must drain the queue before more work starts.
+   limit is reached - review/verify must drain the queue before more work starts.
 2. **Candidates:** tasks with status `Todo` in the active milestone whose dependencies are all
    `Done`. A dependency in any other status (including `In Review`) blocks the dependent task,
    because "done" means merged.

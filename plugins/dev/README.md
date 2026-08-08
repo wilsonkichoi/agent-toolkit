@@ -25,7 +25,9 @@ pipeline. Click the image for the [interactive version](https://wilsonkichoi.git
 All skills are implemented for Claude Code and Codex. The generated Kiro preview has validated the
 human-gated `setup → plan → execute → review-pr → verify` lifecycle, named reviewer/test-writer/
 verifier isolation and failure propagation, required safe stops, and bounded `dev:auto` in fresh
-single-root Kiro IDE workspaces. Kiro CLI, multi-root workspaces, explicit agent `resources:`, and
+single-root Kiro IDE workspaces; the probe record, Kiro build, and explicitly unestablished
+outcomes are in [docs/kiro-preview-validation.md](../../docs/kiro-preview-validation.md).
+Kiro CLI, multi-root workspaces, explicit agent `resources:`, and
 `dev:shadow` are unsupported; `dev-shadow` is generated for source completeness but must not be
 invoked in Kiro. Dogfooding: the full lifecycle passed end-to-end on the local, GitHub Issues, and
 Linear backends (2026-07-06, Linear milestone runs through 2026-07-14), `dev:auto` completed real

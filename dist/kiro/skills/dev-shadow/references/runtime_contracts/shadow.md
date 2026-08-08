@@ -4,7 +4,7 @@
 session's model, then measures the replay against the original. This document is the reference
 for the deterministic pieces the `shadow` skill orchestrates: the isolation model, the
 artifact and evidence formats, the metrics adapters, the pricing catalog, and the benchmark
-limitations that every report must disclose. The skill (`skills/dev-shadow/SKILL.md`) owns the
+limitations that every report must disclose. The skill (`skills/shadow/SKILL.md`) owns the
 lifecycle; the helper (`scripts/shadow_replay.py`) owns the deterministic steps.
 
 `dev:shadow` is an evaluation surface, not a scientific benchmark and not a lifecycle skill.

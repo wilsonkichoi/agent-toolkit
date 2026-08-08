@@ -6,7 +6,8 @@ General-purpose utility skills for research, investigation, knowledge synthesis,
 Code. On Codex invoke explicitly as `$research`; the `回顧` skill keeps its CJK name on both.
 The generated single-root Kiro IDE preview uses `/utils-research`, `/utils-llm-wiki`,
 `/utils-retro`, `/utils-retro-zh`, and `/utils-security-scan`. Kiro automatic activation,
-global/workspace installation, workspace precedence, and trailing arguments are runtime-validated;
+global/workspace installation, workspace precedence, and trailing arguments are runtime-validated
+against the record in [docs/kiro-preview-validation.md](../../docs/kiro-preview-validation.md);
 Kiro CLI, multi-root workspaces, explicit agent resources, and `dev:shadow` remain unsupported.
 `research` and `retro` never fire implicitly on Claude Code or Codex (guarded per harness).
 

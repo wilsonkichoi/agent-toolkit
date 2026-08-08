@@ -3,8 +3,9 @@
 This generated artifact supports **single-root Kiro IDE workspaces only**. Kiro CLI,
 multi-root active-folder isolation, explicit agent resources, and `dev:shadow` are not supported.
 All utility skills, the named dev agents, the human-gated manual lifecycle, and bounded `dev:auto`
-have passed fresh single-root IDE runtime probes. `dev-shadow` remains in the generated set for
-source completeness but must not be invoked in Kiro.
+have passed fresh single-root IDE runtime probes; what was run, on which Kiro build, and with what
+outcome is recorded in this repository's `docs/kiro-preview-validation.md`. `dev-shadow` remains in
+the generated set for source completeness but must not be invoked in Kiro.
 
 Kiro owns permission and trust decisions; this distribution does not install or modify those
 settings. Start in a disposable or trusted project and approve only expected operations. Lifecycle

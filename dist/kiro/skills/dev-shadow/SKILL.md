@@ -16,12 +16,15 @@ metadata:
 > active-folder isolation, explicit agent resources, and `dev:shadow` are unsupported; stop if
 > inactive-root instructions, steering, or resources appear.
 
+> Every bare `dev:<name>` reference below names a source skill whose Kiro
+> invocation is `/dev-<name>`; `dev:execute` is `/dev-execute`, `dev:verify` is `/dev-verify`.
 > The single-root Kiro IDE lifecycle preview has passed the manual
 > `setup → plan → execute → review-pr → verify` lifecycle, safe-stop probes, and bounded
-> `dev:auto`. Use Kiro named subagents and the plugin's explicit worktree procedure; do not
-> substitute inline review, test authoring, or verification when a required isolated profile is
-> unavailable. Dispatch `dev-reviewer`, `dev-test-writer`, and `dev-verifier` by exact name and
-> wait for results.
+> `dev:auto`; the recorded scope, Kiro version, and outcomes are in this repository's
+> `docs/kiro-preview-validation.md`. Use Kiro named subagents and the plugin's explicit worktree
+> procedure; do not substitute inline review, test authoring, or verification when a required
+> isolated profile is unavailable. Dispatch `dev-reviewer`, `dev-test-writer`, and
+> `dev-verifier` by exact name and wait for results.
 
 # dev:shadow
 
@@ -41,7 +44,7 @@ to run one, render your harness's invocation for it (Claude Code: `/dev-execute`
 
 Read first: `.agent-toolkit/dev.md` (tracker routing config), the plugin's
 `references/runtime_contracts/tracker.md`,
-`references/runtime_contracts/project-bootstrap.md`, and `references/runtime_contracts/dev-shadow.md` (the replay contract, artifact formats,
+`references/runtime_contracts/project-bootstrap.md`, and `references/runtime_contracts/shadow.md` (the replay contract, artifact formats,
 metrics adapters, and pricing-catalog semantics). On Claude Code these plugin docs are under
 `references/runtime_contracts/`; equivalently they are under `references/runtime_contracts/` relative to this
 skill's directory. The deterministic helper is `scripts/shadow_replay.py`
@@ -106,7 +109,7 @@ prepare → execute → review → (fix → fresh review)[0..max_fix_attempts] �
    the expected revision, rerun, and never substitute another revision.
 4. Mint the run id and start metrics collection (record the wall-clock start; note the harness,
    runtime version, model, and reasoning effort).
-5. Create isolated artifacts (`references/runtime_contracts/dev-shadow.md` "Git and GitHub isolation"):
+5. Create isolated artifacts (`references/runtime_contracts/shadow.md` "Git and GitHub isolation"):
    - `shadow_replay.py create-branches --shadow-base shadow-base/<source-id>/<run-id>
      --candidate shadow/<source-id>/<run-id> --base-commit <historical_base>` creates both
      branches at the validated base and pushes them.
@@ -161,7 +164,7 @@ an unrecoverable failure stops the run with a stage diagnostic.
 ### 3. Review
 
 Dispatch a fresh `reviewer` (or a fresh generic worker carrying the review contract if the
-named agent's planned-task routing would reject a shadow item - see `references/runtime_contracts/dev-shadow.md`; never
+named agent's planned-task routing would reject a shadow item - see `references/runtime_contracts/shadow.md`; never
 label a shadow item `planned`, `external`, or `secondary` to bypass a contract). Give it the
 shadow packet, the current candidate diff, current CI, the historical rules, and the current
 candidate head SHA. The review verdict binds to that head SHA.
@@ -191,7 +194,7 @@ never transitions the shadow issue through planned-task states.
 
 ### 6. Compare
 
-Collect original and shadow evidence into two JSON blobs (`references/runtime_contracts/dev-shadow.md` "Evidence blobs"),
+Collect original and shadow evidence into two JSON blobs (`references/runtime_contracts/shadow.md` "Evidence blobs"),
 then `shadow_replay.py compare --original <o> --shadow <s>` for the table rows. Deterministic
 metrics come from the helper:
 
@@ -207,7 +210,7 @@ metrics come from the helper:
   twice when the harness reports it as a subset of output. Unknown pricing
   prints `cost unavailable` with a reason; never substitute a guessed value.
 
-Timing boundaries (`references/runtime_contracts/dev-shadow.md` "Timing and token boundaries"): shadow delivery time runs
+Timing boundaries (`references/runtime_contracts/shadow.md` "Timing and token boundaries"): shadow delivery time runs
 from just before the implementation worker is dispatched to when verification of the approved
 head completes; preparation, comparison, and reporting are recorded separately and included in
 total run time. Original observable delivery time is the first source-PR commit's committed
@@ -217,7 +220,7 @@ the dimensions into a single aggregate quality score.
 
 ### 7. Report and stop
 
-1. Assemble the report data (run identity, harness/runtime/model/effort, every source/dev-shadow/base/issue
+1. Assemble the report data (run identity, harness/runtime/model/effort, every source/shadow/base/issue
    URL, the original PR merge SHA, reviewed candidate head SHA, comparison rows, verification
    evidence or the linked verifier report) and render it with
    `shadow_replay.py report --data <file>`. For a completed run the helper **enforces** the

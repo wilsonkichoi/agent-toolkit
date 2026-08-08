@@ -221,7 +221,13 @@ uv run tools/generate_codex_agents.py
 Kiro preview artifacts are generated from authoritative skills and agents using the committed
 safe-name map. They are the committed clone/copy distribution for the validated **single-root Kiro
 IDE** preview, not a Kiro plugin-marketplace package. Kiro CLI, multi-root workspaces, explicit
-agent resources, and `dev:shadow` are unsupported. Regenerate them with:
+agent resources, and `dev:shadow` are unsupported. The runtime evidence behind every "validated"
+or "passed" Kiro claim is recorded in `docs/kiro-preview-validation.md`; no surface may claim more
+than that file records. Name rewriting is invocation-positional - a bare `/<skill>` is rewritten
+only at the start of the text or after whitespace, a backtick, or an opening paren - so path
+segments and prose keep their source spelling, and generation fails closed on a bundled
+`references/`/`scripts/`/`assets/` citation that does not resolve or on a shared contract or helper
+copy that is not byte-identical across skills. Regenerate them with:
 
 ```bash
 uv run tools/generate_kiro.py

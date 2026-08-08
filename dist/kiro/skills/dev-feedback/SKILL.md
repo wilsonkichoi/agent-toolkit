@@ -16,12 +16,15 @@ metadata:
 > active-folder isolation, explicit agent resources, and `dev:shadow` are unsupported; stop if
 > inactive-root instructions, steering, or resources appear.
 
+> Every bare `dev:<name>` reference below names a source skill whose Kiro
+> invocation is `/dev-<name>`; `dev:execute` is `/dev-execute`, `dev:verify` is `/dev-verify`.
 > The single-root Kiro IDE lifecycle preview has passed the manual
 > `setup → plan → execute → review-pr → verify` lifecycle, safe-stop probes, and bounded
-> `dev:auto`. Use Kiro named subagents and the plugin's explicit worktree procedure; do not
-> substitute inline review, test authoring, or verification when a required isolated profile is
-> unavailable. Dispatch `dev-reviewer`, `dev-test-writer`, and `dev-verifier` by exact name and
-> wait for results.
+> `dev:auto`; the recorded scope, Kiro version, and outcomes are in this repository's
+> `docs/kiro-preview-validation.md`. Use Kiro named subagents and the plugin's explicit worktree
+> procedure; do not substitute inline review, test authoring, or verification when a required
+> isolated profile is unavailable. Dispatch `dev-reviewer`, `dev-test-writer`, and
+> `dev-verifier` by exact name and wait for results.
 
 # dev:feedback
 
@@ -115,7 +118,7 @@ Preserve (handled automatically by the helper):
 - Dotted version sequences (`0.0.61/0.0.62/0.0.63`)
 - Single-slash relative paths with recognized extensions (`references/runtime_contracts/project-bootstrap.md`,
   `scripts/tool.py`, `config/settings.yml`, `src/module.mjs`)
-- Multi-segment relative paths (three or more segments, e.g. `plugins/dev/skills/dev-feedback/SKILL.md`)
+- Multi-segment relative paths (three or more segments, e.g. `plugins/dev/skills/feedback/SKILL.md`)
 - Error messages and stack traces (after secret stripping)
 - Skill names, command invocations, and configuration field names
 
