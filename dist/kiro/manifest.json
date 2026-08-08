@@ -218,7 +218,7 @@
     "skills/utils-research/SKILL.md": "3f9d16d2ecabf7ca7dd1121921edd52bfb607b9cb2cd85427e657c3271cf0ecb",
     "skills/utils-retro-zh/SKILL.md": "9435ac1933708d931de1c8b2d09bdde8e2a359c5545d8c544b266c83caa1be9e",
     "skills/utils-retro/SKILL.md": "780fe33b7245ccee6d49f9587526a2ec7d4b7a7234f84090164d7baafc4cf644",
-    "skills/utils-security-scan/SKILL.md": "32c964a0866615666754e22037021f7d4a1f4d6147dc6c571101a9f7d85090b0"
+    "skills/utils-security-scan/SKILL.md": "4508dd5b706e043788e10483b87df6608151ba77a78375461810f7382121338f"
   },
   "generator": "tools/generate_kiro.py",
   "generator_version": 1,

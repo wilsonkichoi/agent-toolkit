@@ -3,11 +3,11 @@ name: security-scan
 description: >
   On-demand security audit of the current repository. Scans for secrets/credentials,
   code vulnerabilities, infrastructure misconfigs, dependency risks, and optionally
-  git history for leaked secrets. Activate for explicit /security-scan or /sec-scan commands.
-  Also activate automatically whenever the user wants to check whether a repository is safe to
-  push, publish, or share, or asks about secrets, vulnerabilities, sensitive info, or security posture.
-  Also trigger when user says "is this safe?", "anything sensitive?", "audit this",
-  or "check for leaks".
+  git history for leaked secrets. This skill should ONLY be used when the user explicitly
+  invokes /security-scan or /sec-scan. Do NOT trigger on general
+  security-related phrases like "is this safe?", "anything sensitive?", "audit this",
+  "check for leaks", or questions about whether a repository is safe to push, publish, or
+  share. Only activate on explicit slash command invocation.
 ---
 
 # Security Scan

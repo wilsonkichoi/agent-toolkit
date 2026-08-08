@@ -25,7 +25,7 @@ repository, with an independent `git status --short` check after each run.
 | Area | Result |
 |---|---|
 | Skill discovery, slash invocation, trailing-argument preservation | passed |
-| Natural-language activation without a slash command | passed |
+| Natural-language activation without a slash command | passed, then **superseded** (see below) |
 | Global and workspace installation; workspace-over-global precedence | passed |
 | Non-ASCII safe alias (`/utils-retro-zh`, source skill `回顧`) | passed |
 | Bundled dependency resolution beneath the installed skill directory | passed |
@@ -43,6 +43,11 @@ repository, with an independent `git status --short` check after each run.
 | `max_fix_attempts` exhaustion | **not demonstrated** - no legitimate review requested changes |
 | Kiro CLI (any version) | **not tested** |
 | `dev:shadow` | **not tested** - unsupported in Kiro |
+
+The natural-language activation probe was run against a `security-scan` description that invited
+automatic activation. That description was subsequently made explicit-invocation only on every
+harness, so the probe records what Kiro *can* do with an inviting description, not intended
+behavior for the shipped skill. No shipped utility skill claims automatic activation.
 
 ## Consequences for the shipped artifact
 

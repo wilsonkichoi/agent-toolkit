@@ -124,7 +124,7 @@ Plugin-specific documentation is in [plugins/utils/README.md](plugins/utils/READ
 | `dev:auto` | Supported | Supported through sibling-agent orchestration |
 | `dev:execute` loop mode | Supported through Claude Code's loop primitive | Not available; run one task or use `dev:auto` |
 | Bundled `dev` agents | Loaded from the plugin | Copy TOML files and select them with `agent_type` |
-| Implicit `research` and `retro` routing | Description guard | Disabled; invoke explicitly |
+| Implicit `research`, `retro`, `security-scan` routing | Description guard | Disabled; invoke explicitly |
 
 Kiro's generated preview is a separate copy-only distribution, not a third plugin marketplace.
 Its supported surface is single-root Kiro IDE workspaces: utility skills, named dev agents, the

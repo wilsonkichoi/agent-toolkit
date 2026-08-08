@@ -34,10 +34,15 @@ Entries are newest first. Each release entry is headed by its exact tag name.
 ## utils-v0.0.5
 
 - Added generated collision-safe Kiro IDE utility skills, including the non-ASCII
-  `utils-retro-zh` alias and automatic security-scan activation guidance.
-- Validated global and workspace installation, workspace precedence, slash invocation, automatic
-  activation, trailing arguments, and execution outside the source checkout. The probe scope, Kiro
-  build, and explicitly unestablished outcomes are recorded in
+  `utils-retro-zh` alias.
+- **Behavior change on every harness:** `security-scan` is now explicit-invocation only. Its
+  description no longer instructs any harness to activate it from security-flavored phrasing
+  ("is this safe?", "anything sensitive?", questions about secrets or security posture), matching
+  the existing `research` and `retro` guards. Invoke it as `/utils:security-scan` on Claude Code,
+  `$utils:security-scan` on Codex, or `/utils-security-scan` in the Kiro preview.
+- Validated global and workspace installation, workspace precedence, slash invocation, trailing
+  arguments, and execution outside the source checkout. The probe scope, Kiro build, and
+  explicitly unestablished outcomes are recorded in
   [docs/kiro-preview-validation.md](docs/kiro-preview-validation.md).
 - Documented the single-root Kiro IDE clone/copy and exact-removal flow and unsupported surfaces.
 

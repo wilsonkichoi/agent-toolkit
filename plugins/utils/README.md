@@ -5,11 +5,13 @@ General-purpose utility skills for research, investigation, knowledge synthesis,
 **Invocation across harnesses:** the `/research` / `/utils:research` forms below are Claude
 Code. On Codex invoke explicitly as `$research`; the `回顧` skill keeps its CJK name on both.
 The generated single-root Kiro IDE preview uses `/utils-research`, `/utils-llm-wiki`,
-`/utils-retro`, `/utils-retro-zh`, and `/utils-security-scan`. Kiro automatic activation,
-global/workspace installation, workspace precedence, and trailing arguments are runtime-validated
-against the record in [docs/kiro-preview-validation.md](../../docs/kiro-preview-validation.md);
+`/utils-retro`, `/utils-retro-zh`, and `/utils-security-scan`. Kiro global/workspace installation,
+workspace precedence, and trailing arguments are runtime-validated against the record in
+[docs/kiro-preview-validation.md](../../docs/kiro-preview-validation.md);
 Kiro CLI, multi-root workspaces, explicit agent resources, and `dev:shadow` remain unsupported.
-`research` and `retro` never fire implicitly on Claude Code or Codex (guarded per harness).
+`research`, `retro`, and `security-scan` never fire implicitly on any harness - each requires its
+explicit invocation (`/utils:security-scan` on Claude Code, `$utils:security-scan` on Codex,
+`/utils-security-scan` in the Kiro preview).
 
 Install Claude Code and Codex plugins from the repo-root [README](../../README.md). Kiro is not a
 plugin-marketplace install: follow the clone/copy, update, and exact-removal guidance in
@@ -73,7 +75,9 @@ On-demand security audit of the current repository. Scans five categories:
 
 Supports depth modifiers: `quick`, `deep`, `secrets`, `vulns`.
 
-**Invoke with:** `/security-scan` or `/sec-scan`
+**Invoke with:** `/security-scan`, `/sec-scan`, or `/utils:security-scan` on Claude Code;
+`$utils:security-scan` on Codex; `/utils-security-scan` in the Kiro preview. Explicit invocation
+only - it never activates from security-flavored phrasing such as "is this safe?".
 
 ## Install
 

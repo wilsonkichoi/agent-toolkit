@@ -98,7 +98,8 @@ class KiroGenerationTests(unittest.TestCase):
         security_scan = (self.first / "skills/utils-security-scan/SKILL.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn("Also activate automatically whenever", security_scan)
+        self.assertIn("Only activate on explicit slash command invocation.", security_scan)
+        self.assertNotIn("activate automatically", security_scan)
         agent_text = (self.first / "agents/dev-test-writer.md").read_text(encoding="utf-8")
         self.assertIn("runtime_contracts/project-bootstrap.md", agent_text)
         self.assertNotIn("references/runtime_contracts/project-bootstrap.md", agent_text)
