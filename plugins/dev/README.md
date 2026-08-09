@@ -1,10 +1,10 @@
 # dev
 
-AI-assisted product development lifecycle for Claude Code and Codex, plus lightweight standalone
-GitHub PR merge and cleanup operations. For lifecycle tasks, an external tracker (Linear, GitHub
-Issues, or local files) is the single source of truth, execution is PR-native (worktree → PR → CI
-→ review → verified merge), and every task is a self-contained packet a fresh session can execute
-without prior context.
+AI-assisted product development lifecycle for Claude Code and Codex, plus a generated preview for
+single-root Kiro IDE workspaces, with lightweight standalone GitHub PR merge and cleanup
+operations. For lifecycle tasks, an external tracker (Linear, GitHub Issues, or local files) is the
+single source of truth, execution is PR-native (worktree → PR → CI → review → verified merge), and
+every task is a self-contained packet a fresh session can execute without prior context.
 
 Replaces [agentic_development_workflow](https://github.com/wilsonkichoi/agentic_development_workflow).
 This README is the complete guide: the index (what exists, typical flow) up front, then the
@@ -22,11 +22,20 @@ pipeline. Click the image for the [interactive version](https://wilsonkichoi.git
 
 ## Status
 
-All skills implemented on both harnesses. Dogfooding: the full
-lifecycle passed end-to-end on the local, GitHub Issues, and Linear backends (2026-07-06,
-Linear milestone runs through 2026-07-14), `dev:auto` completed real tasks on Claude Code
-and Codex, and the 0.0.54 encapsulated-config migration is dogfooded in this repository
-(`.agent-toolkit/dev.md` drives its own contribution workflow). Brownfield adoption is
+All skills are implemented for Claude Code and Codex. The generated Kiro preview has validated the
+human-gated `setup → plan → execute → review-pr → verify` lifecycle, named reviewer/test-writer/
+verifier isolation and failure propagation, required safe stops, and bounded `dev:auto` in fresh
+single-root Kiro IDE workspaces; the probe record, Kiro build, and explicitly unestablished
+outcomes are in [docs/kiro-preview-validation.md](../../docs/kiro-preview-validation.md), and the
+distribution decision is in
+[docs/adr/0002](../../docs/adr/0002-kiro-generated-distribution.md). The preview ships 12 of these
+skills: `dev:feedback` and `dev:release` act on the agent-toolkit repository rather than an
+adopter's project, and `dev:shadow` is unsupported there, so none of the three is generated.
+Kiro CLI, multi-root workspaces, and explicit agent `resources:` are unsupported.
+Dogfooding: the full lifecycle passed end-to-end on the local, GitHub Issues, and
+Linear backends (2026-07-06, Linear milestone runs through 2026-07-14), `dev:auto` completed real
+tasks on Claude Code and Codex, and the 0.0.54 encapsulated-config migration is dogfooded in this
+repository (`.agent-toolkit/dev.md` drives its own contribution workflow). Brownfield adoption is
 untested - expect rough edges there.
 
 Adopting into an existing project (partial adoption, Jira/custom trackers, Mem0/OB1/MemSearch
@@ -40,9 +49,16 @@ Skill names below are written Claude-Code style (`/dev:execute`). Render your ha
 |---|---|---|
 | Claude Code | `/dev:execute` | full feature set (agents auto-delegate, `dev:auto` + loop mode) |
 | Codex | `$execute` | agents copied from `dist/codex/agents/`, selected via `spawn_agent`'s `agent_type` parameter; `dev:auto` supported (sibling test-writer orchestration); no `execute` loop mode |
+| Kiro IDE | `/dev-execute` | copy `dist/kiro/`; supported only in single-root workspaces for the manual lifecycle and bounded `dev:auto`; no CLI, multi-root, explicit resources, or shadow |
 
-Install per harness: see the repo-root [README](../../README.md). All plugin state is
-encapsulated in `.agent-toolkit/`:
+Install per harness: see the repo-root [README](../../README.md). Kiro uses clone/copy rather than a
+plugin marketplace; exact update and uninstall paths are in
+[`dist/kiro/README.md`](../../dist/kiro/README.md). Kiro owns permission settings and this
+repository does not modify them. Approve only expected operations in a disposable or trusted
+project. A denied tool or unavailable required named agent is a safe stop—never retry through a
+substitute tool, inline review/test/verification, or a bypass.
+
+All plugin state is encapsulated in `.agent-toolkit/`:
 `dev.md` holds the config frontmatter, free-text conventions, and the architecture pointer;
 `rules/` holds promoted learnings, one file per rule, each imported from `dev.md`. The
 project's own context file (`AGENTS.md` or `CLAUDE.md` - the project's choice) carries a

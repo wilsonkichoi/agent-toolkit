@@ -1,0 +1,362 @@
+---
+name: dev-setup
+description: "This skill should be used when the user asks to \"set up the dev workflow\", \"initialize this project for dev\", \"run dev setup\", \"adopt the dev plugin\", \"configure the tracker\", or invokes /dev-setup. Initializes a project (greenfield or existing/brownfield) for the dev plugin: scaffolds the docs layout, selects the tracker backend, and writes .agent-toolkit/dev.md."
+compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, and explicit agent resources unsupported
+metadata:
+  source-plugin: dev
+  source-skill: "setup"
+  generated: "true"
+---
+
+> **Generated Kiro preview.** Invoke this skill as `/dev-setup` with trailing context matching `[project-dir]`. Resolve bundled
+> `references/`, `scripts/`, and `assets/` paths relative to this `SKILL.md` before use. This
+> generated path and invocation guidance takes precedence over retained Claude Code or Codex
+> examples. The artifact comes from the harness-neutral plugin source; do not edit it directly.
+> This preview is supported only in a single-root Kiro IDE workspace. Kiro CLI, multi-root
+> active-folder isolation, and explicit agent resources are unsupported; stop if inactive-root
+> instructions, steering, or resources appear.
+
+> Every bare `dev:<name>` reference below names a source skill whose Kiro
+> invocation is `/dev-<name>`; `dev:execute` is `/dev-execute`, `dev:verify` is `/dev-verify`.
+> The single-root Kiro IDE lifecycle preview has passed the manual
+> `setup → plan → execute → review-pr → verify` lifecycle, safe-stop probes, and bounded
+> `dev:auto`; the recorded scope, Kiro version, and outcomes are in this repository's
+> `docs/kiro-preview-validation.md`. Use Kiro named subagents and the plugin's explicit worktree
+> procedure; do not substitute inline review, test authoring, or verification when a required
+> isolated profile is unavailable. Dispatch `dev-reviewer`, `dev-test-writer`, and
+> `dev-verifier` by exact name and wait for results.
+
+# dev:setup
+
+Initialize a project for the dev plugin lifecycle. Idempotent: safe to re-run; never
+overwrite existing files without asking.
+
+Skill references like `dev:plan` mean this plugin's `plan` skill; when telling the user to run
+one, render the Kiro invocation as `/dev-plan`.
+
+Read first: the plugin's `references/runtime_contracts/tracker.md` — on Claude Code
+`references/runtime_contracts/tracker.md` (the plugin's own `references/runtime_contracts/`
+directory, two levels above this skill), equivalently `references/runtime_contracts/tracker.md`
+relative to this skill's directory — before
+configuring the tracker. All `tracker.md` references below mean this plugin doc, never a file in
+the project. Also read an existing `.agent-toolkit/dev.md` before
+making any repository or tracker call; setup must preserve choices the project already made.
+
+## Harness specifics
+
+Setup knows which harness it is running in; use the matching column below (referenced from
+steps 2, 4, and 7). Step 6 (claude-review.yml) is unchanged across harnesses — the GitHub Action
+runs server-side and only needs `ANTHROPIC_API_KEY`, regardless of the local harness.
+
+| Concern | Claude Code | Codex |
+|---|---|---|
+| Linear MCP config | `claude mcp add` / plugin MCP | `codex mcp add` (writes `[mcp_servers]` in `~/.codex/config.toml`) |
+| Pre-approve commands for unattended runs | `.claude/settings.json` permissions | approvals config + `.rules` command policy |
+| Context file receiving the step 4 reference line | `AGENTS.md` default (+ `CLAUDE.md` import shim); `CLAUDE.md` on Claude-only projects | `AGENTS.md` |
+
+## 1. Detect mode
+
+Inspect the target directory (argument, default cwd):
+
+- **Greenfield:** empty or near-empty (no source tree).
+- **Brownfield:** existing code (source dirs, package manifests, git history).
+
+## 2. Interview
+
+Ask the user in one structured round (use the harness's question tool, e.g. AskUserQuestion on
+Claude Code), only what cannot be inferred:
+
+1. **Tracker backend:** `linear` / `github` / `local` / `custom`. If `linear`: team key and
+   project name (and confirm the Linear MCP server is connected — see Harness specifics for how
+   each harness configures it; if not, tell the user to add it and stop). If `github`: confirm `gh auth status` succeeds and the repo has a GitHub
+   remote. If `custom`: point the user at the "Adding a backend" recipe in `tracker.md` and
+   help write the mapping tables.
+2. **Test command** (infer from the project if possible; confirm the inference).
+3. **CI workflow file name** (brownfield: detect under `.github/workflows/`; greenfield:
+   offer to create a minimal lint + test workflow).
+4. **Merge policy:** squash (default) or merge commit.
+5. **Secondary GitHub intake** (offer only when the primary tracker is not `github` and the
+   repo has a GitHub remote): does the project accept isolated GitHub issues/PRs (external bug
+   reports, drive-by PRs) worked in place, without a primary-tracker ticket? If yes, record
+   `secondary_intake: github` + `github_repo: owner/repo`. See the "Secondary intake channel"
+   section in `tracker.md`. Skip the question when the primary tracker already is `github`.
+6. **Fork contributions** (offer only for `tracker: github`): does the canonical repository
+   accept pull requests from contributor forks through the dev workflow? This is a project-owner
+   policy choice, never inferred from the current clone. If yes, ask for and confirm the canonical
+   `owner/repo`, then record `github_primary_repo` and `fork_contributions: true`. Validate the
+   pair and repository topology using `tracker.md` "GitHub repository resolution". If the
+   authenticated user lacks canonical write permission, do not treat their answer as authority to
+   change repository settings; write only the selected project configuration and report the
+   maintainer-owned setup separately.
+7. **Context file:** which file is the project's agent-context entry point? Default
+   `AGENTS.md` (Codex reads it natively; Claude Code reaches it through a one-line
+   `CLAUDE.md` import - step 4). Choose `CLAUDE.md` for a deliberately Claude-Code-only
+   project. A project that already has its own convention (e.g. an `AGENTS.md` that points
+   at `CLAUDE.md`, or the reverse) keeps it: set `context_file` to the file every harness
+   ultimately reaches, and never invert an existing direction. This decides only where the
+   step 4 reference line goes - the plugin's own state always lives in `.agent-toolkit/`.
+
+## 3. Scaffold
+
+Create only what is missing:
+
+```
+docs/                  # PRD.md, SPEC.md, ROADMAP.md arrive via dev:discover / dev:architect
+docs/adr/
+research/raw/
+.agent-toolkit/rules/  # promoted learnings (dev:retro), one file per rule
+.dev/tasks/            # only when tracker: local
+```
+
+Everything the plugin owns lives under `.agent-toolkit/`; the project owns everything else,
+its context files included. Add a `.gitkeep` in `.agent-toolkit/rules/` so git tracks the
+directory before the first promotion. Removing the plugin from a project is: delete
+`.agent-toolkit/` and the step 4 reference line.
+
+**Existing projects:** an existing `.agent-toolkit/dev.md` keeps the choices the project
+already made; bring the rest of the configuration up to the current contract:
+
+1. Set `rules_dir` explicitly. Default `.agent-toolkit/rules/`; keep an existing location
+   (e.g. `.claude/rules/`) as the value instead when the project - or anything downstream of
+   it, such as a template it ships - already depends on that path, accepting the harness
+   auto-load parity caveat in `references/runtime_contracts/project-bootstrap.md`. Moving rule files is
+   optional; classifying them is not.
+2. Run the rule-discovery migration below. Rules are discovered, not registered, so every
+   Markdown file under `rules_dir` must declare its own `tier` - and until every one does, the
+   resolver hard-stops and every task-scoped lifecycle skill in the project is blocked.
+3. Ensure the configured `context_file` carries the single reference line
+   (`@.agent-toolkit/dev.md`). Rules previously consolidated into `AGENTS.md` may stay there
+   (the project owns that file and its content) or move back out to `rules_dir` files - the
+   project's call, never the plugin's.
+4. Verify with `dev:status`: its consistency checks cover a missing reference line,
+   unclassified rule files, and resolver warnings.
+
+### Rule-discovery migration
+
+Projects configured before 0.0.64 kept a registry of `@` import lines under the dev config's
+`## Rules` section, and an unclassified rule file silently loaded as doctrine. Neither holds
+now. Migrate with the bundled helper, which reports its plan before it writes:
+
+```bash
+uv run scripts/migrate_rules.py --repo <project-dir>
+uv run scripts/migrate_rules.py --repo <project-dir> --apply
+```
+
+In Kiro the script is
+`scripts/migrate_rules.py` relative to this skill's directory. Run the dry form first and
+show the user the plan. The helper is idempotent - re-running it on a migrated project reports
+no changes - and it covers the migration cases without guessing:
+
+- **Registry entries** under `## Rules` are removed, in both the 0.0.56+ bare `@path` form and
+  the pre-0.0.56 descriptive or backticked list form that no consumer ever resolved.
+- **Registered files lacking a tier** are stamped `tier: doctrine` - the tier the registry
+  implied for every entry, so post-migration behavior matches what the project had. A file with
+  existing frontmatter keeps its keys; the tier is inserted.
+- **A project with no registry entries** is left untouched.
+- **Unregistered or unfixable files** (no frontmatter, malformed frontmatter, an unknown tier, a
+  trigger-free gotcha, an `@` import line) are reported as decisions, never rewritten. Present
+  each named file to the user with both options - declare a tier to keep it as a rule, or
+  `tier: none` to keep it in place as a non-rule - or move it out of `rules_dir`. Do not choose
+  for them; an unmarked file staying unmarked is a blocked resolver, which is the intended
+  failure direction.
+
+Report every file the helper changed and every decision still outstanding. Finish by running the
+resolver's repository check against the project to confirm it exits 0:
+
+```bash
+uv run scripts/resolve_project_rules.py --check <project-dir>
+```
+
+**Template and framework repos:** a repo that others clone or instantiate must not ship its own
+dev-plugin state to consumers - adopting this plugin is each project's decision, never
+inherited. Keep the plugin's footprint to `.agent-toolkit/` plus the one reference line, and
+have the template's init/clone path strip both.
+
+Write `.agent-toolkit/dev.md` with YAML frontmatter:
+
+```markdown
+---
+tracker: github
+test_command: "cd backend && uv run pytest"
+ci_workflow: ci.yml
+merge_policy: squash
+review_action_installed: false # auto PR-review GitHub Action (claude-review.yml) is set up
+work_in_progress_limit: 3      # max tasks simultaneously In Progress + In Review
+max_fix_attempts: 3            # CI-fix or review-fix cycles before a task goes Blocked
+max_tasks_per_run: 5           # batch cap for dev:auto and execute loop/batch mode
+auto_merge: false              # standing merge approval for dev:auto (see that skill)
+context_file: AGENTS.md        # project file carrying the step 4 reference line; CLAUDE.md on Claude-only projects
+rules_dir: .agent-toolkit/rules/  # promoted learnings, one file per rule
+---
+Project conventions the fields cannot capture go here as free text.
+
+## Rules
+
+<!-- Rule files are discovered under `rules_dir`; this section is not a registry.
+     Add a rule by writing `<rules_dir>/<slug>.md` with `tier` frontmatter -
+     see references/runtime_contracts/project-bootstrap.md. -->
+```
+
+When Q6 enables fork contributions, add both fields below. Do not add either field when the
+project owner did not opt in, and never repurpose `github_repo` for this role:
+
+```yaml
+github_primary_repo: owner/canonical-repo
+fork_contributions: true
+```
+
+Reject `fork_contributions: true` unless `tracker: github` and `github_primary_repo` are both
+present and valid. Reject `github_primary_repo` without `fork_contributions: true`; the pair is
+the explicit opt-in boundary.
+
+**Ownership rule (uniform across configs):** the project owns `AGENTS.md` and `CLAUDE.md`;
+setup adds at most the single step 4 reference line there and never moves, consolidates, or
+rewrites project rules or context-file content. `rules_dir` defaults to
+`.agent-toolkit/rules/`; a project with an existing rules convention may point the field
+elsewhere instead (e.g. `.claude/rules/`, which Claude Code auto-loads natively) - respect
+the project's choice, and never migrate rule files between locations uninvited. When
+`rules_dir` is absent, skills resolve rules from `.agent-toolkit/rules/`; when `context_file`
+is absent, they select `AGENTS.md`, then `CLAUDE.md` - run `dev:setup` to write explicit
+fields rather than relying on those defaults.
+
+Task-scoped lifecycle skills resolve this configuration from the task's execution repository,
+not blindly from the tracker repository. They use `references/runtime_contracts/project-bootstrap.md` and the bundled
+`scripts/resolve_project_rules.py` resolver to load the context file, this dev configuration,
+all doctrine rules, and only gotcha rules whose declared triggers match.
+
+Add Linear fields (`linear_team`, `linear_project`) when applicable. When the user opted into
+a secondary GitHub intake channel (interview Q5), add `secondary_intake: github`,
+`github_repo: owner/repo`, and `audit_trail: link`. Do not create
+`.agent-toolkit/dev.local.md`; mention it exists for personal overrides (gitignored).
+
+Backend one-time setup:
+
+- **github:** repository labels, milestones, Actions policy, rulesets, secrets, and other
+  GitHub settings are canonical-repository state, separate from committed project files. Only an
+  authenticated user with upstream write permission may create or reconcile them. Scope every
+  command to the resolved canonical repository. Without that permission, create or update local
+  files only and report the exact maintainer actions without attempting them. For the normal
+  planned queue, create the label sets from `tracker.md` (`status:*`, `priority:*`, `size:*`)
+  via `gh label create --repo "$github_primary_repo"` in fork-configured projects, or against
+  the existing same-repository target when fork fields are absent. Fork contribution intake
+  itself applies none of these labels.
+- **local:** add `.dev/tasks/.gitkeep`.
+
+## 4. Add the reference line
+
+Add one line to the configured `context_file` so every session loads the dev config:
+
+```
+Dev workflow (agent-toolkit dev plugin): @.agent-toolkit/dev.md
+```
+
+On Claude Code the `@` import inlines `dev.md` (config frontmatter and conventions body) at
+session start; on other harnesses the same line reads as an instruction with a path to follow.
+It does not reach rule files, and must not: rules are discovered by the resolver at the task's
+execution revision, so gotchas that do not apply stay out of context on every harness. This
+line is the only edit setup
+makes to a project context file. Brownfield: append it; touch nothing else. Greenfield (no
+context file at all): create a lean one (< 50 lines) stating the project name, pointing to
+`docs/PRD.md`, `docs/SPEC.md`, `docs/ROADMAP.md`, `docs/adr/`, and naming the tracker
+backend, with the reference line at the end.
+
+When `context_file: AGENTS.md` and Claude Code is (or may be) in use: Claude Code does not
+auto-load `AGENTS.md`, so also ensure `CLAUDE.md` contains an `@AGENTS.md` import line -
+seed a one-line `CLAUDE.md` when none exists, append the line when one exists, and never
+replace an existing body.
+
+## 5. Brownfield: architecture archaeology
+
+Offer (do not force) to reverse-engineer the current state into `docs/SPEC.md`:
+
+1. Survey the codebase: entry points, components, external services, data stores, contracts
+   between components, test layout, build/deploy path.
+2. Write `docs/SPEC.md` describing the **current** architecture: components, interfaces, data
+   flow, known debt and gaps (marked clearly as debt, not requirements).
+3. Do not invent forward-looking requirements - that is `dev:architect`'s job. A current-state
+   spec is what makes later `dev:plan` packets honest against existing code.
+
+If the project has an ADW `workflow/` tree or other planning docs, offer to map still-relevant
+content into `docs/` and open items into the tracker as `Backlog` tasks.
+
+## 6. Optional: automatic PR review (GitHub Action)
+
+Offer when the repo is GitHub-hosted and a CI workflow exists. If accepted:
+
+1. Copy `assets/claude-review.yml` (relative to this skill) to
+   `.github/workflows/claude-review.yml`, replacing `{{CI_WORKFLOW_NAME}}` with the `name:`
+   field inside the configured CI workflow (workflow_run matches by workflow name, not file
+   name).
+2. Tell the user to add the API key secret: `gh secret set ANTHROPIC_API_KEY` (add
+   `--repo "$github_primary_repo"` in active fork configuration). Warn: each
+   auto-review spends API tokens; the manual `dev:review-pr` path keeps working either way.
+3. Set `review_action_installed: true` in `.agent-toolkit/dev.md` frontmatter.
+4. Note that the template should be sanity-checked against the current
+   `anthropics/claude-code-action` docs on first run.
+
+Writing the workflow file is a local, reviewable change. Setting its secret or changing any
+repository Actions setting is canonical-repository state and requires upstream write permission;
+without it, leave those actions in the maintainer report and do not attempt them.
+
+## 7. Optional: enforce the rules contract in CI
+
+Offer whenever the project has a CI workflow. The rule-discovery contract fails closed at
+lifecycle time, which means a malformed rule file is discovered by whoever next runs
+`dev:execute` rather than by the pull request that introduced it. The resolver's repository check
+moves that to CI:
+
+```bash
+uv run scripts/resolve_project_rules.py --check <project-dir>
+```
+
+Explain what the check does before wiring it: it takes only the repository path, needs no tracker
+or task context, reuses the same discovery and diagnostics as a lifecycle run, exits 0 with a
+one-line summary on a compliant repository, and exits nonzero naming every offending path
+otherwise. Point out the one behavior that is stricter than a lifecycle run: a leftover `@` import
+line under `## Rules` fails the check instead of warning. Run it once against the project and show
+the user the result before adding it to any workflow - a project that would fail today needs the
+migration above first, not a red build.
+
+If accepted, wire it one of two ways, chosen by where the project's CI runs.
+
+**GitHub Actions projects** get the composite action, which packages the toolchain install and
+the invocation in one version-pinned step. Add it to the configured workflow:
+
+```yaml
+- uses: wilsonkichoi/agent-toolkit/.github/actions/check-rules@dev-vX.Y.Z
+```
+
+Resolve `dev-vX.Y.Z` to a real released tag of this plugin - the one in
+`plugins/dev/README.md`, or a later `dev-v*` release - and never write `main`, a raw commit SHA,
+or a placeholder into the project's workflow. The action checks out this repository at that tag
+and runs its own copy of the resolver, so the project needs no plugin checkout and no vendored
+script. It checks `GITHUB_WORKSPACE` by default, exits 0 with a skip message when the repository
+has no `.agent-toolkit/dev.md`, and otherwise exits with the checker's status and diagnostics
+unchanged.
+
+**Other CI systems** (GitLab CI, CircleCI, Jenkins, Buildkite, a local pre-push hook) run the
+`--check` command directly as a step, matching that system's existing conventions rather than
+imposing a new job layout. The project must be able to run the resolver: the plugin ships with
+the harness, so a repository whose CI has no plugin checkout needs the path resolved for it (a
+vendored copy is not an option - it is the duplication this check exists to remove). When the
+pipeline cannot reach the script, say so plainly, leave CI unchanged, and record it in the report
+rather than wiring something that will not run.
+
+Declining leaves CI exactly as it was; nothing else in setup changes either way.
+
+Writing the workflow file is a local, reviewable change; changing any repository Actions setting
+is canonical-repository state and follows the same permission boundary as section 6.
+
+## 8. Report
+
+Offer to commit the scaffold and config to `main` - in a fresh repo this creates the root
+commit that later task branches need; leaving setup output uncommitted stalls `dev:execute`
+mid-run. Then summarize: mode, tracker backend, files created, one-time backend setup
+performed. Remind:
+
+- Unattended runs (`dev:execute` loop/batch mode, `dev:auto`) stall on permission prompts -
+  pre-approve the needed commands (git, gh, test command) first: on Claude Code in
+  `.claude/settings.json`; see Harness specifics for the Codex equivalent. (`dev:auto`
+  runs on Claude Code and Codex; `dev:execute` loop/batch mode is Claude-Code-only.)
+- Next steps: `dev:discover` (new product), `dev:architect` (have a PRD), or `dev:plan`
+  (have a spec and roadmap).

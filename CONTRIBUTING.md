@@ -94,6 +94,8 @@ git push origin --delete "$BRANCH"
 | `plugins/<plugin>/README.md` and plugin docs | Authoritative | User and maintainer documentation |
 | `.codex/agents/*.toml` | Generated, committed | Project-scoped Codex agents loaded in this repository |
 | `dist/codex/agents/*.toml` | Generated, committed | Copy-me Codex agents for unrelated projects or `~/.codex/agents/` |
+| `dist/kiro/skills/*` and `dist/kiro/agents/*` | Generated, committed single-root Kiro IDE preview | Clone/copy distribution generated from plugin sources |
+| `dist/kiro/manifest.json` | Generated, committed single-root Kiro IDE preview | Source mapping, plugin versions, and deterministic file hashes |
 
 `plugins/*/agents/*.md` is the only agent-authoring location. The generator writes both TOML
 directories from those sources, and matching files must have identical bytes. Do not edit either
@@ -103,6 +105,16 @@ generated directory directly.
 named Codex agent definitions. Users copy the distributable TOMLs into an unrelated project's
 `.codex/agents/` or their user-level `~/.codex/agents/`. Contributors working in this clone receive
 the project-scoped `.codex/agents/` through `git pull` and do not copy them manually.
+
+`dist/kiro/` is the generated clone/copy distribution for the validated single-root Kiro IDE
+preview. It is not installed through either plugin marketplace; Kiro CLI, multi-root workspaces, and
+explicit agent resources remain unsupported. It ships a subset of the dev plugin - `feedback`,
+`release`, and `shadow` are excluded through `EXCLUDED_SKILL_SOURCES` - and each generated dev skill
+bundles only the shared contracts and helpers it needs. See
+[docs/adr/0002](docs/adr/0002-kiro-generated-distribution.md). Do not edit it directly; change the
+authoritative plugin source or `tools/kiro_names.json`, then regenerate. Adding, removing, or
+excluding a skill requires the same `tools/kiro_names.json` update, and version changes also require
+regeneration because `manifest.json` records both plugin versions.
 
 ## Add a plugin
 
@@ -222,16 +234,21 @@ documentation or generated files.
 
 ## Generate and validate
 
-Generate Codex agents after any authoritative agent change:
+Generate Codex agents after any authoritative agent change, and regenerate the Kiro preview after
+any change to a skill, an agent, a `plugins/dev/runtime_contracts/` contract, a
+`plugins/dev/scripts/` helper, the safe-name map, or an affected plugin version. A contract or
+helper edit can change which files each skill's closure pulls in, not only their content:
 
 ```bash
 uv run tools/generate_codex_agents.py
+uv run tools/generate_kiro.py
 ```
 
 Before every handoff, run drift detection and the complete repository validator:
 
 ```bash
 uv run tools/generate_codex_agents.py --check
+uv run tools/generate_kiro.py --check
 uv run tools/check_repo.py
 ```
 

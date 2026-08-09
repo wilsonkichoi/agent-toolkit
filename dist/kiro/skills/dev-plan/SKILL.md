@@ -1,0 +1,127 @@
+---
+name: dev-plan
+description: "This skill should be used when the user asks to \"plan the milestone\", \"break down the milestone into tasks\", \"create task packets\", \"generate the backlog from the spec\", or invokes /dev-plan. Decomposes a roadmap milestone into self-contained task packets and pushes them to the configured tracker after a human-approved dry run."
+compatibility: Kiro IDE single-root workspace preview; CLI, multi-root, and explicit agent resources unsupported
+metadata:
+  source-plugin: dev
+  source-skill: "plan"
+  generated: "true"
+---
+
+> **Generated Kiro preview.** Invoke this skill as `/dev-plan` with trailing context matching `[milestone N]`. Resolve bundled
+> `references/`, `scripts/`, and `assets/` paths relative to this `SKILL.md` before use. This
+> generated path and invocation guidance takes precedence over retained Claude Code or Codex
+> examples. The artifact comes from the harness-neutral plugin source; do not edit it directly.
+> This preview is supported only in a single-root Kiro IDE workspace. Kiro CLI, multi-root
+> active-folder isolation, and explicit agent resources are unsupported; stop if inactive-root
+> instructions, steering, or resources appear.
+
+> Every bare `dev:<name>` reference below names a source skill whose Kiro
+> invocation is `/dev-<name>`; `dev:execute` is `/dev-execute`, `dev:verify` is `/dev-verify`.
+> The single-root Kiro IDE lifecycle preview has passed the manual
+> `setup → plan → execute → review-pr → verify` lifecycle, safe-stop probes, and bounded
+> `dev:auto`; the recorded scope, Kiro version, and outcomes are in this repository's
+> `docs/kiro-preview-validation.md`. Use Kiro named subagents and the plugin's explicit worktree
+> procedure; do not substitute inline review, test authoring, or verification when a required
+> isolated profile is unavailable. Dispatch `dev-reviewer`, `dev-test-writer`, and
+> `dev-verifier` by exact name and wait for results.
+
+# dev:plan
+
+Decompose one milestone into task packets in the tracker. One milestone per run; do not plan
+ahead of the next milestone - later milestones get better packets after earlier ones ship.
+
+Skill references like `dev:architect` mean this plugin's `architect` skill; when telling the
+user to run one, render the Kiro invocation as `/dev-architect`.
+
+Read first:
+
+1. `.agent-toolkit/dev.md` - tracker backend and config.
+2. the plugin's `references/runtime_contracts/tracker.md` - verbs and backend mapping (on Claude Code
+   `references/runtime_contracts/tracker.md`, equivalently `references/runtime_contracts/tracker.md` relative to
+   this skill's directory).
+3. `docs/SPEC.md`, `docs/ROADMAP.md`, and `docs/PRD.md` - intent. If SPEC.md or ROADMAP.md is
+   missing, stop and direct the user to `dev:architect`.
+4. `list <milestone>` on the tracker - never create duplicates of tasks that already exist.
+
+Before any repository or tracker call, resolve the repository context once using
+`tracker.md` "GitHub repository resolution". Fork mode does not reduce the local planning
+work: a contributor may read the canonical queue and produce the complete dry run below. It
+does change who may push approved packets into that queue.
+
+## 1. Draft packets
+
+For the target milestone (argument, or the first roadmap milestone with unplanned scope),
+draft tasks against the packet schema. Every packet:
+
+- **Title**, **Type** (`task` | `spike`).
+- **Objective** - what exists when done, 1-3 sentences.
+- **Why** - the problem it solves, naming the PRD/SPEC section that motivates it.
+- **Definition of Done** - checkable criteria only. Each criterion must name its evidence: a
+  test command, a CI check, or an explicit manual verification step. "Works correctly" is not
+  a criterion. A qualitative or completeness criterion (redaction, validation, error handling)
+  must enumerate the classes or cases it covers, so "met" is decidable at review time; an
+  open-ended bar is how review cannot converge and `dev:execute`'s packet gate will reject it.
+  Prefer test-backed: if a behavior is fully checkable by a script (stdout, exit
+  code, API response), write one test-backed criterion - never a manual criterion duplicating
+  what an automated test in the same task covers. Manual criteria are for genuinely
+  human-observable things (visual layout, UX judgment), and each one forces `dev:auto` to
+  stop for a human regardless of `auto_merge`.
+- **Dependencies** - task ids that must be `Done` first. Model implicit ordering (B builds on
+  A's code) as a real dependency; unmodeled ordering is how parallel sessions produce
+  conflicting PRs.
+- **Estimate** - S/M/L plus rough hours.
+- **Spec references** - links to `docs/SPEC.md#section`, with the load-bearing excerpt
+  (contract, schema, constraint) inlined verbatim so a fresh executor cannot skip it.
+- **Suggested steps** - 3-8 advisory bullets.
+
+Scope rules: single concern, independently verifiable, describable in 2-3 sentences. Split
+anything that fails these. Scaffold tasks additionally: their DoD must prove the toolchain
+end-to-end (test runner collects, imports, and passes at least one sanity test against the
+scaffold), not merely that files exist - otherwise the first feature task inherits a broken
+harness (dogfood T-002: package imported fine but was not importable by pytest).
+
+**Spikes:** create a spike (not a task) where the spec leaves a genuine unknown that blocks
+estimation or design. A spike packet carries the question, a timebox, and the required
+output: an ADR in `docs/adr/` plus a tracker comment with the recommendation. A spike produces
+knowledge, not product implementation: its durable decision artifacts (the ADR and any directly
+required documentation or index update) are repository content and merge through the normal
+gate, while experimental implementation - prototype code, fixtures, generated experiments,
+exploratory changes - stays throwaway and is excluded from the artifact-only PR. Write the
+spike DoD to name the ADR and the required docs/index updates as the mergeable output, never
+the prototype.
+
+If drafting reveals a spec gap (needed behavior the spec does not define), stop drafting that
+task and list the gap in the dry run under "Spec gaps - needs dev:architect"; do not guess.
+
+## 2. Dry run (human gate)
+
+Present the complete draft before touching the tracker: every packet in full, the dependency
+edges (as a list or Mermaid graph), spike rationale, and any spec gaps. Iterate on feedback.
+Do not create anything until the user approves.
+
+## 3. Push
+
+In a fork-configured project, check the resolved canonical permission before the first tracker
+write. If the authenticated user lacks upstream write permission, stop here even after dry-run
+approval. Do not create issues, apply queue labels, set milestones, wire dependencies, or promote
+tasks. Emit a maintainer handoff containing every approved packet, dependency edge, intended
+priority/estimate/milestone, the canonical `github_primary_repo`, and the read-only permission
+result. Local document changes remain normal fork-PR changes. A maintainer with upstream write
+permission continues below, with every GitHub command explicitly scoped to
+`github_primary_repo`.
+
+On approval, `create-task` each packet at status `Todo` (plan approval is the commitment
+gate), with dependencies, priority, estimate, and milestone mapped per the backend section of
+`references/runtime_contracts/tracker.md`. Packets reference draft ids but the tracker mints
+real identifiers at creation: create in dependency order (or second-pass the relations) so
+every dependency is wired as a native relation using tracker-minted ids, then confirm the
+relations appear in the `list` output. Order priorities so the intended execution order
+falls out of the next-task selection algorithm.
+
+Verify by running `list <milestone>` and comparing against the approved draft. Then commit
+the planning artifacts (task files on the local backend, any doc updates) to `main` with the
+user's consent - approved-but-uncommitted artifacts strand the next skill, since
+`dev:execute` branches from `main` (dogfood T-001: execution stalled on a repo with zero
+commits). Report: tasks created, spikes created, dependency count, and any spec gaps
+deferred to `dev:architect`.

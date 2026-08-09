@@ -55,6 +55,7 @@ docs/RELEASING.md       # maintainer release procedure (tags + GitHub Releases)
 docs/adr/               # architecture decision records for this repository
 dist/                   # generated / copy-me artifacts, not plugin-installable
   codex/agents/         #   Codex agent TOMLs (copy to ~/.codex/agents/ or project .codex/agents/)
+  kiro/                 #   generated Kiro preview skills, agents, and provenance manifest
 .codex/agents/          # generated project-scoped Codex agents
 plugins/<name>/         # Each plugin
   .claude-plugin/       #   Claude plugin manifest (plugin.json)
@@ -217,15 +218,60 @@ project-scoped `.codex/agents/` files and distributable `dist/codex/agents/` fil
 uv run tools/generate_codex_agents.py
 ```
 
+**Kiro support must never change dev-plugin behavior on Claude Code or Codex.** Kiro is a generated
+consumer of the authoritative sources, never a reason to edit them. Generation reads
+`plugins/**` and writes only into `dist/kiro/`; a Kiro-motivated change to a skill, contract,
+helper, or agent source is a stop, not a tradeoff. `tools/test_generate_kiro.py` checks a committed
+digest of every path the other two harnesses consume - plugin sources, generated Codex agents, and
+both marketplace manifests - before generation, then requires those inputs byte-unchanged across
+the full build. Updating that digest is an explicit all-harness change, never part of a Kiro-only
+fix. If a Kiro defect appears to need a source edit, raise it as a separate all-harness decision
+instead of folding it into Kiro work.
+
+Kiro preview artifacts are generated from authoritative skills and agents using the committed
+safe-name map. They are the committed clone/copy distribution for the validated **single-root Kiro
+IDE** preview, not a Kiro plugin-marketplace package. Kiro CLI, multi-root workspaces, and explicit
+agent resources are unsupported. The runtime evidence behind every "validated" or "passed" Kiro
+claim is recorded in `docs/kiro-preview-validation.md`; no surface may claim more than that file
+records. The distribution decision and its scope are recorded in
+`docs/adr/0002-kiro-generated-distribution.md`.
+
+The preview ships a subset: `EXCLUDED_SKILL_SOURCES` in `tools/generate_kiro.py` keeps `feedback`,
+`release`, and `shadow` out, and the safe-name map covers exactly what is emitted. That exclusion
+is only sound because no shipped skill hands off to any of the three; `tools/test_generate_kiro.py`
+asserts that property, so never exclude a skill another shipped skill points at without also
+removing the pointer.
+
+Kiro follows the Agent Skills standard, where the skill directory is the unit of distribution and
+references resolve relative to `SKILL.md`. There is no plugin root, so every shared contract or
+helper a dev skill needs is copied inside it. `shared_closure` computes the smallest correct copy
+set from the shared file names the source names, closed in both directions: a contract brings the
+helpers it names, and a helper brings the contract that governs it. Never ship a helper without
+that contract - `dev:status` names `resolve_project_rules.py` and never names
+`project-bootstrap.md`, and the reverse step is what keeps the resolver from arriving unexplained.
+`manifest.json` records each skill's closure and `validate_skill_closure` enforces it.
+
+Name rewriting is invocation-positional - a bare `/<skill>` is rewritten only at the start of the
+text or after whitespace, a backtick, or an opening paren - so path segments and prose keep their
+source spelling. Generation fails closed on a bundled `references/`/`scripts/`/`assets/` citation
+that does not resolve, on a shared contract or helper copy that is not byte-identical across
+skills, and on any `FORBIDDEN_GENERATED_TEXT` string, which includes the plugin-root tautology a
+blind harness-mapping substitution would produce. Regenerate them with:
+
+```bash
+uv run tools/generate_kiro.py
+```
+
 Check generated-file drift without writing, then validate manifests, marketplaces, versions,
-skill frontmatter, agent sources, and shared authoring invariants with:
+skill frontmatter, agent sources, generator fixtures, and shared authoring invariants with:
 
 ```bash
 uv run tools/generate_codex_agents.py --check
+uv run tools/generate_kiro.py --check
 uv run tools/check_repo.py
 ```
 
-Both tools are dependency-free PEP 723 scripts. Do not add a project `pyproject.toml`,
+These tools are dependency-free PEP 723 scripts. Do not add a project `pyproject.toml`,
 `.python-version`, `uv.lock`, or script lockfile for them.
 
 ## Git workflow
@@ -254,8 +300,12 @@ Before any commit that adds, removes, or modifies files under `skills/` or `agen
 3. Version bumped in `.claude-plugin/marketplace.json` (matching entry)
 4. `plugins/<plugin>/README.md` updated
 5. Agent sources changed? Regenerate `.codex/agents/*.toml` and `dist/codex/agents/*.toml`
-6. `.claude-plugin/marketplace.json` description/keywords updated if needed
-7. `README.md` (repo root) and `AGENTS.md` updated if plugin behavior/description changed
+6. Skill sources, agent sources, a `runtime_contracts/` contract, a `scripts/` helper, the
+   safe-name map, or affected plugin versions changed? Regenerate `dist/kiro/` so generated
+   content, each skill's recorded closure, and `manifest.json.plugin_versions` are current
+7. `.claude-plugin/marketplace.json` description/keywords updated if needed
+8. `README.md` (repo root) and `AGENTS.md` updated if plugin behavior/description changed
+9. Run both generated drift checks and `uv run tools/check_repo.py`
 
 Do not commit skill changes without completing this checklist. Read the checklist, don't rely
 on memory.

@@ -389,6 +389,28 @@ def check_generator_drift() -> None:
         raise CheckFailure(f"generator --check failed:\n{details}")
 
 
+def check_kiro_generator() -> None:
+    commands = (
+        [sys.executable, str(ROOT / "tools/test_generate_kiro.py")],
+        [sys.executable, str(ROOT / "tools/generate_kiro.py"), "--check"],
+    )
+    for command in commands:
+        result = subprocess.run(
+            command,
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            details = "\n".join(
+                part.strip() for part in (result.stdout, result.stderr) if part.strip()
+            )
+            raise CheckFailure(
+                f"Kiro generator command failed ({Path(command[1]).name}):\n{details}"
+            )
+
+
 def check_project_rule_resolver() -> None:
     result = subprocess.run(
         [sys.executable, str(ROOT / "tools/test_resolve_project_rules.py")],
@@ -1207,6 +1229,7 @@ CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("skill-frontmatter", check_skill_frontmatter),
     ("agent-sources-and-outputs", check_agent_sources_and_outputs),
     ("generator-drift", check_generator_drift),
+    ("kiro-generator", check_kiro_generator),
     ("project-rule-resolver", check_project_rule_resolver),
     ("rule-migration", check_rule_migration),
     ("rule-discovery-contract", check_rule_discovery_contract),

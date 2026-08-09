@@ -12,6 +12,47 @@ notes from that section at the tagged commit.
 
 Entries are newest first. Each release entry is headed by its exact tag name.
 
+## dev-v0.0.74
+
+- Added the generated clone/copy distribution for dev skills and named agents in supported
+  single-root Kiro IDE workspaces.
+- Validated the human-gated manual lifecycle, named-agent and denial safe stops, stale-revision and
+  interrupted-state handling, and bounded `dev:auto` with standing auto-merge policy. The probe
+  scope, Kiro build, and explicitly unestablished outcomes are recorded in
+  [docs/kiro-preview-validation.md](docs/kiro-preview-validation.md).
+- Documented exact permission behavior, installation and removal, and unsupported Kiro CLI,
+  multi-root, and explicit-resource surfaces.
+- The Kiro preview ships 12 dev skills. `dev:feedback` and `dev:release` act on the agent-toolkit
+  repository rather than an adopter's project, and `dev:shadow` is unsupported there, so none of
+  the three is generated; all remain available on Claude Code and Codex.
+- Each generated dev skill bundles only the shared contracts and helpers it needs, closed in both
+  directions so a helper never ships without the contract that governs its use. The generated tree
+  is 1.1 MB across 70 files instead of 4.3 MB across 206, and `manifest.json` records each skill's
+  closure. Rationale in [docs/adr/0002](docs/adr/0002-kiro-generated-distribution.md).
+- Generated skill text now rewrites a bare `/<skill>` only in an invocation position, so path
+  segments and prose such as `plugins/dev/skills/feedback/SKILL.md`, `review/verify`, and
+  `id/title/status` keep their source spelling.
+- The generator fails closed when a generated skill cites a bundled `references/`, `scripts/`, or
+  `assets/` path that does not resolve, and when copies of a shared contract or helper are not
+  byte-identical across skills.
+- Every generated dev skill states that a bare `dev:<name>` reference is invoked as `/dev-<name>`,
+  instead of relying on whichever source skill happened to carry that explainer.
+
+## utils-v0.0.5
+
+- Added generated collision-safe Kiro IDE utility skills, including the non-ASCII
+  `utils-retro-zh` alias.
+- **Behavior change on every harness:** `security-scan` is now explicit-invocation only. Its
+  description no longer instructs any harness to activate it from security-flavored phrasing
+  ("is this safe?", "anything sensitive?", questions about secrets or security posture), matching
+  the existing `research` and `retro` guards. Invoke it as `/utils:security-scan` on Claude Code,
+  `$utils:security-scan` on Codex, or `/utils-security-scan` in the Kiro preview.
+- Validated global and workspace installation, workspace precedence, slash invocation, trailing
+  arguments, and execution outside the source checkout. The probe scope, Kiro build, and
+  explicitly unestablished outcomes are recorded in
+  [docs/kiro-preview-validation.md](docs/kiro-preview-validation.md).
+- Documented the single-root Kiro IDE clone/copy and exact-removal flow and unsupported surfaces.
+
 ## dev-v0.0.73
 
 - Added one shared work-summary parser for execute, review, and verify across tracker backends.

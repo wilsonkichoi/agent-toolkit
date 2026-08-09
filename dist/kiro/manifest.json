@@ -1,0 +1,270 @@
+{
+  "agents": [
+    {
+      "name": "dev-reviewer",
+      "source": "plugins/dev/agents/reviewer.md"
+    },
+    {
+      "name": "dev-test-writer",
+      "source": "plugins/dev/agents/test-writer.md"
+    },
+    {
+      "name": "dev-verifier",
+      "source": "plugins/dev/agents/verifier.md"
+    }
+  ],
+  "files": {
+    "README.md": "637382706f9da95517c82af25cf3fd7a46e4a0aa6cedf74872ebbb1661240dc6",
+    "agents/dev-reviewer.md": "912d1fb87bc76c8bc77fb4b4b0bdbbbd4477f2ca845d8d69e17779f467c7157a",
+    "agents/dev-test-writer.md": "d4edafb0d9e72fddc295c699ef7410afef988c6203325991651b49256aacb06e",
+    "agents/dev-verifier.md": "3370559e26826f2f261b697ed999a7d0279f0c707e74c913b0ca6cf5788af7c6",
+    "skills/dev-architect/SKILL.md": "821994a5b3a0b0f1056a1b03c2369983eb40866c3c52a991fd9988dd6190cccd",
+    "skills/dev-auto/SKILL.md": "2e65a289646a31c67171512dc78f98c06772968c03a2f55ea444c9eaedb6db47",
+    "skills/dev-auto/references/runtime_contracts/project-bootstrap.md": "55ec56bc6ed09944599f4e945f5979c604b2b39db8b82c51b1d1f96011395988",
+    "skills/dev-auto/references/runtime_contracts/tracker.md": "f46086881c3985f92e225d957f179f7a5ca72dc528b2b4fcf3e728985ecb94c1",
+    "skills/dev-auto/scripts/github_pr.py": "af7507a7e64147901349194ba2858c7d774f4532bbd4d3da69cc0d8fc256f89c",
+    "skills/dev-auto/scripts/github_task_lifecycle.py": "b7a1c58689c1fd758659c0e64ca15e52f3682a4cdeb6d8ff74701bd7269f69f4",
+    "skills/dev-auto/scripts/resolve_project_rules.py": "4cbf17c297735bf9acebd85f78895bcdda019ece27ca54f606ac3815d3c6d33f",
+    "skills/dev-auto/scripts/work_summary.py": "2975459509b003a385117feb112c4edd6afb518ef84c8ce80111e783e9dd9365",
+    "skills/dev-backlog/SKILL.md": "703dc6b76a59f7f080e503f15aa54927ee90c5f6a3f009a86ecbccdec49cf0e9",
+    "skills/dev-backlog/references/runtime_contracts/project-bootstrap.md": "55ec56bc6ed09944599f4e945f5979c604b2b39db8b82c51b1d1f96011395988",
+    "skills/dev-backlog/references/runtime_contracts/tracker.md": "f46086881c3985f92e225d957f179f7a5ca72dc528b2b4fcf3e728985ecb94c1",
+    "skills/dev-backlog/scripts/github_task_lifecycle.py": "b7a1c58689c1fd758659c0e64ca15e52f3682a4cdeb6d8ff74701bd7269f69f4",
+    "skills/dev-backlog/scripts/resolve_project_rules.py": "4cbf17c297735bf9acebd85f78895bcdda019ece27ca54f606ac3815d3c6d33f",
+    "skills/dev-backlog/scripts/work_summary.py": "2975459509b003a385117feb112c4edd6afb518ef84c8ce80111e783e9dd9365",
+    "skills/dev-discover/SKILL.md": "1542b206d1f805ae03aa22f12b4df62baafee2a2cc405a90c70f31bd1aff85df",
+    "skills/dev-execute/SKILL.md": "dea347d11abbe88f01600d58f56049150d0b04b0cd2ff7661ba743fa12e54033",
+    "skills/dev-execute/references/runtime_contracts/project-bootstrap.md": "55ec56bc6ed09944599f4e945f5979c604b2b39db8b82c51b1d1f96011395988",
+    "skills/dev-execute/references/runtime_contracts/tracker.md": "f46086881c3985f92e225d957f179f7a5ca72dc528b2b4fcf3e728985ecb94c1",
+    "skills/dev-execute/scripts/github_task_lifecycle.py": "b7a1c58689c1fd758659c0e64ca15e52f3682a4cdeb6d8ff74701bd7269f69f4",
+    "skills/dev-execute/scripts/resolve_project_rules.py": "4cbf17c297735bf9acebd85f78895bcdda019ece27ca54f606ac3815d3c6d33f",
+    "skills/dev-execute/scripts/work_summary.py": "2975459509b003a385117feb112c4edd6afb518ef84c8ce80111e783e9dd9365",
+    "skills/dev-merge-pr/SKILL.md": "c15263a5205eee6d5ecd7b3a92f483043e65325fd30af39787a85816b99984bf",
+    "skills/dev-merge-pr/scripts/github_pr.py": "af7507a7e64147901349194ba2858c7d774f4532bbd4d3da69cc0d8fc256f89c",
+    "skills/dev-plan/SKILL.md": "baa6f5c47e79589006b85267420d9d0a5ede651579eef37f0612eac4874ade3e",
+    "skills/dev-plan/references/runtime_contracts/tracker.md": "f46086881c3985f92e225d957f179f7a5ca72dc528b2b4fcf3e728985ecb94c1",
+    "skills/dev-plan/scripts/github_task_lifecycle.py": "b7a1c58689c1fd758659c0e64ca15e52f3682a4cdeb6d8ff74701bd7269f69f4",
+    "skills/dev-plan/scripts/work_summary.py": "2975459509b003a385117feb112c4edd6afb518ef84c8ce80111e783e9dd9365",
+    "skills/dev-retro/SKILL.md": "f700a4211c9c454cd2aa3e2de844e9c27ddfb62dcb67e815e72d9ffb411bb149",
+    "skills/dev-retro/references/runtime_contracts/project-bootstrap.md": "55ec56bc6ed09944599f4e945f5979c604b2b39db8b82c51b1d1f96011395988",
+    "skills/dev-retro/references/runtime_contracts/tracker.md": "f46086881c3985f92e225d957f179f7a5ca72dc528b2b4fcf3e728985ecb94c1",
+    "skills/dev-retro/scripts/github_task_lifecycle.py": "b7a1c58689c1fd758659c0e64ca15e52f3682a4cdeb6d8ff74701bd7269f69f4",
+    "skills/dev-retro/scripts/resolve_project_rules.py": "4cbf17c297735bf9acebd85f78895bcdda019ece27ca54f606ac3815d3c6d33f",
+    "skills/dev-retro/scripts/work_summary.py": "2975459509b003a385117feb112c4edd6afb518ef84c8ce80111e783e9dd9365",
+    "skills/dev-review-pr/SKILL.md": "1a3217ff3317dd8114e1289a4ec48359893bbde5b17146f0644017fd761426b2",
+    "skills/dev-review-pr/references/runtime_contracts/project-bootstrap.md": "55ec56bc6ed09944599f4e945f5979c604b2b39db8b82c51b1d1f96011395988",
+    "skills/dev-review-pr/references/runtime_contracts/tracker.md": "f46086881c3985f92e225d957f179f7a5ca72dc528b2b4fcf3e728985ecb94c1",
+    "skills/dev-review-pr/scripts/github_task_lifecycle.py": "b7a1c58689c1fd758659c0e64ca15e52f3682a4cdeb6d8ff74701bd7269f69f4",
+    "skills/dev-review-pr/scripts/resolve_project_rules.py": "4cbf17c297735bf9acebd85f78895bcdda019ece27ca54f606ac3815d3c6d33f",
+    "skills/dev-review-pr/scripts/work_summary.py": "2975459509b003a385117feb112c4edd6afb518ef84c8ce80111e783e9dd9365",
+    "skills/dev-setup/SKILL.md": "823ba0f35cf980415f4ade8006e845e164eb796cf330204683a9f1f9d740cc9a",
+    "skills/dev-setup/assets/claude-review.yml": "f283047b5d1ac9cbe320253133281ac5715c686744beb24601d07c3929deac1c",
+    "skills/dev-setup/references/runtime_contracts/project-bootstrap.md": "55ec56bc6ed09944599f4e945f5979c604b2b39db8b82c51b1d1f96011395988",
+    "skills/dev-setup/references/runtime_contracts/tracker.md": "f46086881c3985f92e225d957f179f7a5ca72dc528b2b4fcf3e728985ecb94c1",
+    "skills/dev-setup/scripts/github_task_lifecycle.py": "b7a1c58689c1fd758659c0e64ca15e52f3682a4cdeb6d8ff74701bd7269f69f4",
+    "skills/dev-setup/scripts/migrate_rules.py": "9105b72b95581857369887c3c34339744db80736938300c85c23318d7106798c",
+    "skills/dev-setup/scripts/resolve_project_rules.py": "4cbf17c297735bf9acebd85f78895bcdda019ece27ca54f606ac3815d3c6d33f",
+    "skills/dev-setup/scripts/work_summary.py": "2975459509b003a385117feb112c4edd6afb518ef84c8ce80111e783e9dd9365",
+    "skills/dev-status/SKILL.md": "5462ab0e8b5bc7137d4cd6f5f1d0172bfeb8174a7d254f8e0d365088c6a8233c",
+    "skills/dev-status/references/runtime_contracts/project-bootstrap.md": "55ec56bc6ed09944599f4e945f5979c604b2b39db8b82c51b1d1f96011395988",
+    "skills/dev-status/references/runtime_contracts/tracker.md": "f46086881c3985f92e225d957f179f7a5ca72dc528b2b4fcf3e728985ecb94c1",
+    "skills/dev-status/scripts/github_task_lifecycle.py": "b7a1c58689c1fd758659c0e64ca15e52f3682a4cdeb6d8ff74701bd7269f69f4",
+    "skills/dev-status/scripts/resolve_project_rules.py": "4cbf17c297735bf9acebd85f78895bcdda019ece27ca54f606ac3815d3c6d33f",
+    "skills/dev-status/scripts/work_summary.py": "2975459509b003a385117feb112c4edd6afb518ef84c8ce80111e783e9dd9365",
+    "skills/dev-verify/SKILL.md": "53d8b5490c2525a0b2422507808afa93272b79ffe9f003d65f7a32871b77504d",
+    "skills/dev-verify/references/runtime_contracts/project-bootstrap.md": "55ec56bc6ed09944599f4e945f5979c604b2b39db8b82c51b1d1f96011395988",
+    "skills/dev-verify/references/runtime_contracts/tracker.md": "f46086881c3985f92e225d957f179f7a5ca72dc528b2b4fcf3e728985ecb94c1",
+    "skills/dev-verify/scripts/github_pr.py": "af7507a7e64147901349194ba2858c7d774f4532bbd4d3da69cc0d8fc256f89c",
+    "skills/dev-verify/scripts/github_task_lifecycle.py": "b7a1c58689c1fd758659c0e64ca15e52f3682a4cdeb6d8ff74701bd7269f69f4",
+    "skills/dev-verify/scripts/resolve_project_rules.py": "4cbf17c297735bf9acebd85f78895bcdda019ece27ca54f606ac3815d3c6d33f",
+    "skills/dev-verify/scripts/work_summary.py": "2975459509b003a385117feb112c4edd6afb518ef84c8ce80111e783e9dd9365",
+    "skills/utils-llm-wiki/SKILL.md": "a4dd7fc5bdaad9310a221125bf2fb8b04a907b043e04febce8a7ed49cad0bb67",
+    "skills/utils-research/SKILL.md": "c331f87f7d0315ddc48935809a29d00d535ee47a79a93d6f8e43fca4f8e41d5f",
+    "skills/utils-retro-zh/SKILL.md": "cf61e9fafda0eeb04773308e574c47713e8513669b120e6064e8d068cb10a06f",
+    "skills/utils-retro/SKILL.md": "dc37b6e14c329f8c8e10bc7a8ee9c7f40a198bd21c246c14e857e2b2399554a6",
+    "skills/utils-security-scan/SKILL.md": "ae44781626b6bff95473207e2ea497ecffbb1edf086c8fce3563398a290fde10"
+  },
+  "generator": "tools/generate_kiro.py",
+  "generator_version": 1,
+  "plugin_versions": {
+    "dev": "0.0.74",
+    "utils": "0.0.5"
+  },
+  "skills": [
+    {
+      "argument_hint": "[delta <change summary>]",
+      "bundled_contracts": [],
+      "bundled_helpers": [],
+      "name": "dev-architect",
+      "source": "plugins/dev/skills/architect"
+    },
+    {
+      "argument_hint": "[milestone N [max N tasks] | task-id]",
+      "bundled_contracts": [
+        "project-bootstrap.md",
+        "tracker.md"
+      ],
+      "bundled_helpers": [
+        "github_pr.py",
+        "github_task_lifecycle.py",
+        "resolve_project_rules.py",
+        "work_summary.py"
+      ],
+      "name": "dev-auto",
+      "source": "plugins/dev/skills/auto"
+    },
+    {
+      "argument_hint": "[add <request> | #N | promote <id> | wont-do <id> | split <id> | triage]",
+      "bundled_contracts": [
+        "project-bootstrap.md",
+        "tracker.md"
+      ],
+      "bundled_helpers": [
+        "github_task_lifecycle.py",
+        "resolve_project_rules.py",
+        "work_summary.py"
+      ],
+      "name": "dev-backlog",
+      "source": "plugins/dev/skills/backlog"
+    },
+    {
+      "argument_hint": "[delta <change summary>]",
+      "bundled_contracts": [],
+      "bundled_helpers": [],
+      "name": "dev-discover",
+      "source": "plugins/dev/skills/discover"
+    },
+    {
+      "argument_hint": "[task-id | external #issue]",
+      "bundled_contracts": [
+        "project-bootstrap.md",
+        "tracker.md"
+      ],
+      "bundled_helpers": [
+        "github_task_lifecycle.py",
+        "resolve_project_rules.py",
+        "work_summary.py"
+      ],
+      "name": "dev-execute",
+      "source": "plugins/dev/skills/execute"
+    },
+    {
+      "argument_hint": "[merge|cleanup|merge-cleanup] [PR number or URL]",
+      "bundled_contracts": [],
+      "bundled_helpers": [
+        "github_pr.py"
+      ],
+      "name": "dev-merge-pr",
+      "source": "plugins/dev/skills/merge-pr"
+    },
+    {
+      "argument_hint": "[milestone N]",
+      "bundled_contracts": [
+        "tracker.md"
+      ],
+      "bundled_helpers": [
+        "github_task_lifecycle.py",
+        "work_summary.py"
+      ],
+      "name": "dev-plan",
+      "source": "plugins/dev/skills/plan"
+    },
+    {
+      "argument_hint": "[task <id> | milestone <n>]",
+      "bundled_contracts": [
+        "project-bootstrap.md",
+        "tracker.md"
+      ],
+      "bundled_helpers": [
+        "github_task_lifecycle.py",
+        "resolve_project_rules.py",
+        "work_summary.py"
+      ],
+      "name": "dev-retro",
+      "source": "plugins/dev/skills/retro"
+    },
+    {
+      "argument_hint": "[pr-number | task-id] [fix]",
+      "bundled_contracts": [
+        "project-bootstrap.md",
+        "tracker.md"
+      ],
+      "bundled_helpers": [
+        "github_task_lifecycle.py",
+        "resolve_project_rules.py",
+        "work_summary.py"
+      ],
+      "name": "dev-review-pr",
+      "source": "plugins/dev/skills/review-pr"
+    },
+    {
+      "argument_hint": "[project-dir]",
+      "bundled_contracts": [
+        "project-bootstrap.md",
+        "tracker.md"
+      ],
+      "bundled_helpers": [
+        "github_task_lifecycle.py",
+        "migrate_rules.py",
+        "resolve_project_rules.py",
+        "work_summary.py"
+      ],
+      "name": "dev-setup",
+      "source": "plugins/dev/skills/setup"
+    },
+    {
+      "argument_hint": "[milestone N]",
+      "bundled_contracts": [
+        "project-bootstrap.md",
+        "tracker.md"
+      ],
+      "bundled_helpers": [
+        "github_task_lifecycle.py",
+        "resolve_project_rules.py",
+        "work_summary.py"
+      ],
+      "name": "dev-status",
+      "source": "plugins/dev/skills/status"
+    },
+    {
+      "argument_hint": "[task-id | pr-number]",
+      "bundled_contracts": [
+        "project-bootstrap.md",
+        "tracker.md"
+      ],
+      "bundled_helpers": [
+        "github_pr.py",
+        "github_task_lifecycle.py",
+        "resolve_project_rules.py",
+        "work_summary.py"
+      ],
+      "name": "dev-verify",
+      "source": "plugins/dev/skills/verify"
+    },
+    {
+      "argument_hint": null,
+      "name": "utils-llm-wiki",
+      "source": "plugins/utils/skills/llm-wiki"
+    },
+    {
+      "argument_hint": null,
+      "name": "utils-research",
+      "source": "plugins/utils/skills/research"
+    },
+    {
+      "argument_hint": null,
+      "name": "utils-retro",
+      "source": "plugins/utils/skills/retro"
+    },
+    {
+      "argument_hint": null,
+      "name": "utils-security-scan",
+      "source": "plugins/utils/skills/security-scan"
+    },
+    {
+      "argument_hint": null,
+      "name": "utils-retro-zh",
+      "source": "plugins/utils/skills/回顧"
+    }
+  ]
+}
