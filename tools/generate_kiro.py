@@ -51,6 +51,8 @@ FORBIDDEN_GENERATED_TEXT = (
     "../../runtime_contracts/",
     "../../scripts/",
     "<plugin-root>",
+    "The Claude Code validator",
+    "Codex-relative form",
     PLUGIN_ROOT_TAUTOLOGY,
 )
 AGENT_TOOL_MAP = {
@@ -290,6 +292,13 @@ def transform_markdown(
             r"On Claude Code `<plugin-root>` is `\$\{CLAUDE_PLUGIN_ROOT\}`; "
             r"on Codex the script is",
             "In Kiro the script is",
+            text,
+        )
+        text = re.sub(
+            r"The Claude Code\s+validator is\s+"
+            r"`\$\{CLAUDE_PLUGIN_ROOT\}/scripts/work_summary\.py`\. "
+            r"Resolve the\s+Codex-relative form",
+            "Resolve that skill-relative form",
             text,
         )
         for old in ("${CLAUDE_PLUGIN_ROOT}/runtime_contracts/", "../../runtime_contracts/"):

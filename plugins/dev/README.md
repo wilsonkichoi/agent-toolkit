@@ -146,10 +146,14 @@ execution revision bind it to the current PR; later comments from other issue pa
 reclassify planned work. Planned review also requires the canonical issue to have exactly
 `status:in-review`; review never repairs an incomplete execute handoff. The shared
 `scripts/work_summary.py` validator owns the work-summary heading, required fields, supported
-classifications, and full 40-character execution revision for execute, review, and verify across
-all tracker backends. A planned GitHub handoff validates the exact posted comment before changing
-the status label, binding its author, PR URL, branch, and revision ancestry to the canonical
-current PR supplied to the transition command.
+classifications, and full 40-character execution revision for execute, review, verify, and auto
+across all tracker backends. Lifecycle skills resolve it from the installed plugin before use:
+`${CLAUDE_PLUGIN_ROOT}/scripts/work_summary.py` on Claude Code or `../../scripts/work_summary.py`
+relative to the invoking dev skill on Codex. The Codex form is resolved against the skill directory,
+not the adopter cwd, and its absolute path is passed into reviewer/verifier dispatches. A planned
+GitHub handoff validates the exact posted comment before changing the status label, binding its
+author, PR URL, branch, and revision ancestry to the canonical current PR supplied to the
+transition command.
 
 ## GitHub PR merge and cleanup
 

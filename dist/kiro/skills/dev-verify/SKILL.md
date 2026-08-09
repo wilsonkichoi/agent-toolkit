@@ -62,8 +62,13 @@ transition. Use legacy routing only when no task comment contains the field; nev
 lifecycle label alone to infer that no planned queue task exists. `dev:verify` does not create `In
 Progress`, `In Review`, or `Blocked` state to repair an execute failure.
 
-Before applying routing or any PR/revision binding, pass the exact candidate work-summary body
-through the shared `scripts/work_summary.py validate --file <path>` validator. It is the single
+Before applying routing or any PR/revision binding, resolve `<work-summary-validator>` from this
+installed dev plugin. In Kiro the script is
+`scripts/work_summary.py` relative to this `SKILL.md`. Resolve that skill-relative form
+against the skill directory, never the process cwd. Pass the exact candidate work-summary body
+through `uv run <work-summary-validator> validate --file <path>`. When delegating verification,
+pass the same absolute validator path in the dispatch; the agent must use the supplied path rather
+than infer one from its source, generated TOML location, or cwd. The validator is the single
 implementation of the heading, required-field, classification, duplicate-field, and
 full-40-character revision rules for GitHub and non-GitHub tracker paths. Do not duplicate those
 checks in verification logic; a parser failure is a malformed execute handoff.

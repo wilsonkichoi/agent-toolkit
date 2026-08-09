@@ -471,7 +471,7 @@ class KiroGenerationTests(unittest.TestCase):
         ).encode()
         self.assertEqual(
             hashlib.sha256(payload).hexdigest(),
-            "e950218a83553721a402abb3a22ff58e84ebee2f6b491cdcd9f72c8b5a571ddd",
+            "284f7ab1004833e3b89403f9c2088d49dbdd7d80e540c4f16660acfe816cd123",
             "Claude Code or Codex inputs changed; update this baseline only in a "
             "separately reviewed all-harness change",
         )

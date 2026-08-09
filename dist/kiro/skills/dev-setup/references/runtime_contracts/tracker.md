@@ -261,9 +261,15 @@ handoff, or a blocked stop. Failed verification is a lifecycle failure, not a re
 ### Shared work-summary validation
 
 The executable structural validator is `scripts/work_summary.py`. It is the one implementation
-for the work-summary format across `dev:execute`, `dev:review-pr`, and `dev:verify`, regardless of
-tracker backend. Invoke it as `work_summary.py validate --file <path>` against the exact comment
-body before applying any routing or lifecycle decision. It requires:
+for the work-summary format across `dev:execute`, `dev:review-pr`, `dev:verify`, and `dev:auto`,
+regardless of tracker backend. Every producer or consumer resolves it from the installed dev
+plugin before invocation. In Kiro the script is
+`scripts/work_summary.py` relative to the invoking dev skill's `SKILL.md`. Resolve that skill-relative form against that skill directory, not the adopter repository or process cwd, and
+store the resulting absolute path as `<work-summary-validator>`. Invoke it as
+`uv run <work-summary-validator> validate --file <path>` against the exact comment body before
+applying any routing or lifecycle decision. A lifecycle caller passes the same resolved path into
+every worker, reviewer, or verifier dispatch; a delegated agent never infers the helper location
+from its authoritative source path, generated TOML destination, or cwd. The validator requires:
 
 - the exact `## Work summary (dev:execute - <date>)` heading;
 - exactly one non-empty `PR`, `Branch`, `Queue classification`, `Execution repository`, and
@@ -286,8 +292,8 @@ PR:
 
 1. Read the PR's URL, author login, head branch, and head SHA from the canonical repository. Fetch
    issue comments with each comment's body, author login, creation time, and URL.
-2. Pass the exact candidate body through the shared `scripts/work_summary.py` validator. A
-   candidate must therefore have the exact heading and documented `PR:`, `Branch:`, `Queue
+2. Pass the exact candidate body through the resolved `<work-summary-validator>` from "Shared
+   work-summary validation" above. A candidate must therefore have the exact heading and documented `PR:`, `Branch:`, `Queue
    classification:`, `Execution repository:`, and `Execution revision:` fields. The parser
    accepts only `planned`, `external`, or `secondary` classifications and a full 40-character
    hexadecimal revision.
