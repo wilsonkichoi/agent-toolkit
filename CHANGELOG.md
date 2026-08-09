@@ -12,6 +12,23 @@ notes from that section at the tagged commit.
 
 Entries are newest first. Each release entry is headed by its exact tag name.
 
+## dev-v0.0.77
+
+- Added `intent_sources:` as a `.agent-toolkit/dev.md` frontmatter key, so a project whose PRD and
+  SPEC live off the `docs/` default declares them as configuration instead of as prose in a body
+  that the `context_file` reference line inlines into every session.
+- Documented the `dev:backlog` override order as repository defaults, then frontmatter
+  `intent_sources:`, then the `## Intent sources` body section, then conversational approval, with
+  frontmatter taking precedence over a present body section rather than merging the two.
+- Required the durable `Intent sources:` diagnostic to name the origin form that supplied the
+  sources, including when frontmatter took precedence over a body section.
+- Applied the existing source validation - existence at the bound revision, containment in the
+  execution or tracker repository, no `../`, absolute, or symlinked escape - unchanged to
+  frontmatter entries, failing closed rather than dropping a rejected entry.
+- Kept the `## Intent sources` body section supported with no migration and no deprecation
+  warning, and had `dev:setup` write the frontmatter key when a project's PRD and SPEC are not at
+  the default `docs/` paths without rewriting an existing body section.
+
 ## dev-v0.0.76
 
 - Added an optional structured Markdown narrative after an exact `---` work-summary delimiter,

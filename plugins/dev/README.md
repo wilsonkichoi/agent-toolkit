@@ -346,6 +346,7 @@ context file carries a single reference line to `dev.md` and is otherwise never 
 | `auto_merge` | `false` | `auto`, `verify` | Standing merge approval for `dev:auto`; see Unattended operation |
 | `rules_dir` | `.agent-toolkit/rules/` | task-scoped lifecycle skills, `retro`, `status` | Directory of promoted rule files, one per rule. Every Markdown file under it, at any depth, is discovered and must declare its own `tier` (`doctrine`, `gotcha` + triggers, or `none`); an unclassified file is a hard stop. Point it at an existing convention (e.g. `.claude/rules/`) when the project already has one, accepting the parity caveat below |
 | `context_file` | `AGENTS.md` | task-scoped lifecycle skills, `setup`, `status` | Project-owned context file loaded from the resolved execution repository; it carries the single `@.agent-toolkit/dev.md` reference line (`CLAUDE.md` on Claude-only projects), and the plugin writes nothing else there |
+| `intent_sources` | - | `backlog` | YAML list of repository-relative files carrying approved product intent, used when `docs/PRD.md` and `docs/SPEC.md` are absent. Overrides the `## Intent sources` body section when both exist; each entry is validated exactly like a body-section entry (see Backlog triage before PRD/SPEC exist) |
 | `memory_target` | `files` | `retro` | Where promotions land: the configured `rules_dir` files, or a memory MCP system (see Third-party memory systems below) |
 | `github_primary_repo` | - | every skill in fork-configured projects | Canonical `owner/repo` that owns primary GitHub issues and PRs; only valid with `tracker: github` and `fork_contributions: true` |
 | `fork_contributions` | `false` | every skill | Explicit project-owner opt-in to primary-GitHub fork routing; must be `true` with `github_primary_repo`, otherwise omit both fields |
@@ -745,8 +746,24 @@ Order for a full brownfield onboarding:
 but not yet run `dev:discover` or `dev:architect` has no `docs/PRD.md` or `docs/SPEC.md`.
 `dev:backlog` normally hard-stops when those files are absent. Two override paths exist:
 
-- *Configured sources:* add an `## Intent sources` section to `.agent-toolkit/dev.md` naming
-  the repository-relative files that carry approved product intent:
+- *Configured sources (recommended):* add an `intent_sources:` key to the `.agent-toolkit/dev.md`
+  YAML frontmatter, naming the repository-relative files that carry approved product intent:
+
+  ```yaml
+  intent_sources:
+    - AGENTS.md
+    - docs/adr/001-initial-architecture.md
+  ```
+
+  Frontmatter is the recommended form because every other project setting the plugin reads
+  lives there, and because the config *body* is inlined into every session by the `context_file`
+  reference line - a value one skill reads should not be paid for by every session in the repo.
+  `dev:setup` writes the key for you when the project's PRD and SPEC are not at the default
+  `docs/` paths.
+
+- *Configured sources (body-section fallback):* the same list may instead appear under an
+  `## Intent sources` section in the config body. It is supported, not deprecated; projects that
+  already declare one need no migration:
 
   ```markdown
   ## Intent sources
@@ -754,11 +771,14 @@ but not yet run `dev:discover` or `dev:architect` has no `docs/PRD.md` or `docs/
   - docs/adr/001-initial-architecture.md
   ```
 
+  When both forms are present the frontmatter wins, the body section is ignored rather than
+  merged, and the run's `Intent sources:` diagnostic names which form it used.
+
 - *Conversational approval:* tell the session which files to use ("use AGENTS.md and the
   runtime contracts as intent sources"). The skill reads them and proceeds, recording the
   override in its diagnostic.
 
-Both paths enforce the same gates as the default: each source must exist at the bound
+All three paths enforce the same gates as the default: each source must exist at the bound
 revision, must not escape the repository, and must provide enough information to decide
 every triage question. If a split-repository project stores `docs/PRD.md` and `docs/SPEC.md`
 in the tracker repository while execution happens elsewhere, those tracker-repository files

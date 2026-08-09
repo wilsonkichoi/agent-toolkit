@@ -59,22 +59,61 @@ Triage requires product intent documents. Resolve them in order:
    resolved repository), stop before any triage mutation. Never silently treat the issue body,
    README, or agent judgment as product intent. Report which files are missing and from which
    repository.
-4. **Explicit override.** The human may approve alternate intent sources in the current
-   conversation, or the project configuration (`.agent-toolkit/dev.md` body) may name approved
-   sources under an `## Intent sources` section:
+4. **Explicit override.** An override can arrive in three forms. Resolve them in this order and
+   use the first that supplies sources: configured frontmatter, then the configured body
+   section, then conversational approval.
 
-   ```markdown
-   ## Intent sources
-   - AGENTS.md
-   - docs/adr/001-architecture.md
-   ```
+   1. **Configured frontmatter (recommended).** The `.agent-toolkit/dev.md` YAML frontmatter may
+      carry an `intent_sources:` key whose value is a YAML list of repository-relative paths,
+      alongside `tracker`, `rules_dir`, and `context_file`:
+
+      ```yaml
+      ---
+      tracker: github
+      context_file: AGENTS.md
+      rules_dir: .agent-toolkit/rules/
+      intent_sources:
+        - AGENTS.md
+        - docs/adr/001-architecture.md
+      ---
+      ```
+
+      Accept the inline form (`intent_sources: [AGENTS.md, docs/adr/001-architecture.md]`)
+      equivalently. A key that is absent, empty, or an empty list supplies no sources: fall
+      through to the next form rather than treating it as an override of zero files.
+
+   2. **Configured body section.** The project configuration (`.agent-toolkit/dev.md` body) may
+      name approved sources under an `## Intent sources` section:
+
+      ```markdown
+      ## Intent sources
+      - AGENTS.md
+      - docs/adr/001-architecture.md
+      ```
+
+      This form is a supported fallback, not a deprecated one. A project that declares only the
+      body section resolves exactly as it did before the frontmatter key existed, with no
+      migration and no deprecation warning.
+
+   3. **Conversational approval.** The human may approve alternate intent sources in the current
+      conversation.
+
+   **Frontmatter wins over the body section.** When a project carries both, read the frontmatter
+   list and ignore the body section; never merge the two lists. Report which form supplied the
+   sources instead of silently preferring one, and name the ignored body section in that report -
+   otherwise a project whose two declarations disagree cannot tell which one the run obeyed.
 
    Each approved source must be a repository-relative file inside the resolved execution
-   repository (at the exact execution revision) or the tracker repository (at `HEAD`). Read
-   every approved source before triage. Reject:
+   repository (at the exact execution revision) or the tracker repository (at `HEAD`). Every
+   check below applies unchanged to frontmatter entries; supplying a path as configuration
+   exempts it from nothing. Read every approved source before triage. Reject:
    - A missing file (does not exist at the bound revision).
    - A path that escapes the repository (`../`, absolute, symlink outside the tree).
    - A source in neither the execution repository nor the tracker repository.
+
+   A rejected source stops the run before any triage mutation, in every form. Do not drop the
+   offending entry and proceed on the survivors: a configured list that silently shrinks makes
+   triage read intent the project never approved.
 
 5. **Sufficiency check.** After loading alternate sources, all existing triage gates still apply
    (goal-impacting, spec-impacting, backlog-only, packet-completeness, bidirectional-dependency,
@@ -85,11 +124,18 @@ Triage requires product intent documents. Resolve them in order:
 split-repository default path) includes an `Intent sources:` entry listing the exact
 repository-relative files and naming the repository each came from.
 
-When the entry records an override - approved conversationally or through the configured
-`## Intent sources` section - it also states that the default `docs/PRD.md` and `docs/SPEC.md`
-files were absent, naming which of the two was missing and from which repository. An override
-entry that lists its sources without recording that absence does not say why the override was
-permitted, so a later reader cannot tell an approved override from a normal default read.
+When the entry records an override - approved conversationally, through the frontmatter
+`intent_sources:` key, or through the configured `## Intent sources` section - it also states
+that the default `docs/PRD.md` and `docs/SPEC.md` files were absent, naming which of the two was
+missing and from which repository. An override entry that lists its sources without recording
+that absence does not say why the override was permitted, so a later reader cannot tell an
+approved override from a normal default read.
+
+The entry also names the origin form that supplied the sources: the frontmatter
+`intent_sources:` key, the `## Intent sources` body section, or conversational approval. Two
+projects with identical source lists can have reached them by different routes, and only the
+origin tells a later reader which declaration the run obeyed and which file to edit to change
+it. When frontmatter took precedence over a present body section, the entry says so.
 
 When the execution repository has no PRD/SPEC and the tracker repository supplied them, the
 entry states that instead, rather than reporting an override that did not occur - that path is
