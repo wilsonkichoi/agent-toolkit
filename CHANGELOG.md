@@ -12,6 +12,14 @@ notes from that section at the tagged commit.
 
 Entries are newest first. Each release entry is headed by its exact tag name.
 
+## dev-v0.0.75
+
+- Resolved the shared work-summary validator from the installed dev plugin on Claude Code and
+  Codex, so execute, review, verify, and auto no longer depend on the adopter repository's current
+  working directory.
+- Passed the resolved validator path into reviewer and verifier agents across authoritative and
+  generated Codex definitions, and added repository guards plus external-cwd validation coverage.
+
 ## dev-v0.0.74
 
 - Added the generated clone/copy distribution for dev skills and named agents in supported

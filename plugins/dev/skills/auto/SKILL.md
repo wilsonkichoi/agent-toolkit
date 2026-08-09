@@ -161,10 +161,16 @@ orchestrator holds the implementer's report, so it is not independent.
         to green, work summary, `In Review`.
 
    `max_fix_attempts` applies inside the implementation phase; a `Blocked` result stops
-   the pipeline. Before review, validate the execute work summary through `tracker.md` "Trusted
-   GitHub work-summary routing" and the shared `scripts/work_summary.py` validator; never accept a
-   bare `Queue classification:` field from the latest comment. For planned primary-GitHub work,
-   re-read the canonical issue and require exactly
+   the pipeline. Before review, resolve `<work-summary-validator>` from the installed dev plugin.
+   On Claude Code `<plugin-root>` is `${CLAUDE_PLUGIN_ROOT}`; on Codex the script is
+   `../../scripts/work_summary.py` relative to this `SKILL.md`. The Claude Code validator is
+   `${CLAUDE_PLUGIN_ROOT}/scripts/work_summary.py`. Resolve the Codex-relative form
+   against the skill directory, never the process cwd, then validate the execute work summary with
+   `uv run <work-summary-validator> validate --file <path>` through `tracker.md` "Trusted GitHub
+   work-summary routing". Pass that same absolute validator path unchanged to implementation
+   workers and the `reviewer` and `verifier` agents; no child may infer it from cwd or from an agent
+   source/generated TOML location. Never accept a bare `Queue classification:` field from the
+   latest comment. For planned primary-GitHub work, re-read the canonical issue and require exactly
    `status:in-review`. A missing, untrusted, unbound, or failed handoff record stops the pipeline;
    review never repairs execute-owned state.
 3. **Review** - fresh `reviewer` agent, exactly as `dev:review-pr` delegation (the dispatch

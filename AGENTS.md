@@ -128,10 +128,15 @@ work-summary routing". Do not treat the latest comment containing `Queue classif
 authoritative without its author, PR identity, branch, and revision binding. Planned review must
 also require exactly `status:in-review`; review reports other states without repairing them.
 The shared structural format is implemented once in `plugins/dev/scripts/work_summary.py` and is
-invoked by execute, review, and verify for every tracker backend. The planned GitHub transition
-requires `--work-summary-file` and the canonical current PR URL as `--pr-url`; it verifies the
-posted comment's author, PR URL, branch, revision ancestry, and exact body before changing the
-label.
+invoked by execute, review, and verify for every tracker backend. Every lifecycle surface resolves
+that helper from the installed plugin before execution: `${CLAUDE_PLUGIN_ROOT}/scripts/work_summary.py`
+on Claude Code or `../../scripts/work_summary.py` relative to the invoking dev skill on Codex.
+Callers resolve the latter against the skill directory and pass the resulting absolute path into
+reviewer/verifier dispatches; executable bare `scripts/*.py` references are forbidden because they
+resolve against the adopter cwd. `check_repo.py` tests both the helper-location guard and external-cwd
+validator execution. The planned GitHub transition requires `--work-summary-file` and the
+canonical current PR URL as `--pr-url`; it verifies the posted comment's author, PR URL, branch,
+revision ancestry, and exact body before changing the label.
 
 Primary-GitHub planned-task lifecycle writes share
 `plugins/dev/scripts/github_task_lifecycle.py` and the contract in `plugins/dev/runtime_contracts/tracker.md`.

@@ -62,8 +62,13 @@ records do not acquire queue state from incidental labels. Use legacy routing on
 has no classification field in any comment; never use a missing lifecycle label alone to infer
 external work.
 
-Before applying that routing or any PR/revision binding, pass each candidate's exact comment body
-through the shared `scripts/work_summary.py validate --file <path>` validator. It owns the heading,
+Before applying that routing or any PR/revision binding, resolve `<work-summary-validator>` from
+this installed dev plugin. In Kiro the script is
+`scripts/work_summary.py` relative to this `SKILL.md`. Resolve that skill-relative form
+against the skill directory, never the process cwd. Pass each candidate's exact comment body
+through `uv run <work-summary-validator> validate --file <path>`. When delegating review, pass the
+same absolute validator path in the dispatch; the agent must use the supplied path rather than
+infer one from its source, generated TOML location, or cwd. The validator owns the heading,
 required-field, classification, duplicate-field, and full-40-character revision rules for both
 GitHub and non-GitHub trackers. The reviewer must not reproduce those checks independently; a
 parser failure is an untrusted or malformed execute handoff.

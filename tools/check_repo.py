@@ -617,6 +617,43 @@ def check_github_task_lifecycle() -> None:
         raise CheckFailure(f"GitHub task lifecycle tests failed:\n{details}")
 
 
+_BARE_BUNDLED_HELPER_RE = re.compile(
+    r"(?<![A-Za-z0-9_./${}<>-])(?:\./)?scripts/[A-Za-z0-9_-]+\.py"
+)
+_EXECUTABLE_HELPER_PREFIX_RE = re.compile(
+    r"\b(?:run|invoke|execute|call|pass|validate)\b", re.IGNORECASE
+)
+_DIRECT_HELPER_RUNNER_RE = re.compile(
+    r"(?:\buv\s+run|\bpython(?:3(?:\.\d+)?)?)\s+`?$", re.IGNORECASE
+)
+_HELPER_SUBCOMMAND_RE = re.compile(
+    r"^`?\s*(?:validate|merge|cleanup|merge-cleanup|tag|release|redact|draft|access|search|--[a-z])\b",
+    re.IGNORECASE,
+)
+
+
+def bundled_helper_location_violations(surfaces: dict[str, str]) -> list[str]:
+    """Report executable bare bundled-helper references, independent of file layout."""
+
+    violations: list[str] = []
+    for label in sorted(surfaces):
+        for line_number, line in enumerate(surfaces[label].splitlines(), start=1):
+            for match in _BARE_BUNDLED_HELPER_RE.finditer(line):
+                prefix = line[max(0, match.start() - 180) : match.start()]
+                suffix = line[match.end() : match.end() + 80]
+                if not (
+                    _EXECUTABLE_HELPER_PREFIX_RE.search(prefix)
+                    or _DIRECT_HELPER_RUNNER_RE.search(prefix)
+                    or _HELPER_SUBCOMMAND_RE.match(suffix)
+                ):
+                    continue
+                violations.append(
+                    f"{label}:{line_number}: executable bundled helper "
+                    f"{match.group(0)!r} must resolve from the installed plugin, not process cwd"
+                )
+    return violations
+
+
 def check_work_summary_validator() -> None:
     result = subprocess.run(
         [sys.executable, str(ROOT / "tools/test_work_summary.py")],
@@ -630,6 +667,69 @@ def check_work_summary_validator() -> None:
             part.strip() for part in (result.stdout, result.stderr) if part.strip()
         )
         raise CheckFailure(f"work-summary validator tests failed:\n{details}")
+
+    skill_paths = tuple(
+        ROOT / "plugins/dev/skills" / name / "SKILL.md"
+        for name in ("auto", "execute", "review-pr", "verify")
+    )
+    agent_paths = tuple(
+        ROOT / "plugins/dev/agents" / f"{name}.md"
+        for name in ("reviewer", "verifier")
+    )
+    surfaces = {
+        relative(path): path.read_text(encoding="utf-8")
+        for path in (
+            ROOT / "plugins/dev/runtime_contracts/tracker.md",
+            *skill_paths,
+            *agent_paths,
+        )
+    }
+    for output_dir in generator.OUTPUT_DIRS:
+        for name in ("reviewer.toml", "verifier.toml"):
+            path = output_dir / name
+            parsed = tomllib.loads(path.read_text(encoding="utf-8"))
+            surfaces[relative(path)] = parsed["developer_instructions"]
+
+    violations = bundled_helper_location_violations(surfaces)
+    if violations:
+        raise CheckFailure("work-summary helper location violations:\n" + "\n".join(violations))
+
+    contract = surfaces["plugins/dev/runtime_contracts/tracker.md"]
+    for required in (
+        "${CLAUDE_PLUGIN_ROOT}/scripts/work_summary.py",
+        "../../scripts/work_summary.py",
+        "<work-summary-validator>",
+    ):
+        if required not in contract:
+            raise CheckFailure(
+                f"work-summary helper-location contract must contain {required!r}"
+            )
+
+    for path in skill_paths:
+        content = surfaces[relative(path)]
+        for required in (
+            "${CLAUDE_PLUGIN_ROOT}/scripts/work_summary.py",
+            "../../scripts/work_summary.py",
+            "<work-summary-validator>",
+        ):
+            if required not in content:
+                raise fail(
+                    path,
+                    f"work-summary lifecycle skill must resolve validator with {required!r}",
+                )
+
+    agent_marker = "supplied resolved work-summary validator path"
+    for path in agent_paths:
+        if agent_marker not in surfaces[relative(path)]:
+            raise fail(path, f"delegated agent must require the {agent_marker!r}")
+    for output_dir in generator.OUTPUT_DIRS:
+        for name in ("reviewer.toml", "verifier.toml"):
+            path = output_dir / name
+            if agent_marker not in surfaces[relative(path)]:
+                raise fail(
+                    path,
+                    "generated delegated agent must preserve the resolved validator path contract",
+                )
 
 
 def check_github_pr_helper() -> None:
@@ -774,7 +874,7 @@ def check_github_lifecycle_adoption() -> None:
             "shared `claim` command",
             "shared `block` command",
             "--to-status status:in-review",
-            "work_summary.py validate",
+            "<work-summary-validator> validate",
             "--work-summary-file",
             "--pr-url",
             "Queue classification:",
@@ -783,7 +883,7 @@ def check_github_lifecycle_adoption() -> None:
         ROOT / "plugins/dev/skills/review-pr/SKILL.md": (
             "Queue classification: planned",
             "Trusted GitHub work-summary routing",
-            "work_summary.py validate",
+            "<work-summary-validator> validate",
             "Never pass a bare",
             "require that it is open with exactly `status:in-review`",
             "never sets `status:in-progress`, `status:in-review`, or `status:blocked`",
@@ -791,7 +891,7 @@ def check_github_lifecycle_adoption() -> None:
         ROOT / "plugins/dev/skills/verify/SKILL.md": (
             "Queue classification: planned",
             "Trusted GitHub work-summary routing",
-            "work_summary.py validate",
+            "<work-summary-validator> validate",
             "Never pass a bare",
             "does not create `In Progress`, `In Review`,",
         ),
@@ -803,14 +903,14 @@ def check_github_lifecycle_adoption() -> None:
         ),
         ROOT / "plugins/dev/agents/reviewer.md": (
             "Trusted GitHub work-summary routing",
-            "work_summary.py validate",
+            "<supplied-work-summary-validator> validate",
             "comment author must equal the PR author",
             "open with exactly `status:in-review`",
             "Never add, remove, or repair lifecycle labels",
         ),
         ROOT / "plugins/dev/agents/verifier.md": (
             "Trusted GitHub work-summary routing",
-            "work_summary.py validate",
+            "<supplied-work-summary-validator> validate",
             "comment author must equal the PR author",
             "Never create or repair `In Progress`, `In",
         ),

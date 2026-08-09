@@ -290,9 +290,15 @@ If no visual criteria exist in the DoD, skip to step 7.
    - Spec gaps found: <list, or "none">
    ```
 
-   Before the lifecycle handoff, re-read the exact posted body and run the shared
-   `scripts/work_summary.py validate --file <path>` validator against it. For a planned
-   primary-GitHub task, pass the same file to the shared transition command as
+   Before the lifecycle handoff, resolve `<work-summary-validator>` from the installed dev
+   plugin before invoking it. On Claude Code `<plugin-root>` is `${CLAUDE_PLUGIN_ROOT}`; on Codex the script is
+   `../../scripts/work_summary.py` relative to this `SKILL.md`. The Claude Code validator is
+   `${CLAUDE_PLUGIN_ROOT}/scripts/work_summary.py`. Resolve the Codex-relative form
+   against the skill directory, never the process cwd, and store the resulting absolute path as
+   `<work-summary-validator>`. Re-read the exact posted body and run
+   `uv run <work-summary-validator> validate --file <path>` against it. When dispatching a worker,
+   pass that resolved path unchanged rather than asking the worker to infer the plugin location.
+   For a planned primary-GitHub task, pass the same file to the shared transition command as
    `--work-summary-file <path> --pr-url <canonical current PR URL>`; it validates the body, binds
    its author, PR URL, branch, and execution revision to that current PR, and verifies that the
    exact contents are present in the canonical issue comments before editing `status:in-review`.
