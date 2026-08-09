@@ -169,6 +169,24 @@ def parse_agent_source(path: Path, *, root: Path = ROOT) -> Agent:
     return Agent(path, name, description, body, model, color, tools)
 
 
+def validate_source_path(path: Path, *, root: Path = ROOT) -> None:
+    """Reject a discovered source reached through a symlink or outside its repository."""
+    try:
+        relative_parts = path.relative_to(root).parts
+    except ValueError as error:
+        raise GenerationError(f"source path is outside the repository: {path}") from error
+
+    candidate = root
+    for part in relative_parts:
+        candidate /= part
+        if candidate.is_symlink():
+            raise GenerationError(f"refusing symlinked source: {path}")
+    try:
+        path.resolve(strict=True).relative_to(root.resolve(strict=True))
+    except (OSError, ValueError) as error:
+        raise GenerationError(f"source path escapes the repository: {path}") from error
+
+
 def discover_agents(
     *, root: Path = ROOT, source_glob: str = SOURCE_GLOB
 ) -> list[Agent]:
@@ -177,6 +195,8 @@ def discover_agents(
         raise GenerationError(
             f"no authoritative agent sources matched {source_glob!r}"
         )
+    for path in source_paths:
+        validate_source_path(path, root=root)
     agents = [parse_agent_source(path, root=root) for path in source_paths]
     output_names = [agent.output_name for agent in agents]
     duplicates = sorted({name for name in output_names if output_names.count(name) > 1})

@@ -255,6 +255,23 @@ class KiroGenerationTests(unittest.TestCase):
         self.assertIn("demo-one -> references/runtime_contracts/absent.md", message)
         self.assertNotIn("present.md", message)
 
+    def test_bundled_reference_cannot_escape_its_skill(self) -> None:
+        stage = self.stage_skill(
+            "escaping-citation",
+            {
+                "skills/demo-escape/SKILL.md": (
+                    "---\nname: demo-escape\n---\nRun `scripts/../../../outside.py`.\n"
+                ),
+                "skills/demo-escape/scripts/present.py": "print()\n",
+                "outside.py": "print()\n",
+            },
+        )
+        with self.assertRaisesRegex(
+            kiro.KiroGenerationError, "escape their skill directory"
+        ) as caught:
+            kiro.validate_bundled_references(stage, ["demo-escape"])
+        self.assertIn("demo-escape -> scripts/../../../outside.py", str(caught.exception))
+
     def test_illustrative_paths_are_not_treated_as_citations(self) -> None:
         stage = self.stage_skill(
             "illustrative",
@@ -418,29 +435,27 @@ class KiroGenerationTests(unittest.TestCase):
             kiro.EXCLUDED_SKILL_SOURCES = original
 
     def test_kiro_generation_never_touches_what_claude_code_and_codex_read(self) -> None:
-        """Kiro support must not change dev-plugin behavior on the other harnesses.
+        """Shared inputs require an explicit baseline update and builds must be read-only.
 
-        Generation reads authoritative sources and writes only into its own staging tree. This
-        hashes every path Claude Code and Codex consume - plugin skills, contracts, helpers, agent
-        sources, generated Codex agents, and both marketplace manifests - runs a full build, and
-        requires all of them byte-unchanged. A future change that "fixes" Kiro by editing a shared
-        source fails here instead of silently altering the other two harnesses.
+        The committed digest makes a shared-source change fail before generation instead of
+        snapshotting an already-edited tree as the baseline. Updating this digest is allowed only
+        in a separately reviewed all-harness change. The second assertion independently verifies
+        that a Kiro build does not mutate any Claude Code or Codex input.
         """
-        consumed: list[Path] = []
-        for target in (
-            kiro.ROOT / "plugins",
-            kiro.ROOT / ".codex/agents",
-            kiro.ROOT / "dist/codex/agents",
-        ):
-            consumed.extend(sorted(target.rglob("*")))
-        consumed.extend(
-            [
-                kiro.ROOT / ".claude-plugin/marketplace.json",
-                kiro.ROOT / ".agents/plugins/marketplace.json",
-            ]
-        )
-
         def digests() -> dict[str, str]:
+            consumed: list[Path] = []
+            for target in (
+                kiro.ROOT / "plugins",
+                kiro.ROOT / ".codex/agents",
+                kiro.ROOT / "dist/codex/agents",
+            ):
+                consumed.extend(sorted(target.rglob("*")))
+            consumed.extend(
+                [
+                    kiro.ROOT / ".claude-plugin/marketplace.json",
+                    kiro.ROOT / ".agents/plugins/marketplace.json",
+                ]
+            )
             return {
                 path.relative_to(kiro.ROOT).as_posix(): hashlib.sha256(
                     path.read_bytes()
@@ -451,6 +466,15 @@ class KiroGenerationTests(unittest.TestCase):
 
         before = digests()
         self.assertGreater(len(before), 50, "consumption surface was not discovered")
+        payload = "".join(
+            f"{path}\0{digest}\n" for path, digest in sorted(before.items())
+        ).encode()
+        self.assertEqual(
+            hashlib.sha256(payload).hexdigest(),
+            "e950218a83553721a402abb3a22ff58e84ebee2f6b491cdcd9f72c8b5a571ddd",
+            "Claude Code or Codex inputs changed; update this baseline only in a "
+            "separately reviewed all-harness change",
+        )
         kiro.build_stage(self.temp / "readonly-probe")
         self.assertEqual(digests(), before)
 
@@ -479,6 +503,36 @@ class KiroGenerationTests(unittest.TestCase):
                 skill_map={},
                 agent_map={},
             )
+
+    def test_skill_discovery_rejects_a_symlinked_ancestor(self) -> None:
+        root = self.temp / "skill-source-root"
+        outside = self.temp / "outside-skills"
+        source = outside / "example/SKILL.md"
+        source.parent.mkdir(parents=True)
+        source.write_text(
+            "---\nname: example\ndescription: Example\n---\nBody.\n",
+            encoding="utf-8",
+        )
+        skills_link = root / "plugins/demo/skills"
+        skills_link.parent.mkdir(parents=True)
+        skills_link.symlink_to(outside, target_is_directory=True)
+        original = kiro.EXCLUDED_SKILL_SOURCES
+        kiro.EXCLUDED_SKILL_SOURCES = frozenset()
+        try:
+            with self.assertRaisesRegex(kiro.GenerationError, "symlinked source"):
+                kiro.discover_skill_paths(root=root)
+        finally:
+            kiro.EXCLUDED_SKILL_SOURCES = original
+
+    def test_agent_discovery_rejects_a_symlinked_source(self) -> None:
+        root = self.temp / "agent-source-root"
+        outside = self.temp / "outside-agent.md"
+        outside.write_text("external\n", encoding="utf-8")
+        source = root / "plugins/dev/agents/reviewer.md"
+        source.parent.mkdir(parents=True)
+        source.symlink_to(outside)
+        with self.assertRaisesRegex(kiro.GenerationError, "symlinked source"):
+            kiro.discover_agents(root=root)
 
 
 if __name__ == "__main__":

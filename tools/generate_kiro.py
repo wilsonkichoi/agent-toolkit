@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import NoReturn
 
-from agent_sources import Agent, GenerationError, discover_agents
+from agent_sources import Agent, GenerationError, discover_agents, validate_source_path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_ROOT = ROOT / "dist/kiro"
@@ -203,8 +203,7 @@ def discover_skill_paths(root: Path = ROOT) -> list[Path]:
     if not paths:
         fail("every discovered skill source is excluded from the Kiro preview")
     for path in paths:
-        if path.is_symlink() or path.parent.is_symlink():
-            fail(f"refusing symlinked skill source: {path}")
+        validate_source_path(path, root=root)
     return paths
 
 
@@ -876,12 +875,25 @@ def validate_skill_closure(skill_file: Path, record: dict[str, object]) -> None:
 
 
 def validate_bundled_references(stage: Path, skill_names: list[str]) -> None:
+    escaped: list[str] = []
     unresolved: list[str] = []
     for name in skill_names:
         skill_file = stage / "skills" / name / "SKILL.md"
+        skill_root = skill_file.parent.resolve()
         for cited in cited_bundled_paths(normalized_text(skill_file)):
-            if not (skill_file.parent / cited).is_file():
+            candidate = skill_file.parent / cited
+            try:
+                candidate.resolve().relative_to(skill_root)
+            except ValueError:
+                escaped.append(f"{name} -> {cited}")
+                continue
+            if not candidate.is_file():
                 unresolved.append(f"{name} -> {cited}")
+    if escaped:
+        fail(
+            "generated skills cite bundled resources that escape their skill directory: "
+            + "; ".join(sorted(escaped))
+        )
     if unresolved:
         fail(
             "generated skills cite bundled resources that do not resolve: "
