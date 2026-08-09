@@ -72,12 +72,23 @@ no dead pointer.
 emitted source directory to its Kiro name (`utils-retro`, `dev-retro`, `utils-retro-zh`). Names are
 never derived implicitly, and the map must cover exactly the emitted set.
 
+**Kiro never changes dev-plugin behavior on Claude Code or Codex.** Kiro is a generated consumer of
+the authoritative sources, never a reason to edit them. Every Kiro-specific concern is resolved in
+the generator or in generated output. A Kiro defect that appears to require a source edit is raised
+as a separate all-harness decision rather than folded into Kiro work.
+
 **Scope the preview to single-root Kiro IDE workspaces.** Kiro CLI, multi-root workspaces, and
 explicit agent `resources:` are unsupported and must not be advertised. Generated skills carry that
 limit in their `compatibility` field and preamble, and instruct the agent to stop if inactive-root
 instructions, steering, or resources appear.
 
 ## Consequences
+
+Adding Kiro support changed no dev-plugin runtime input: `plugins/dev/skills/`,
+`plugins/dev/runtime_contracts/`, `plugins/dev/scripts/`, `plugins/dev/agents/`, and the generated
+Codex agent TOMLs are byte-identical to the pre-Kiro state, and the only dev-plugin edits are its
+version fields and its README. A regression test enforces that going forward, so the read-only
+property is checked rather than remembered.
 
 The generated tree is 1.1 MB across 70 files, down from 4.3 MB across 206. A change to a shared
 helper now produces a diff proportional to the skills that actually use it: `github_pr.py` reaches 3

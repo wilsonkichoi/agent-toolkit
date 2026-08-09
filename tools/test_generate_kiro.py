@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import re
 import shutil
@@ -415,6 +416,43 @@ class KiroGenerationTests(unittest.TestCase):
                 kiro.discover_skill_paths()
         finally:
             kiro.EXCLUDED_SKILL_SOURCES = original
+
+    def test_kiro_generation_never_touches_what_claude_code_and_codex_read(self) -> None:
+        """Kiro support must not change dev-plugin behavior on the other harnesses.
+
+        Generation reads authoritative sources and writes only into its own staging tree. This
+        hashes every path Claude Code and Codex consume - plugin skills, contracts, helpers, agent
+        sources, generated Codex agents, and both marketplace manifests - runs a full build, and
+        requires all of them byte-unchanged. A future change that "fixes" Kiro by editing a shared
+        source fails here instead of silently altering the other two harnesses.
+        """
+        consumed: list[Path] = []
+        for target in (
+            kiro.ROOT / "plugins",
+            kiro.ROOT / ".codex/agents",
+            kiro.ROOT / "dist/codex/agents",
+        ):
+            consumed.extend(sorted(target.rglob("*")))
+        consumed.extend(
+            [
+                kiro.ROOT / ".claude-plugin/marketplace.json",
+                kiro.ROOT / ".agents/plugins/marketplace.json",
+            ]
+        )
+
+        def digests() -> dict[str, str]:
+            return {
+                path.relative_to(kiro.ROOT).as_posix(): hashlib.sha256(
+                    path.read_bytes()
+                ).hexdigest()
+                for path in consumed
+                if path.is_file() and "__pycache__" not in path.parts
+            }
+
+        before = digests()
+        self.assertGreater(len(before), 50, "consumption surface was not discovered")
+        kiro.build_stage(self.temp / "readonly-probe")
+        self.assertEqual(digests(), before)
 
     def test_copy_rejects_symlinked_resources(self) -> None:
         resource_root = self.temp / "symlinks"

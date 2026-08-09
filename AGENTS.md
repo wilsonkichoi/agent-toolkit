@@ -218,6 +218,14 @@ project-scoped `.codex/agents/` files and distributable `dist/codex/agents/` fil
 uv run tools/generate_codex_agents.py
 ```
 
+**Kiro support must never change dev-plugin behavior on Claude Code or Codex.** Kiro is a generated
+consumer of the authoritative sources, never a reason to edit them. Generation reads
+`plugins/**` and writes only into `dist/kiro/`; a Kiro-motivated change to a skill, contract,
+helper, or agent source is a stop, not a tradeoff. `tools/test_generate_kiro.py` hashes every path
+the other two harnesses consume - plugin sources, generated Codex agents, and both marketplace
+manifests - and requires them byte-unchanged across a full build. If a Kiro defect appears to need a
+source edit, raise it as a separate all-harness decision instead of folding it into Kiro work.
+
 Kiro preview artifacts are generated from authoritative skills and agents using the committed
 safe-name map. They are the committed clone/copy distribution for the validated **single-root Kiro
 IDE** preview, not a Kiro plugin-marketplace package. Kiro CLI, multi-root workspaces, and explicit
