@@ -25,6 +25,7 @@ REQUIRED_FIELDS = (
     "Execution revision",
 )
 ALLOWED_CLASSIFICATIONS = ("planned", "external", "secondary")
+NARRATIVE_DELIMITER = "---"
 HEADING_RE = re.compile(r"^## Work summary \(dev:execute - [^)\r\n]+\)$")
 FIELD_RE = re.compile(r"^- (?P<name>[^:\r\n]+): (?P<value>[^\r\n]*)$")
 FULL_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
@@ -74,6 +75,8 @@ def parse_work_summary(text: str) -> WorkSummary:
 
     fields: dict[str, str] = {}
     for line_number, line in enumerate(lines[1:], start=2):
+        if line == NARRATIVE_DELIMITER:
+            break
         if not line:
             continue
         match = FIELD_RE.fullmatch(line)

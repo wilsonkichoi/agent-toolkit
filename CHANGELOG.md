@@ -12,6 +12,14 @@ notes from that section at the tagged commit.
 
 Entries are newest first. Each release entry is headed by its exact tag name.
 
+## dev-v0.0.76
+
+- Added an optional structured Markdown narrative after an exact `---` work-summary delimiter,
+  while preserving the strict routing-header grammar and backward compatibility for undelimited
+  summaries.
+- Kept GitHub handoff fail-closed by validating routing from the header while matching and binding
+  the exact full posted body, including narrative content.
+
 ## dev-v0.0.75
 
 - Resolved the shared work-summary validator from the installed dev plugin on Claude Code and

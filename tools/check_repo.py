@@ -680,6 +680,7 @@ def check_work_summary_validator() -> None:
         relative(path): path.read_text(encoding="utf-8")
         for path in (
             ROOT / "plugins/dev/runtime_contracts/tracker.md",
+            ROOT / "plugins/dev/README.md",
             *skill_paths,
             *agent_paths,
         )
@@ -703,6 +704,18 @@ def check_work_summary_validator() -> None:
         if required not in contract:
             raise CheckFailure(
                 f"work-summary helper-location contract must contain {required!r}"
+            )
+
+    delimiter_contract = "first line containing only `---`"
+    for path in (
+        ROOT / "plugins/dev/runtime_contracts/tracker.md",
+        ROOT / "plugins/dev/skills/execute/SKILL.md",
+        ROOT / "plugins/dev/README.md",
+    ):
+        if delimiter_contract not in surfaces[relative(path)]:
+            raise fail(
+                path,
+                "work-summary delimiter boundary must name the exact `---` line",
             )
 
     for path in skill_paths:
