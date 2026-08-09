@@ -142,10 +142,15 @@ class BundledHelperLocationGuardTests(unittest.TestCase):
     def guard(self, surfaces: dict[str, str]) -> list[str]:
         return check_repo.bundled_helper_location_violations(surfaces)
 
-    def test_executable_bare_helper_references_are_reported_deterministically(self) -> None:
+    def test_executable_bare_and_dot_relative_helper_references_are_reported_deterministically(
+        self,
+    ) -> None:
         surfaces = {
             "plugins/dev/skills/execute/SKILL.md": (
                 "Run `uv run scripts/work_summary.py validate --file summary.md`."
+            ),
+            "plugins/dev/skills/verify/SKILL.md": (
+                "Run `uv run ./scripts/work_summary.py validate --file summary.md`."
             ),
             ".codex/agents/verifier.toml": (
                 'developer_instructions = "Execute `python scripts/work_summary.py validate`."'
@@ -158,7 +163,7 @@ class BundledHelperLocationGuardTests(unittest.TestCase):
             violations,
             self.guard(dict(reversed(tuple(surfaces.items())))),
         )
-        self.assertEqual(len(violations), 2)
+        self.assertEqual(len(violations), 3)
         for surface in surfaces:
             self.assertTrue(
                 any(surface in violation for violation in violations),

@@ -618,7 +618,7 @@ def check_github_task_lifecycle() -> None:
 
 
 _BARE_BUNDLED_HELPER_RE = re.compile(
-    r"(?<![A-Za-z0-9_./${}<>-])scripts/[A-Za-z0-9_-]+\.py"
+    r"(?<![A-Za-z0-9_./${}<>-])(?:\./)?scripts/[A-Za-z0-9_-]+\.py"
 )
 _EXECUTABLE_HELPER_PREFIX_RE = re.compile(
     r"\b(?:run|invoke|execute|call|pass|validate)\b", re.IGNORECASE
