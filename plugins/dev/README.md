@@ -147,7 +147,10 @@ reclassify planned work. Planned review also requires the canonical issue to hav
 `status:in-review`; review never repairs an incomplete execute handoff. The shared
 `scripts/work_summary.py` validator owns the work-summary heading, required fields, supported
 classifications, and full 40-character execution revision for execute, review, verify, and auto
-across all tracker backends. Lifecycle skills resolve it from the installed plugin before use:
+across all tracker backends. Its strict routing header ends at the first line containing only `---`;
+optional content after that exact delimiter is opaque Markdown narrative, while an undelimited
+summary retains the strict all-lines field grammar for backward compatibility.
+Lifecycle skills resolve the validator from the installed plugin before use:
 `${CLAUDE_PLUGIN_ROOT}/scripts/work_summary.py` on Claude Code or `../../scripts/work_summary.py`
 relative to the invoking dev skill on Codex. The Codex form is resolved against the skill directory,
 not the adopter cwd, and its absolute path is passed into reviewer/verifier dispatches. A planned

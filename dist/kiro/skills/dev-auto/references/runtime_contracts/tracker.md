@@ -277,12 +277,20 @@ from its authoritative source path, generated TOML destination, or cwd. The vali
 - `Queue classification` equal to `planned`, `external`, or `secondary`; and
 - `Execution revision` equal to exactly 40 hexadecimal characters.
 
-Additional work-summary fields use the same `- Field: value` syntax. Structural failures name the
-violated field or rule. The producer validates the exact body after posting and before a planned
-handoff. GitHub consumers validate the fetched candidate body with this parser before applying
-author, PR URL, branch, and revision binding. Non-GitHub consumers do the same against the exact
-tracker comment body. No lifecycle surface duplicates these field or revision checks in prose or
-code.
+The routing header starts after the heading and ends at the first line containing only `---`.
+Every nonblank line before that exact delimiter must use the `- Field: value` syntax; additional
+metadata fields are allowed there. Content after the delimiter is an optional opaque Markdown
+narrative: headings, tables, nested lists, blank lines, colons, fenced code, and field-like prose
+do not become routing fields. If the delimiter is absent, every nonblank line after the heading
+remains subject to the strict field grammar for backward compatibility. A delimiter before all
+required routing fields therefore reports the specific missing field.
+
+Structural failures name the violated field or rule. The producer validates the exact full body
+after posting and before a planned handoff. GitHub consumers validate the fetched candidate body
+with this parser before applying author, PR URL, branch, and revision binding, while exact-comment
+matching still compares the full header, delimiter, and narrative. Non-GitHub consumers do the
+same against the exact tracker comment body. No lifecycle surface duplicates these field or
+revision checks in prose or code.
 
 ### Trusted GitHub work-summary routing
 

@@ -37,6 +37,32 @@ def summary(
     )
 
 
+def summary_with_narrative() -> str:
+    return summary() + (
+        "---\n"
+        "# Validation narrative\n"
+        "\n"
+        "Result: routing remained bound to the canonical header.\n"
+        "\n"
+        "| Surface | Evidence |\n"
+        "| --- | --- |\n"
+        "| Validator | Passed |\n"
+        "\n"
+        "1. Exercised the public CLI.\n"
+        "   - Accepted nested unordered evidence.\n"
+        "     1. Preserved nested ordered evidence.\n"
+        "2. Kept blank lines and colons: without routing side effects.\n"
+        "\n"
+        "- Queue classification: external is field-like narrative, not routing.\n"
+        "- Branch: narrative-only-branch\n"
+        "\n"
+        "```text\n"
+        "- Execution revision: not-a-routing-revision\n"
+        "---\n"
+        "```\n"
+    )
+
+
 class WorkSummaryTests(unittest.TestCase):
     def run_validator(self, text: str) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -89,6 +115,19 @@ class WorkSummaryTests(unittest.TestCase):
                 result = self.run_validator(fixture)
                 self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_structured_markdown_after_exact_delimiter_is_opaque_to_routing(self) -> None:
+        result = self.run_validator(summary_with_narrative())
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = json.loads(result.stdout)
+        self.assertEqual(output["queue_classification"], "planned")
+        self.assertEqual(output["execution_revision"], FULL_SHA)
+
+    def test_undelimited_summary_with_extra_metadata_remains_accepted(self) -> None:
+        result = self.run_validator(summary())
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_heading_must_match_exact_work_summary_heading(self) -> None:
         self.assert_invalid(
             summary().replace(
@@ -109,6 +148,74 @@ class WorkSummaryTests(unittest.TestCase):
         for field, line in fields.items():
             with self.subTest(field=field):
                 self.assert_invalid(summary().replace(line, ""), field)
+
+    def test_delimiter_before_required_field_reports_that_field_missing(self) -> None:
+        fields = {
+            "PR": "- PR: https://github.com/example/project/pull/11\n",
+            "Branch": "- Branch: task/10-example\n",
+            "Queue classification": "- Queue classification: planned\n",
+            "Execution repository": "- Execution repository: /workspace/example-project\n",
+            "Execution revision": f"- Execution revision: {FULL_SHA}\n",
+        }
+        for field, line in fields.items():
+            with self.subTest(field=field):
+                text = summary().replace(line, "") + "---\n# Narrative\n" + line
+                self.assert_invalid(text, field)
+
+    def test_only_a_line_containing_exactly_three_hyphens_is_the_delimiter(self) -> None:
+        for near_delimiter in ("--- ", " ---", "----"):
+            with self.subTest(near_delimiter=near_delimiter):
+                self.assert_invalid(
+                    summary() + near_delimiter + "\n# Narrative\n",
+                    "line",
+                    "exact",
+                )
+
+    def test_pre_delimiter_duplicate_and_malformed_lines_keep_strict_diagnostics(
+        self,
+    ) -> None:
+        self.assert_invalid(
+            summary() + "- Branch: another-branch\n---\n# Narrative\n",
+            "Branch",
+            "exactly once",
+        )
+        self.assert_invalid(
+            summary() + "Branch: missing list marker\n---\n# Narrative\n",
+            "line",
+            "exact",
+        )
+
+    def test_narrative_does_not_weaken_routing_header_value_validation(self) -> None:
+        narrative = "---\n# Narrative\n"
+        invalid_headers = {
+            "heading": summary().replace(
+                "## Work summary (dev:execute - 2026-08-03)",
+                "## Work summary (dev:execute - 2026-08-03) extra",
+            ),
+            "classification": summary(classification="todo"),
+            "revision": summary(revision="a" * 39),
+        }
+        for name, header in invalid_headers.items():
+            with self.subTest(name=name):
+                result = self.run_validator(header + narrative)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertTrue(result.stderr.strip(), "failure must be actionable")
+
+        required_lines = {
+            "PR": "- PR: https://github.com/example/project/pull/11\n",
+            "Branch": "- Branch: task/10-example\n",
+            "Queue classification": "- Queue classification: planned\n",
+            "Execution repository": "- Execution repository: /workspace/example-project\n",
+            "Execution revision": f"- Execution revision: {FULL_SHA}\n",
+        }
+        for field, line in required_lines.items():
+            with self.subTest(empty_field=field):
+                empty_line = f"- {field}: \n"
+                result = self.run_validator(
+                    summary().replace(line, empty_line) + narrative
+                )
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertTrue(result.stderr.strip(), "failure must be actionable")
 
     def test_classification_must_be_supported(self) -> None:
         self.assert_invalid(

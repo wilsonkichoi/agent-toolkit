@@ -128,7 +128,10 @@ work-summary routing". Do not treat the latest comment containing `Queue classif
 authoritative without its author, PR identity, branch, and revision binding. Planned review must
 also require exactly `status:in-review`; review reports other states without repairing them.
 The shared structural format is implemented once in `plugins/dev/scripts/work_summary.py` and is
-invoked by execute, review, and verify for every tracker backend. Every lifecycle surface resolves
+invoked by execute, review, and verify for every tracker backend. Its strict routing header ends at
+the first line containing only `---`; content after that delimiter is opaque Markdown narrative,
+while undelimited summaries retain the strict all-lines field grammar. Never duplicate either
+boundary or the parser's routing-field rules in a lifecycle surface. Every lifecycle surface resolves
 that helper from the installed plugin before execution: `${CLAUDE_PLUGIN_ROOT}/scripts/work_summary.py`
 on Claude Code or `../../scripts/work_summary.py` relative to the invoking dev skill on Codex.
 Callers resolve the latter against the skill directory and pass the resulting absolute path into

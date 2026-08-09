@@ -170,7 +170,10 @@ commit ancestry before review or verification uses their queue classification. P
 start only after the canonical issue verifies exactly `status:in-review`.
 The shared `plugins/dev/scripts/work_summary.py` validator checks the exact heading, required
 fields, supported classification, and full 40-character execution revision before that binding.
-Lifecycle skills resolve the validator from the installed plugin—not the adopter cwd—using
+Its strict routing header ends at the first line containing only `---`; optional content after
+that delimiter is opaque Markdown narrative, while undelimited summaries retain the strict
+all-lines field grammar. Lifecycle skills resolve the validator from the installed plugin—not the
+adopter cwd—using
 `${CLAUDE_PLUGIN_ROOT}/scripts/work_summary.py` on Claude Code or `../../scripts/work_summary.py`
 relative to the invoking dev skill on Codex, then pass the resolved absolute path to delegated
 reviewer and verifier agents. The planned execute handoff receives the canonical current PR URL,

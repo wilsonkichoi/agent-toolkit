@@ -34,6 +34,23 @@ VALID_WORK_SUMMARY = (
     "- Obstacles: none\n"
     "- Spec gaps found: none\n"
 )
+NARRATIVE_WORK_SUMMARY = VALID_WORK_SUMMARY + (
+    "---\n"
+    "# Validation narrative\n"
+    "\n"
+    "| Check | Result |\n"
+    "| --- | --- |\n"
+    "| Contract suite | passed |\n"
+    "\n"
+    "1. Routing header validated.\n"
+    "   - Nested evidence retained.\n"
+    "\n"
+    "- Branch: field-like narrative is not routing metadata\n"
+    "\n"
+    "```text\n"
+    "Result: passed\n"
+    "```\n"
+)
 
 
 FAKE_GH = r'''#!/usr/bin/env -S uv run --script
@@ -466,6 +483,56 @@ class GitHubTaskLifecycleTests(unittest.TestCase):
                     ],
                 )
                 self.assert_explicit_repository(calls)
+
+    def test_transition_accepts_exact_posted_structured_markdown_narrative(self) -> None:
+        result = self.lifecycle_process(
+            "transition",
+            "--from-status",
+            "status:in-progress",
+            "--to-status",
+            "status:in-review",
+            views=(
+                self.response(self.issue("status:in-progress")),
+                self.response(self.issue(comments=(NARRATIVE_WORK_SUMMARY,))),
+                self.response(self.issue("status:in-review")),
+            ),
+            edits=(self.response(),),
+            work_summary=NARRATIVE_WORK_SUMMARY,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.gh_calls()
+        self.assertEqual(
+            [call[1] if call[0] != "api" else call[0] for call in calls],
+            ["view", "view", "view", "api", "edit", "view"],
+        )
+
+    def test_transition_rejects_nonidentical_full_narrative_body(self) -> None:
+        posted_summary = NARRATIVE_WORK_SUMMARY.replace(
+            "Result: passed",
+            "Result: failed",
+        )
+        result = self.lifecycle_process(
+            "transition",
+            "--from-status",
+            "status:in-progress",
+            "--to-status",
+            "status:in-review",
+            views=(
+                self.response(self.issue("status:in-progress")),
+                self.response(self.issue(comments=(posted_summary,))),
+            ),
+            work_summary=NARRATIVE_WORK_SUMMARY,
+        )
+
+        self.assert_failure_contains(result, "exact posted comment")
+        calls = self.gh_calls()
+        self.assertEqual(
+            [call[1] if call[0] != "api" else call[0] for call in calls],
+            ["view", "view", "view"],
+        )
+        self.assertNotIn("compare", (call[1] for call in calls))
+        self.assertNotIn("edit", (call[1] for call in calls))
 
     def test_transition_writes_once_and_verifies_handoff(self) -> None:
         result = self.lifecycle_process(

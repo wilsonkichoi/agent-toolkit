@@ -288,7 +288,14 @@ If no visual criteria exist in the DoD, skip to step 7.
    - Key decisions: <non-trivial choices, or "none">
    - Obstacles: <what failed and how it was resolved, or "none">
    - Spec gaps found: <list, or "none">
+   ---
+   <optional structured Markdown evidence and decision context>
    ```
+
+   The routing header ends at the first line containing only `---`. Every nonblank line before
+   that exact delimiter must use `- Field: value`; content after it is opaque Markdown and may use
+   headings, tables, nested lists, blank lines, colons, fenced code, and field-like prose. Omit the
+   delimiter when there is no narrative; an undelimited summary retains the strict field grammar.
 
    Before the lifecycle handoff, resolve `<work-summary-validator>` from the installed dev
    plugin before invoking it. On Claude Code `<plugin-root>` is `${CLAUDE_PLUGIN_ROOT}`; on Codex the script is
