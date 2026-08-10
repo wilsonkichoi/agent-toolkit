@@ -12,6 +12,18 @@ notes from that section at the tagged commit.
 
 Entries are newest first. Each release entry is headed by its exact tag name.
 
+## dev-v0.0.78
+
+- Removed the `dev:shadow` historical-replay evaluation surface and every artifact behind it:
+  the skill, its `runtime_contracts/shadow.md` contract, the `shadow_replay.py` and
+  `shadow_pricing.json` helpers, and `tools/test_shadow_replay.py`.
+- Removed the shadow registration from `tools/check_repo.py`, the shadow entries from the Kiro
+  generator's `EXCLUDED_SKILL_SOURCES` and helper-to-contract map, and the shadow assertions
+  from `tools/test_generate_kiro.py`. The Kiro preview emits the same 12 dev skills as before,
+  and its exclusion list is now asserted to name only skills that still exist.
+- Removed shadow from the product, contributor, marketplace, authoring, Kiro-support, and diagram
+  surfaces. Historical release entries below are unchanged.
+
 ## dev-v0.0.77
 
 - Added `intent_sources:` as a `.agent-toolkit/dev.md` frontmatter key, so a project whose PRD and

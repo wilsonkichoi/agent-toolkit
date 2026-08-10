@@ -198,19 +198,6 @@ closed on an impure spike branch instead of merging the experiment or discarding
 `check_repo.py` runs `tools/test_spike_lifecycle.py`; keep the four contracts and that guard in
 lockstep.
 
-`dev:shadow` is an evaluation surface, not a lifecycle skill. Its deterministic steps live in
-`plugins/dev/scripts/shadow_replay.py` and its contract in `plugins/dev/runtime_contracts/shadow.md`; the
-skill never merges a shadow PR, never mutates the source issue or original PR, and never enters
-the planned-task queue. Shadow issues carry `experiment:shadow`, no `status:*` label, and no
-milestone; the candidate PR stays draft and `do-not-merge`, targets its `shadow-base` branch, and
-references the shadow issue with `Refs`, never `Closes`. Do not label a shadow item `planned`,
-`external`, or `secondary` to satisfy a `reviewer`/`verifier` planned-task contract; carry the
-review or verify contract into a fresh generic worker instead. `check_repo.py` runs
-`tools/test_shadow_replay.py`; keep those network-free fixture tests green.
-Open the shadow PR only after the first candidate commit is pushed; bind and re-read the exact
-head repository so fork-qualified candidate branches cannot be confused with same-named upstream
-branches.
-
 `dev:feedback` is not a lifecycle skill. It files issues only in `wilsonkichoi/agent-toolkit`,
 never mutates the current project's tracker, and does not use the project bootstrap sequence.
 Its deterministic helpers live in `plugins/dev/scripts/feedback_redact.py`; `check_repo.py` runs
@@ -244,11 +231,12 @@ claim is recorded in `docs/kiro-preview-validation.md`; no surface may claim mor
 records. The distribution decision and its scope are recorded in
 `docs/adr/0002-kiro-generated-distribution.md`.
 
-The preview ships a subset: `EXCLUDED_SKILL_SOURCES` in `tools/generate_kiro.py` keeps `feedback`,
-`release`, and `shadow` out, and the safe-name map covers exactly what is emitted. That exclusion
-is only sound because no shipped skill hands off to any of the three; `tools/test_generate_kiro.py`
-asserts that property, so never exclude a skill another shipped skill points at without also
-removing the pointer.
+The preview ships a subset: `EXCLUDED_SKILL_SOURCES` in `tools/generate_kiro.py` keeps `feedback`
+and `release` out, and the safe-name map covers exactly what is emitted. Every entry must name a
+skill source that still exists, and the exclusion is only sound because no shipped skill hands off
+to either of them; `tools/test_generate_kiro.py` asserts both properties, so never exclude a skill
+another shipped skill points at without also removing the pointer, and never leave a deleted skill
+listed as an exclusion.
 
 Kiro follows the Agent Skills standard, where the skill directory is the unit of distribution and
 references resolve relative to `SKILL.md`. There is no plugin root, so every shared contract or

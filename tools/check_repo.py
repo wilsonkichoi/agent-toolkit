@@ -836,21 +836,6 @@ def check_plugin_release() -> None:
             )
 
 
-def check_shadow_replay() -> None:
-    result = subprocess.run(
-        [sys.executable, str(ROOT / "tools/test_shadow_replay.py")],
-        cwd=ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        details = "\n".join(
-            part.strip() for part in (result.stdout, result.stderr) if part.strip()
-        )
-        raise CheckFailure(f"shadow replay tests failed:\n{details}")
-
-
 def check_feedback_redact() -> None:
     result = subprocess.run(
         [sys.executable, str(ROOT / "tools/test_feedback_redact.py")],
@@ -1051,7 +1036,6 @@ def check_project_bootstrap_adoption() -> None:
         "execute",
         "retro",
         "review-pr",
-        "shadow",
         "verify",
     )
     for name in task_scoped_skills:
@@ -1351,7 +1335,6 @@ CHECKS: tuple[tuple[str, Callable[[], None]], ...] = (
     ("work-summary-validator", check_work_summary_validator),
     ("github-pr-helper", check_github_pr_helper),
     ("plugin-release", check_plugin_release),
-    ("shadow-replay", check_shadow_replay),
     ("feedback-redact", check_feedback_redact),
     ("github-lifecycle-adoption", check_github_lifecycle_adoption),
     ("manual-review-pr-one-pass", check_manual_review_pr_one_pass_contract),

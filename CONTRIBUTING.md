@@ -108,8 +108,8 @@ the project-scoped `.codex/agents/` through `git pull` and do not copy them manu
 
 `dist/kiro/` is the generated clone/copy distribution for the validated single-root Kiro IDE
 preview. It is not installed through either plugin marketplace; Kiro CLI, multi-root workspaces, and
-explicit agent resources remain unsupported. It ships a subset of the dev plugin - `feedback`,
-`release`, and `shadow` are excluded through `EXCLUDED_SKILL_SOURCES` - and each generated dev skill
+explicit agent resources remain unsupported. It ships a subset of the dev plugin - `feedback` and
+`release` are excluded through `EXCLUDED_SKILL_SOURCES` - and each generated dev skill
 bundles only the shared contracts and helpers it needs. See
 [docs/adr/0002](docs/adr/0002-kiro-generated-distribution.md). Do not edit it directly; change the
 authoritative plugin source or `tools/kiro_names.json`, then regenerate. Adding, removing, or
@@ -211,8 +211,8 @@ The `dev` plugin is the concrete model:
 
 1. Change the authoritative skill under `plugins/dev/skills/<skill>/SKILL.md`.
 2. Update every contract surface the behavior affects. For `dev`, these can include
-   anything under `plugins/dev/runtime_contracts/` (`tracker.md`, `project-bootstrap.md`,
-   `shadow.md`) and `plugins/dev/README.md`. Update root `README.md` and `AGENTS.md` when
+   anything under `plugins/dev/runtime_contracts/` (`tracker.md`, `project-bootstrap.md`)
+   and `plugins/dev/README.md`. Update root `README.md` and `AGENTS.md` when
    repository-wide behavior or authoring rules change.
 3. If reviewer, verifier, or test-writer behavior changes, edit the corresponding Markdown source
    under `plugins/dev/agents/`, then regenerate. Never patch generated TOML directly.

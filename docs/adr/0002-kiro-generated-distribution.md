@@ -9,7 +9,7 @@ Accepted.
 ## Context
 
 The `dev` and `utils` plugins install into Claude Code and Codex as plugins. A plugin has a shared
-root, so all 15 dev skills reference one copy of each shared file:
+root, so all 14 dev skills reference one copy of each shared file:
 
 ```
 ${CLAUDE_PLUGIN_ROOT}/runtime_contracts/tracker.md
@@ -64,9 +64,8 @@ a contract brings any contract it names. The reverse direction is load-bearing -
 ship the resolver with no contract describing how to run it.
 
 **Ship a subset of the dev plugin.** `feedback` and `release` act on the agent-toolkit repository
-itself rather than an adopter's project, and `shadow` is unsupported in Kiro. All three are excluded
-through `EXCLUDED_SKILL_SOURCES`. No shipped skill hands off to any of them, so the exclusion leaves
-no dead pointer.
+itself rather than an adopter's project. Both are excluded through `EXCLUDED_SKILL_SOURCES`. No
+shipped skill hands off to either of them, so the exclusion leaves no dead pointer.
 
 **Resolve name collisions through a committed explicit map.** `tools/kiro_names.json` maps every
 emitted source directory to its Kiro name (`utils-retro`, `dev-retro`, `utils-retro-zh`). Names are
@@ -92,7 +91,7 @@ property is checked rather than remembered.
 
 The generated tree is 1.1 MB across 70 files, down from 4.3 MB across 206. A change to a shared
 helper now produces a diff proportional to the skills that actually use it: `github_pr.py` reaches 3
-skills, `plugin_release.py` and `shadow_replay.py` reach none.
+skills, `plugin_release.py` and `feedback_redact.py` reach none.
 
 Duplication does not disappear, so copies can drift. Two generator checks fail closed on that:
 every copy emitted at the same relative path under the shared closure roots must be byte-identical,
