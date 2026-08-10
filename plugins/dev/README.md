@@ -11,7 +11,7 @@ This README is the complete guide: the index (what exists, typical flow) up fron
 operating manual (prerequisites, `.agent-toolkit/dev.md` config reference, lifecycle and
 ownership rules, human gates, unattended operation) and the adoption guide. The contracts
 skills and agents read at runtime live in
-[runtime_contracts/](runtime_contracts/): tracker, project bootstrap, and shadow replay.
+[runtime_contracts/](runtime_contracts/): tracker and project bootstrap.
 
 ## Overview
 
@@ -30,7 +30,7 @@ outcomes are in [docs/kiro-preview-validation.md](../../docs/kiro-preview-valida
 distribution decision is in
 [docs/adr/0002](../../docs/adr/0002-kiro-generated-distribution.md). The preview ships 12 of these
 skills: `dev:feedback` and `dev:release` act on the agent-toolkit repository rather than an
-adopter's project, and `dev:shadow` is unsupported there, so none of the three is generated.
+adopter's project, so neither is generated.
 Kiro CLI, multi-root workspaces, and explicit agent `resources:` are unsupported.
 Dogfooding: the full lifecycle passed end-to-end on the local, GitHub Issues, and
 Linear backends (2026-07-06, Linear milestone runs through 2026-07-14), `dev:auto` completed real
@@ -49,7 +49,7 @@ Skill names below are written Claude-Code style (`/dev:execute`). Render your ha
 |---|---|---|
 | Claude Code | `/dev:execute` | full feature set (agents auto-delegate, `dev:auto` + loop mode) |
 | Codex | `$execute` | agents copied from `dist/codex/agents/`, selected via `spawn_agent`'s `agent_type` parameter; `dev:auto` supported (sibling test-writer orchestration); no `execute` loop mode |
-| Kiro IDE | `/dev-execute` | copy `dist/kiro/`; supported only in single-root workspaces for the manual lifecycle and bounded `dev:auto`; no CLI, multi-root, explicit resources, or shadow |
+| Kiro IDE | `/dev-execute` | copy `dist/kiro/`; supported only in single-root workspaces for the manual lifecycle and bounded `dev:auto`; no CLI, multi-root, or explicit resources |
 
 Install per harness: see the repo-root [README](../../README.md). Kiro uses clone/copy rather than a
 plugin marketplace; exact update and uninstall paths are in
@@ -92,7 +92,6 @@ that stop condition at its point of use.
 | `/dev:verify` | The lifecycle merge gate: evidence per DoD criterion (run tests, cite CI, perform manual steps), verification report on the PR, then human-approved merge, task → `Done`, worktree cleanup. It is the only lifecycle skill allowed to merge or set `Done`; standalone operations use `/dev:merge-pr` outside the lifecycle. Human-gate (manual/visual) criteria pass only on a recorded sign-off (a comment authored by the human) or live confirmation - PR-body checkboxes are display only, checked solely by verify. Rejects stale approvals: the approving review must target the current PR HEAD, so a post-review fix push or a rebase leaves the newer commits unreviewed. Under `auto_merge` that is a hard stop; in manual mode it is reported as a warning and the human decides. Delegates evidence gathering to the `verifier` agent when the session implemented the PR; the human gate and merge stay in the session. Approval never waives the record: the report and checkbox updates land on the PR before the merge. |
 | `/dev:retro` | Mines PR review threads, CI history, tracker comments, session transcripts, and lifecycle-contract compliance (did each step produce what its skill mandates, including steps run in the current session) for completed tasks, then closes the memory loop: evidence-cited learnings promoted into the configured memory (`rules_dir` files, `.agent-toolkit/rules/` by default, or a `memory_target` MCP system), applied on approval. Defects or follow-up work the retro uncovers route to the tracker via `/dev:backlog`, never to memory notes; the retro comment posts before the promotion gate so the record survives an abandoned session. |
 | `/dev:status` | Read-only dashboard: milestone progress, open PRs + CI state, WIP vs limit, blocked tasks, next claimable tasks, plus consistency checks (state lies, abandoned claims, missed cleanups, a missing dev-config reference line, and unclassified rule files that block every lifecycle skill). |
-| `/dev:shadow` | Unattended historical-replay evaluation (`/dev:shadow #<issue> [pr <n>]`): reconstruct a completed issue's historical base, re-implement it with the active session's model through execute → review → bounded fix → verify, then compare against the original on tests, DoD coverage, review findings, scope, time, tokens, and estimated API-equivalent cost. The draft PR opens only after the first candidate commit and binds the resolved head repository, including fork-qualified heads. Posts an audit report on an isolated `[SHADOW]` issue. Never merges; never mutates the source issue or original PR. GitHub source only in v0. |
 | `/dev:feedback` | File structured feedback (bugs, enhancements, docs gaps, workflow friction) against the agent-toolkit plugin repository. Gathers diagnostic context, redacts secrets and private data, searches for duplicates, renders a draft using the repository's issue template, and submits only after explicit human approval. Never mutates the current project's tracker. |
 
 ## Agents

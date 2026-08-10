@@ -38,7 +38,7 @@ alternates mono/prose. This is the only markup allowed in content.
 
 The content originates in `plugins/dev/skills/*/SKILL.md`, `plugins/dev/README.md`,
 `plugins/dev/runtime_contracts/*.md` and `docs/adr/`. The map deliberately shows
-12 of the 15 skills — `dev:feedback`, `dev:shadow` and `dev:release` are omitted.
+12 of the 14 skills — `dev:feedback` and `dev:release` are omitted.
 When an upstream `SKILL.md` changes, port the affected fields into
 `data/diagram.json` and run `node build.mjs --sync`.
 

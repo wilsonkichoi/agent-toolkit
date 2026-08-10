@@ -55,14 +55,12 @@
         "ci",
         "worktree",
         "agile",
-        "evaluation",
-        "shadow-replay",
         "feedback",
         "bug-report",
         "branch-cleanup",
         "release"
       ],
-      "version": "0.0.77"
+      "version": "0.0.78"
     }
   ]
 }

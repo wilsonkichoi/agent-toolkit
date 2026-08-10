@@ -7,10 +7,9 @@ single-root IDE runtime probes; what was run, on which Kiro build, and with what
 recorded in this repository's `docs/kiro-preview-validation.md`.
 
 This is a subset of the dev plugin, not a mirror of it. `dev:feedback` and `dev:release` act on the
-agent-toolkit repository itself rather than your project, and `dev:shadow` is unsupported in Kiro,
-so none of the three is generated here. Use Claude Code or Codex for those. Each generated skill
-bundles only the shared contracts and helpers it actually needs; `manifest.json` records that set
-per skill.
+agent-toolkit repository itself rather than your project, so neither is generated here. Use Claude
+Code or Codex for those. Each generated skill bundles only the shared contracts and helpers it
+actually needs; `manifest.json` records that set per skill.
 
 Kiro owns permission and trust decisions; this distribution does not install or modify those
 settings. Start in a disposable or trusted project and approve only expected operations. Lifecycle

@@ -65,8 +65,8 @@ and explicit agent `resources:` are unsupported; generated agents use Kiro's def
 inheritance and intentionally omit `resources:`.
 
 It ships a subset of the dev plugin: `dev:feedback` and `dev:release` act on the agent-toolkit
-repository rather than your project, and `dev:shadow` is unsupported in Kiro, so none of the three
-is generated. Use Claude Code or Codex for those. Because Kiro follows the
+repository rather than your project, so neither is generated. Use Claude Code or Codex for those.
+Because Kiro follows the
 [Agent Skills](https://agentskills.io/specification) standard, where a skill directory is the unit
 of distribution and references resolve relative to `SKILL.md`, each generated skill bundles only the
 shared contracts and helpers it needs; `dist/kiro/manifest.json` records that set per skill. The
@@ -136,9 +136,9 @@ Plugin-specific documentation is in [plugins/utils/README.md](plugins/utils/READ
 Kiro's generated preview is a separate copy-only distribution, not a third plugin marketplace.
 Its supported surface is single-root Kiro IDE workspaces: utility skills, named dev agents, the
 manual lifecycle, and bounded `dev:auto`. Invoke generated names such as `/utils-research` and
-`/dev-execute`; the non-ASCII retrospective alias is `/utils-retro-zh`. `dev:feedback`,
-`dev:release`, and `dev:shadow` are not generated for Kiro. CLI, multi-root, and explicit-resource
-behavior are outside the supported surface.
+`/dev-execute`; the non-ASCII retrospective alias is `/utils-retro-zh`. `dev:feedback` and
+`dev:release` are not generated for Kiro. CLI, multi-root, and explicit-resource behavior are
+outside the supported surface.
 
 Codex's default `agents.max_depth = 1` prevents nested subagent spawning. The `dev:auto` Codex path
 therefore dispatches its implementation worker and `test-writer` as siblings. Standalone
@@ -156,9 +156,6 @@ themselves, pinned to an immutable release tag:
 ```yaml
 - uses: wilsonkichoi/agent-toolkit/.github/actions/check-rules@dev-v0.0.70
 ```
-
-`dev:shadow` opens its isolated draft PR only after the replay has produced a candidate commit,
-and binds the PR head to the resolved push repository for both same-repository and fork routing.
 
 A spike's durable decision artifacts merge; only its experiment is throwaway. The ADR and any
 directly required documentation or index update are repository content, so `dev:verify` merges

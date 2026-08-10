@@ -29,14 +29,13 @@ GENERATOR_VERSION = 1
 KIRO_NAME_RE = re.compile(r"[a-z0-9-]{1,64}")
 SKILL_SOURCE_GLOB = "plugins/*/skills/*/SKILL.md"
 # Skill sources deliberately kept out of the Kiro preview. `feedback` and `release` act on the
-# agent-toolkit repository itself rather than an adopter's project, and `shadow` is unsupported in
-# Kiro. No shipped skill hands off to any of them, so excluding them leaves no dead pointer; the
-# tests assert that property rather than trusting this comment.
+# agent-toolkit repository itself rather than an adopter's project. No shipped skill hands off to
+# either of them, so excluding them leaves no dead pointer; the tests assert that property rather
+# than trusting this comment.
 EXCLUDED_SKILL_SOURCES = frozenset(
     {
         "plugins/dev/skills/feedback",
         "plugins/dev/skills/release",
-        "plugins/dev/skills/shadow",
     }
 )
 SKILL_FIELDS = {"name", "description", "argument-hint"}
@@ -267,7 +266,7 @@ def transform_markdown(
     # Rewrite a bare `/<source-name>` only in a genuine invocation position: the start of the
     # text, or immediately after whitespace, a backtick, or an opening parenthesis. The lead is
     # a positive constraint rather than a blocklist so path segments and prose keep their source
-    # spelling - `plugins/dev/skills/feedback/SKILL.md`, `runtime_contracts/shadow.md`,
+    # spelling - `plugins/dev/skills/feedback/SKILL.md`, `runtime_contracts/tracker.md`,
     # `id/title/status`, and `review/verify` are all left alone.
     text = re.sub(
         rf"(?P<lead>\A|[\s`(])/{re.escape(source_name)}(?![A-Za-z0-9_-])",
@@ -449,10 +448,9 @@ single-root IDE runtime probes; what was run, on which Kiro build, and with what
 recorded in this repository's `docs/kiro-preview-validation.md`.
 
 This is a subset of the dev plugin, not a mirror of it. `dev:feedback` and `dev:release` act on the
-agent-toolkit repository itself rather than your project, and `dev:shadow` is unsupported in Kiro,
-so none of the three is generated here. Use Claude Code or Codex for those. Each generated skill
-bundles only the shared contracts and helpers it actually needs; `manifest.json` records that set
-per skill.
+agent-toolkit repository itself rather than your project, so neither is generated here. Use Claude
+Code or Codex for those. Each generated skill bundles only the shared contracts and helpers it
+actually needs; `manifest.json` records that set per skill.
 
 Kiro owns permission and trust decisions; this distribution does not install or modify those
 settings. Start in a disposable or trusted project and approve only expected operations. Lifecycle
@@ -843,8 +841,6 @@ HELPER_GOVERNING_CONTRACT = {
     "resolve_project_rules.py": "project-bootstrap.md",
     "github_task_lifecycle.py": "tracker.md",
     "work_summary.py": "tracker.md",
-    "shadow_replay.py": "shadow.md",
-    "shadow_pricing.json": "shadow.md",
 }
 
 

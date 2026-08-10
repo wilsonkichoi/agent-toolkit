@@ -42,7 +42,7 @@ repository, with an independent `git status --short` check after each run.
 | Explicit agent `resources:` | **not demonstrated** - generated profiles omit the field |
 | `max_fix_attempts` exhaustion | **not demonstrated** - no legitimate review requested changes |
 | Kiro CLI (any version) | **not tested** |
-| `dev:shadow`, `dev:feedback`, `dev:release` | **not tested** - not generated for Kiro |
+| `dev:feedback`, `dev:release` | **not tested** - not generated for Kiro |
 
 The natural-language activation probe was run against a `security-scan` description that invited
 automatic activation. That description was subsequently made explicit-invocation only on every
@@ -57,7 +57,7 @@ behavior for the shipped skill. No shipped utility skill claims automatic activa
 - Generated agents intentionally omit `resources:`; current evidence does not show that declaring
   it suppresses inherited inactive-root steering.
 - CLI compatibility must not be advertised or inferred from the IDE result.
-- `dev:shadow`, `dev:feedback`, and `dev:release` are not generated for Kiro at all, so no probe
+- `dev:feedback` and `dev:release` are not generated for Kiro at all, so no probe
   covers them there. See `docs/adr/0002-kiro-generated-distribution.md`.
 
 Stop condition: if later IDE testing loses named-agent isolation, synchronous result return, or

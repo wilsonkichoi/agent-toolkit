@@ -204,10 +204,10 @@ class KiroGenerationTests(unittest.TestCase):
             ),
             ("verify", "dev-verify", "Awaiting review/verify.", "Awaiting review/verify."),
             (
-                "shadow",
-                "dev-shadow",
-                "see `references/runtime_contracts/shadow.md` first",
-                "see `references/runtime_contracts/shadow.md` first",
+                "retro",
+                "dev-retro",
+                "see `plugins/utils/skills/retro/SKILL.md` first",
+                "see `plugins/utils/skills/retro/SKILL.md` first",
             ),
             ("verify", "dev-verify", "run `/verify` now", "run `/dev-verify` now"),
             ("verify", "dev-verify", "run /verify now", "run /dev-verify now"),
@@ -366,7 +366,7 @@ class KiroGenerationTests(unittest.TestCase):
             for record in self.first_manifest["skills"]
             for helper in record.get("bundled_helpers", ())
         }
-        for unreachable in ("shadow_replay.py", "shadow_pricing.json", "plugin_release.py"):
+        for unreachable in ("plugin_release.py", "feedback_redact.py"):
             self.assertNotIn(unreachable, every_helper)
         for record in self.first_manifest["skills"]:
             skill_dir = self.first / "skills" / record["name"]
@@ -413,13 +413,21 @@ class KiroGenerationTests(unittest.TestCase):
 
     def test_excluded_skills_are_absent_and_unreferenced(self) -> None:
         emitted = {record["name"] for record in self.first_manifest["skills"]}
-        for excluded in ("dev-feedback", "dev-release", "dev-shadow"):
+        # Every excluded source still exists; nothing is described as an exclusion that the
+        # repository no longer carries.
+        self.assertEqual(
+            {Path(source).name for source in kiro.EXCLUDED_SKILL_SOURCES},
+            {"feedback", "release"},
+        )
+        for source in kiro.EXCLUDED_SKILL_SOURCES:
+            self.assertTrue((kiro.ROOT / source / "SKILL.md").is_file(), source)
+        for excluded in ("dev-feedback", "dev-release"):
             self.assertNotIn(excluded, emitted)
             self.assertFalse((self.first / "skills" / excluded).exists())
         # The exclusion is only safe because nothing shipped hands off to them.
         for path in (self.first / "skills").rglob("SKILL.md"):
             text = path.read_text(encoding="utf-8")
-            for name in ("feedback", "release", "shadow"):
+            for name in ("feedback", "release"):
                 self.assertNotIn(f"/dev-{name}", text, f"{path.parent.name} -> {name}")
                 self.assertNotIn(f"dev:{name}", text, f"{path.parent.name} -> {name}")
 
@@ -471,7 +479,7 @@ class KiroGenerationTests(unittest.TestCase):
         ).encode()
         self.assertEqual(
             hashlib.sha256(payload).hexdigest(),
-            "7192a521fa45246eef7b6aab6c5e23cc616dd1fc2f72467ced66c3c711327322",
+            "e18fe68f3e17834205fe27404bf96eaf14faf22250bf9db2ad32b90b9303f3b9",
             "Claude Code or Codex inputs changed; update this baseline only in a "
             "separately reviewed all-harness change",
         )

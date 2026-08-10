@@ -14,7 +14,7 @@
     }
   ],
   "files": {
-    "README.md": "637382706f9da95517c82af25cf3fd7a46e4a0aa6cedf74872ebbb1661240dc6",
+    "README.md": "796b8770fa3f4fab329e8bda811608f4d896a6a174cc3006391348491c2c6931",
     "agents/dev-reviewer.md": "2df0c507dacde8720eada51cf2fbccd4a379bd454bf55718ed9a79daaec248dc",
     "agents/dev-test-writer.md": "d4edafb0d9e72fddc295c699ef7410afef988c6203325991651b49256aacb06e",
     "agents/dev-verifier.md": "eed2a5652860c607c2b01dccb3f0d2f01c0af2686000c7112e53bbad88b5e3c5",
@@ -87,7 +87,7 @@
   "generator": "tools/generate_kiro.py",
   "generator_version": 1,
   "plugin_versions": {
-    "dev": "0.0.77",
+    "dev": "0.0.78",
     "utils": "0.0.5"
   },
   "skills": [

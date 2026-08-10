@@ -10,7 +10,7 @@ between Claude Code and Claude Design without losing work.
 | --- | --- |
 | The design itself (markup, styles, logic, arrow geometry) | `src/dev-plugin-diagram.dc.html` |
 | Node/edge/lane **content** — summaries, rationale, labels, positions | `data/diagram.json` |
-| Upstream skill facts (all 15 skills, provenance) | `plugins/dev/skills/*/SKILL.md` → `data/skills.upstream.json` |
+| Upstream skill facts (all 14 skills, provenance) | `plugins/dev/skills/*/SKILL.md` → `data/skills.upstream.json` |
 | Shipped artifact | `dev-plugin-diagram.html` (standalone, offline, ~1.1 MB — generated, never hand-edit) |
 | Static image | `dev-plugin-diagram.png` (generated) |
 
@@ -27,7 +27,7 @@ JSON (use it after editing content in Claude Design), and a plain `node build.mj
 refuses to run if the two disagree rather than guessing which one you meant.
 
 When a `SKILL.md` changes upstream, port the affected wording into
-`data/diagram.json` and re-sync. The map deliberately shows 12 of the 15 skills
+`data/diagram.json` and re-sync. The map deliberately shows 12 of the 14 skills
 with its own lanes and layout, so there is no automatic path from the upstream
 extraction into this file — the curation is the point.
 

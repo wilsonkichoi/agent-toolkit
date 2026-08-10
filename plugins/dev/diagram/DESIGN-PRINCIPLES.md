@@ -53,6 +53,6 @@ is carried by alignment and strong 2px rules, not by shadows or decoration.
   is described in its drawer copy instead of drawn.
 - `dev:status` has no outbound edges (read-only observer).
 - `dev:backlog` → task tracker is drawn as a clean vertical riser, not a diagonal.
-- `dev:feedback`, `dev:shadow` and `dev:release` are deliberately not on the map.
+- `dev:feedback` and `dev:release` are deliberately not on the map.
 - `dev:review-pr <pr> fix` is drawn as its own box because it is a distinct
   invocation with distinct stop semantics, but clicking it opens `dev:review-pr`.
