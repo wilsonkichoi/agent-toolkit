@@ -26,7 +26,7 @@
     "skills/dev-auto/scripts/github_task_lifecycle.py": "b7a1c58689c1fd758659c0e64ca15e52f3682a4cdeb6d8ff74701bd7269f69f4",
     "skills/dev-auto/scripts/resolve_project_rules.py": "4cbf17c297735bf9acebd85f78895bcdda019ece27ca54f606ac3815d3c6d33f",
     "skills/dev-auto/scripts/work_summary.py": "6be5426d19c91528caaacb35c0ca89ef1eb293b90aeb81cd3e093e2fa8f4d1a5",
-    "skills/dev-backlog/SKILL.md": "703dc6b76a59f7f080e503f15aa54927ee90c5f6a3f009a86ecbccdec49cf0e9",
+    "skills/dev-backlog/SKILL.md": "c10153ea1502d3590457b77d8595452be2345956312f15d87d127c02bb89719a",
     "skills/dev-backlog/references/runtime_contracts/project-bootstrap.md": "55ec56bc6ed09944599f4e945f5979c604b2b39db8b82c51b1d1f96011395988",
     "skills/dev-backlog/references/runtime_contracts/tracker.md": "cb0f8fedda0ddc1bf5d9a3e54a9a329e92b1fca3727721ae9a848a29aae623fc",
     "skills/dev-backlog/scripts/github_task_lifecycle.py": "b7a1c58689c1fd758659c0e64ca15e52f3682a4cdeb6d8ff74701bd7269f69f4",
@@ -57,7 +57,7 @@
     "skills/dev-review-pr/scripts/github_task_lifecycle.py": "b7a1c58689c1fd758659c0e64ca15e52f3682a4cdeb6d8ff74701bd7269f69f4",
     "skills/dev-review-pr/scripts/resolve_project_rules.py": "4cbf17c297735bf9acebd85f78895bcdda019ece27ca54f606ac3815d3c6d33f",
     "skills/dev-review-pr/scripts/work_summary.py": "6be5426d19c91528caaacb35c0ca89ef1eb293b90aeb81cd3e093e2fa8f4d1a5",
-    "skills/dev-setup/SKILL.md": "823ba0f35cf980415f4ade8006e845e164eb796cf330204683a9f1f9d740cc9a",
+    "skills/dev-setup/SKILL.md": "be255012bc18b7302abbcfd8b5321cd87ae3a4a01e1a947d14f6edf32b79fae7",
     "skills/dev-setup/assets/claude-review.yml": "f283047b5d1ac9cbe320253133281ac5715c686744beb24601d07c3929deac1c",
     "skills/dev-setup/references/runtime_contracts/project-bootstrap.md": "55ec56bc6ed09944599f4e945f5979c604b2b39db8b82c51b1d1f96011395988",
     "skills/dev-setup/references/runtime_contracts/tracker.md": "cb0f8fedda0ddc1bf5d9a3e54a9a329e92b1fca3727721ae9a848a29aae623fc",
@@ -87,7 +87,7 @@
   "generator": "tools/generate_kiro.py",
   "generator_version": 1,
   "plugin_versions": {
-    "dev": "0.0.76",
+    "dev": "0.0.77",
     "utils": "0.0.5"
   },
   "skills": [

@@ -209,6 +209,30 @@ Reject `fork_contributions: true` unless `tracker: github` and `github_primary_r
 present and valid. Reject `github_primary_repo` without `fork_contributions: true`; the pair is
 the explicit opt-in boundary.
 
+When the project's product-intent documents are not at the default `docs/PRD.md` and
+`docs/SPEC.md` paths - a brownfield repository that keeps them elsewhere, or one an ADR has
+already relocated - add the files `dev:backlog` should read as `intent_sources:` in the same
+frontmatter:
+
+```yaml
+intent_sources:
+  - docs/product/PRD.md
+  - docs/product/SPEC.md
+```
+
+Detect this while inspecting the project in step 1: when `docs/PRD.md` or `docs/SPEC.md` is
+absent but a product-intent equivalent exists elsewhere (an ADR-relocated path, a `docs/product/`
+or `product/` tree, an `AGENTS.md` carrying the intent), confirm the exact repository-relative
+paths with the user before writing them. Never guess a path into configuration.
+
+Omit the key entirely when the defaults apply; an empty list is not a way to say "use the
+defaults". Write the key at setup time rather than leaving the operator to discover the
+`## Intent sources` body section after `dev:backlog` hard-stops on the missing defaults. The
+body section remains supported for projects that already declare one - do not rewrite an
+existing body section into frontmatter on a re-run, because silently editing a hand-maintained
+config file is worse than carrying both supported forms. Report that the body section exists and
+that frontmatter would take precedence over it if added, then leave the choice to the user.
+
 **Ownership rule (uniform across configs):** the project owns `AGENTS.md` and `CLAUDE.md`;
 setup adds at most the single step 4 reference line there and never moves, consolidates, or
 rewrites project rules or context-file content. `rules_dir` defaults to
