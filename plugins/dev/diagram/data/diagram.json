@@ -79,8 +79,8 @@
           "plugins/dev/skills/setup/SKILL.md",
           "plugins/dev/README.md"
         ],
-        "trade_off": "Setup is deliberately non-invasive at the cost of leaving work for the human: it never overwrites an existing file without asking, never moves rule files between locations uninvited, and refuses to classify an unregistered rule file on the human's behalf. The migration helper reports unfixable files as decisions rather than rewriting them, because an unmarked file staying unmarked is a blocked resolver, which is the intended failure direction. A project pointing rules_dir at .claude/rules/ accepts a stated parity caveat: Claude Code auto-loads that directory regardless of tier frontmatter, so a skipped gotcha can still be in session context while the bootstrap record correctly reports it as not loaded.",
-        "trade_off_sources": [
+        "cost": "Setup is deliberately non-invasive at the cost of leaving work for the human: it never overwrites an existing file without asking, never moves rule files between locations uninvited, and refuses to classify an unregistered rule file on the human's behalf. The migration helper reports unfixable files as decisions rather than rewriting them, because an unmarked file staying unmarked is a blocked resolver, which is the intended failure direction. A project pointing rules_dir at .claude/rules/ accepts a stated parity caveat: Claude Code auto-loads that directory regardless of tier frontmatter, so a skipped gotcha can still be in session context while the bootstrap record correctly reports it as not loaded.",
+        "cost_sources": [
           "plugins/dev/skills/setup/SKILL.md",
           "plugins/dev/README.md",
           "docs/adr/0001-rule-registry-decoupled-from-claude-code-imports.md"
@@ -151,8 +151,8 @@
           "plugins/dev/skills/discover/SKILL.md",
           "plugins/dev/README.md"
         ],
-        "trade_off": "The PRD is capped at roughly 200 lines and carries no technical content at all, deliberately: the stated reason is that a PRD nobody re-reads reproduces the dead-document failure of the predecessor workflow (ADW's retro problem). Weak answers are challenged exactly once and then the user's call is accepted, so the skill trades exhaustive interrogation for a decision the user owns.",
-        "trade_off_sources": [
+        "cost": "The PRD is capped at roughly 200 lines and carries no technical content at all, deliberately: the stated reason is that a PRD nobody re-reads reproduces the dead-document failure of the predecessor workflow (ADW's retro problem). Weak answers are challenged exactly once and then the user's call is accepted, so the skill trades exhaustive interrogation for a decision the user owns.",
+        "cost_sources": [
           "plugins/dev/skills/discover/SKILL.md"
         ]
       },
@@ -210,8 +210,8 @@
           "plugins/dev/skills/architect/SKILL.md",
           "plugins/dev/skills/plan/SKILL.md"
         ],
-        "trade_off": "Documents only, no product code and no scaffolding, and the roadmap is capped at 2-5 milestones on the stated grounds that a 10-milestone roadmap at this stage is fiction. Trivial choices get no ADR, so the decision record is deliberately incomplete in exchange for staying readable. A genuine unknown that analysis cannot settle is not resolved here at all: it becomes a spike recommendation for dev:plan, deferring the answer to an experiment.",
-        "trade_off_sources": [
+        "cost": "Documents only, no product code and no scaffolding, and the roadmap is capped at 2-5 milestones on the stated grounds that a 10-milestone roadmap at this stage is fiction. Trivial choices get no ADR, so the decision record is deliberately incomplete in exchange for staying readable. A genuine unknown that analysis cannot settle is not resolved here at all: it becomes a spike recommendation for dev:plan, deferring the answer to an experiment.",
+        "cost_sources": [
           "plugins/dev/skills/architect/SKILL.md"
         ]
       },
@@ -270,8 +270,8 @@
           "plugins/dev/runtime_contracts/tracker.md",
           "plugins/dev/skills/plan/SKILL.md"
         ],
-        "trade_off": "One milestone per run and no planning ahead of the next one, on the stated grounds that later milestones get better packets after earlier ones ship: forward visibility is traded for packet quality. Definition-of-Done criteria must carry a decidable acceptance bar, and a qualitative criterion must enumerate the cases it covers, because an open-ended bar is how review fails to converge and is what dev:execute's packet gate rejects. Manual criteria are permitted only for genuinely human-observable things, since each one forces dev:auto to stop for a human regardless of auto_merge.",
-        "trade_off_sources": [
+        "cost": "One milestone per run and no planning ahead of the next one, on the stated grounds that later milestones get better packets after earlier ones ship: forward visibility is traded for packet quality. Definition-of-Done criteria must carry a decidable acceptance bar, and a qualitative criterion must enumerate the cases it covers, because an open-ended bar is how review fails to converge and is what dev:execute's packet gate rejects. Manual criteria are permitted only for genuinely human-observable things, since each one forces dev:auto to stop for a human regardless of auto_merge.",
+        "cost_sources": [
           "plugins/dev/skills/plan/SKILL.md",
           "plugins/dev/skills/execute/SKILL.md",
           "plugins/dev/skills/auto/SKILL.md",
@@ -357,8 +357,8 @@
           "plugins/dev/skills/backlog/SKILL.md",
           "plugins/dev/runtime_contracts/tracker.md"
         ],
-        "trade_off": "Backlog to Todo promotion is never automatic, so committed status always costs a human decision and cannot be inferred from a request's urgency. Triage refuses to run at all without resolvable product intent, which blocks the skill on brownfield projects until PRD/SPEC exist or an override is explicitly approved and recorded. Dependencies must be modeled in both directions as native tracker relations rather than as packet prose, because ordering that lives only in prose is invisible to the next-task algorithm and is how parallel sessions produce conflicting PRs.",
-        "trade_off_sources": [
+        "cost": "Backlog to Todo promotion is never automatic, so committed status always costs a human decision and cannot be inferred from a request's urgency. Triage refuses to run at all without resolvable product intent, which blocks the skill on brownfield projects until PRD/SPEC exist or an override is explicitly approved and recorded. Dependencies must be modeled in both directions as native tracker relations rather than as packet prose, because ordering that lives only in prose is invisible to the next-task algorithm and is how parallel sessions produce conflicting PRs.",
+        "cost_sources": [
           "plugins/dev/skills/backlog/SKILL.md",
           "plugins/dev/runtime_contracts/tracker.md",
           "plugins/dev/README.md"
@@ -437,8 +437,8 @@
           "plugins/dev/runtime_contracts/tracker.md",
           "plugins/dev/README.md"
         ],
-        "trade_off": "Every task stops at In Review, so a dependency chain cannot advance past its first task under loop mode (dependencies unblock only at Done); dev:auto exists because of that stated limit. The harness's built-in worktree isolation is deliberately not used, because it creates a worktree-agent-* branch no cleanup step knows about, leaking one dead branch per task, at the cost of managing worktrees by hand. An underspecified ticket is never executed on a guess: the claim is released and the task skipped in unattended mode, trading throughput for not inventing scope.",
-        "trade_off_sources": [
+        "cost": "Every task stops at In Review, so a dependency chain cannot advance past its first task under loop mode (dependencies unblock only at Done); dev:auto exists because of that stated limit. The harness's built-in worktree isolation is deliberately not used, because it creates a worktree-agent-* branch no cleanup step knows about, leaking one dead branch per task, at the cost of managing worktrees by hand. An underspecified ticket is never executed on a guess: the claim is released and the task skipped in unattended mode, trading throughput for not inventing scope.",
+        "cost_sources": [
           "plugins/dev/skills/execute/SKILL.md",
           "plugins/dev/runtime_contracts/tracker.md",
           "plugins/dev/README.md"
@@ -509,8 +509,8 @@
           "plugins/dev/skills/review-pr/SKILL.md",
           "plugins/dev/skills/verify/SKILL.md"
         ],
-        "trade_off": "One action per user command, which means a request-changes verdict does not start fix mode and a fix push does not trigger the re-review; the human issues the next command, or dev:auto does. BLOCKER severity is deliberately constrained: a finding must cite the DoD or spec clause the diff violates or a regression it introduces AND give a concrete failure scenario, and a defect fully caught by a mandatory downstream gate the task ships is at most a SUGGESTION. Re-review convergence bounds each later pass to regressions, genuinely new findings, or still-unaddressed prior findings, forbidding a fresh edge case of a category already pushed on. Both rules accept that some real imperfections ship as SUGGESTIONs, because the alternative is a review that never converges.",
-        "trade_off_sources": [
+        "cost": "One action per user command, which means a request-changes verdict does not start fix mode and a fix push does not trigger the re-review; the human issues the next command, or dev:auto does. BLOCKER severity is deliberately constrained: a finding must cite the DoD or spec clause the diff violates or a regression it introduces AND give a concrete failure scenario, and a defect fully caught by a mandatory downstream gate the task ships is at most a SUGGESTION. Re-review convergence bounds each later pass to regressions, genuinely new findings, or still-unaddressed prior findings, forbidding a fresh edge case of a category already pushed on. Both rules accept that some real imperfections ship as SUGGESTIONs, because the alternative is a review that never converges.",
+        "cost_sources": [
           "plugins/dev/skills/review-pr/SKILL.md",
           "AGENTS.md",
           "plugins/dev/README.md"
@@ -582,8 +582,8 @@
           "plugins/dev/runtime_contracts/tracker.md",
           "plugins/dev/README.md"
         ],
-        "trade_off": "A manual or visual criterion always requires a human, a recorded sign-off or a live confirmation, regardless of configuration; auto_merge never substitutes for it, so unattended runs stop on exactly those tasks. A PR-body checkbox is treated as display only because it carries no author or timestamp and therefore proves nothing, which costs an extra recorded comment per human-gate criterion. A stale approving review is rejected even for a content-identical rebase, with the stated reasoning that accepting the re-review is cheap and never wrong.",
-        "trade_off_sources": [
+        "cost": "A manual or visual criterion always requires a human, a recorded sign-off or a live confirmation, regardless of configuration; auto_merge never substitutes for it, so unattended runs stop on exactly those tasks. A PR-body checkbox is treated as display only because it carries no author or timestamp and therefore proves nothing, which costs an extra recorded comment per human-gate criterion. A stale approving review is rejected even for a content-identical rebase, with the stated reasoning that accepting the re-review is cheap and never wrong.",
+        "cost_sources": [
           "plugins/dev/skills/verify/SKILL.md",
           "plugins/dev/skills/auto/SKILL.md",
           "plugins/dev/README.md"
@@ -666,8 +666,8 @@
           "plugins/dev/README.md",
           "plugins/dev/runtime_contracts/tracker.md"
         ],
-        "trade_off": "Unattended merging costs a standing, revocable human approval written into config (auto_merge: true) plus three conditions checked per merge; a manual DoD criterion without a recorded sign-off stops the pipeline no matter what the config says. Single-flight throughput is accepted so that parallelism stays a human decision. Unattended retro never writes a rule file, because standing instructions change only with a human in the loop, so promotions accumulate as proposals for a later pass. The orchestrator may never substitute its own inline review or verification when an agent fails, since it holds the implementer's report and is therefore not independent.",
-        "trade_off_sources": [
+        "cost": "Unattended merging costs a standing, revocable human approval written into config (auto_merge: true) plus three conditions checked per merge; a manual DoD criterion without a recorded sign-off stops the pipeline no matter what the config says. Single-flight throughput is accepted so that parallelism stays a human decision. Unattended retro never writes a rule file, because standing instructions change only with a human in the loop, so promotions accumulate as proposals for a later pass. The orchestrator may never substitute its own inline review or verification when an agent fails, since it holds the implementer's report and is therefore not independent.",
+        "cost_sources": [
           "plugins/dev/skills/auto/SKILL.md",
           "plugins/dev/skills/verify/SKILL.md",
           "plugins/dev/README.md"
@@ -739,8 +739,8 @@
           "docs/adr/0001-rule-registry-decoupled-from-claude-code-imports.md",
           "plugins/dev/README.md"
         ],
-        "trade_off": "Session-transcript evidence is machine-local and single-harness by deliberate choice: bridging proprietary, undocumented session formats across providers is judged not worth it, so a retro run on another machine or after a different harness simply lacks transcripts and relies on the durable server and git evidence instead. The retro comment is posted before the promotion gate, accepting a comment that lists proposals as 'not applied', because stopping the turn to ask is how a drafted retro ends up existing only in chat. Every promoted rule must pass a loop-closure test naming the concrete past failure it would have prevented; a rule that prevents nothing is dropped.",
-        "trade_off_sources": [
+        "cost": "Session-transcript evidence is machine-local and single-harness by deliberate choice: bridging proprietary, undocumented session formats across providers is judged not worth it, so a retro run on another machine or after a different harness simply lacks transcripts and relies on the durable server and git evidence instead. The retro comment is posted before the promotion gate, accepting a comment that lists proposals as 'not applied', because stopping the turn to ask is how a drafted retro ends up existing only in chat. Every promoted rule must pass a loop-closure test naming the concrete past failure it would have prevented; a rule that prevents nothing is dropped.",
+        "cost_sources": [
           "plugins/dev/skills/retro/SKILL.md"
         ]
       },
@@ -805,8 +805,8 @@
           "plugins/dev/skills/status/SKILL.md",
           "plugins/dev/README.md"
         ],
-        "trade_off": "It flags but does not fix, stated as an explicit constraint: no transitions, no comments, no fixes, only problems named with the skill that fixes them. That means every inconsistency it detects, including stale status labels, abandoned claims, orphan branches, and a blocked rules resolver, needs a second invocation of another skill to resolve.",
-        "trade_off_sources": [
+        "cost": "It flags but does not fix, stated as an explicit constraint: no transitions, no comments, no fixes, only problems named with the skill that fixes them. That means every inconsistency it detects, including stale status labels, abandoned claims, orphan branches, and a blocked rules resolver, needs a second invocation of another skill to resolve.",
+        "cost_sources": [
           "plugins/dev/skills/status/SKILL.md"
         ]
       },
@@ -873,8 +873,8 @@
           "AGENTS.md",
           "plugins/dev/README.md"
         ],
-        "trade_off": "It offers no DoD verification, no tracker transition, no verification report, and no retrospective, by design; the caller gives up the Done-means-verified guarantee in exchange for one deterministic operation. It also adds no confirmation gate of its own: a user's explicit request to merge in the current conversation is the authorization, with repository rules and the helper's refusal on a non-clean or non-mergeable PR as the remaining controls.",
-        "trade_off_sources": [
+        "cost": "It offers no DoD verification, no tracker transition, no verification report, and no retrospective, by design; the caller gives up the Done-means-verified guarantee in exchange for one deterministic operation. It also adds no confirmation gate of its own: a user's explicit request to merge in the current conversation is the authorization, with repository rules and the helper's refusal on a non-clean or non-mergeable PR as the remaining controls.",
+        "cost_sources": [
           "plugins/dev/skills/merge-pr/SKILL.md",
           "plugins/dev/README.md"
         ]
