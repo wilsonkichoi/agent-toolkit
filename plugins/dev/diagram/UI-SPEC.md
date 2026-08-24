@@ -108,7 +108,7 @@ title, lane note, 32×32 close button) above an independently scrolling body wit
 `overscroll-behavior: contain` and `padding: 16px 18px 40px`. Sections in order:
 What it does · When to use it (bullets, then "Do NOT use when" negatives) · How
 to use it (Claude Code / Codex code blocks with copy buttons, argument hint,
-argument shapes) · Why this skill exists (why separate, sources, the trade-off) ·
+argument shapes) · Why this skill exists (why separate, sources, what it costs) ·
 Human gates · Never does · Sources. Footer strip: `← →` move between cards,
 `esc` to close.
 

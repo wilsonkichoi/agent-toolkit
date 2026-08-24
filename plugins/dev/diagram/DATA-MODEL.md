@@ -19,7 +19,7 @@ DATA.skills[]       { id, lane, summary, what_it_does,
                       how_to_use:  { claude_code, codex, argument_hint?,
                                      argument_shapes[]: { shape, meaning } },
                       rationale:   { why_separate, why_separate_sources[],
-                                     trade_off, trade_off_sources[] },
+                                     cost, cost_sources[] },
                       human_gates[], never_does[], sources[] }
 DATA.aux_nodes[]    { id, kind, of?, lane, label, summary, note?, sources[] }
 DATA.edges[]        { from, to, kind: "primary"|"loop"|"optional", label }
